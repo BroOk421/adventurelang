@@ -1,0 +1,693 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tralala Game</title>
+
+    <link rel="stylesheet" href="./style.css?v=1787501152023" />
+  </head>
+
+  <body>
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Loading overlay - lumalabas habang naglilipat ng mundo
+         (loadWorld, map.js) - MIN_LOADING_MS din ang bahalang
+         "cooldown" para hindi kaagad ma-re-trigger ang parehong
+         auto-door pabalik-balik. -->
+    <div id="world-loading-overlay" class="hidden">
+      <div id="world-loading-spinner"></div>
+    </div>
+
+    <!-- Top-left HUD: pangalan, health, stamina, at level+exp - LAGING
+         nakikita (hindi tulad ng #equipment-stats na nasa loob ng bag
+         panel, kailangan pang buksan). Tingnan ang syncPlayerHud sa
+         hotbar.js. -->
+    <div id="player-hud">
+      <div id="player-hud-name">Farmer</div>
+
+      <div class="player-hud-row" id="player-hud-row-health">
+        <span class="player-hud-icon" title="Health">❤️</span>
+        <div class="player-hud-bar">
+          <div class="player-hud-bar-fill" id="player-hud-fill-health"></div>
+        </div>
+      </div>
+
+      <div class="player-hud-row" id="player-hud-row-stamina">
+        <span class="player-hud-icon" title="Stamina">⚡</span>
+        <div class="player-hud-bar">
+          <div class="player-hud-bar-fill" id="player-hud-fill-stamina"></div>
+        </div>
+      </div>
+
+      <div class="player-hud-row" id="player-hud-row-exp">
+        <span id="player-hud-level" title="Level">Lv. 1</span>
+        <div class="player-hud-bar player-hud-bar-exp">
+          <div class="player-hud-bar-fill" id="player-hud-fill-exp"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hotbar: 9-slot na inventory row (walang default na laman - lahat
+         ng item, kasama na ang carrot, ay puwedeng ilagay/ilipat kahit
+         saan sa pamamagitan ng drag/click/swap), tapos ang bag. Ang
+         pickaxe/rake/axe/arrow ay wala nang sariling slot - hawak-"V"
+         na lang para pumili (tingnan ang #tool-radial sa ibaba at ang
+         tool-radial.js). Tingnan ang hotbar.js. -->
+    <div id="hotbar">
+      <div class="hotbar-group" id="hotbar-inventory-row">
+        <!-- Lahat ng 9 slot ay ginagawa DYNAMIC ng hotbar.js
+             (renderEmptyInventorySlots) - bakante lahat hanggang may
+             i-drag/i-click ka mula sa bag. -->
+      </div>
+
+      <div class="hotbar-gap"></div>
+
+      <div class="hotbar-group">
+        <button
+          type="button"
+          class="hotbar-slot hotbar-bag"
+          id="hotbar-slot-bag"
+          title="Bag (B)"
+        >
+          <span class="hotbar-icon">🎒</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Tool radial menu: lumalabas sa gitna ng screen habang naka-hold
+         ang "V" key - itutok lang ng mouse (hindi na kailangang i-click)
+         kung saan sa 4 na direksyon papunta ang gustong pickaxe/rake/
+         axe/arrow, tapos bumitaw sa "V" para kumpirmahin. Ang "kamay"
+         (pagdampot/pag-ani) ay HINDI na rito - awtomatiko na itong
+         gumagana ngayon, kahit anong tool ang naka-equip, basta may
+         nakalapag na item o hinog na tanim sa tinuturo ng mouse
+         (tingnan ang hasHandActionAt sa dig.js). Ang torch ay HINDI rin
+         dito - i-drag na lang mula sa bag papunta sa left hand ng
+         equipment panel para i-equip (tingnan ang hotbar.js). Ang arrow
+         ay ESPESYAL - hindi ito nag-aalis ng ibang naka-equip na
+         kasangkapan (pickaxe/axe/rake) at hindi rin sila nag-aalis dito -
+         parang "cursor mode" na puwedeng kasabay ng iba (tingnan ang
+         equipArrow sa resources.js). Tingnan ang tool-radial.js. -->
+    <div id="tool-radial" class="hidden">
+      <div id="tool-radial-highlight"></div>
+      <div id="tool-radial-hub"></div>
+
+      <button
+        type="button"
+        class="tool-radial-option tool-radial-top tool-radial-locked"
+        id="tool-radial-pickaxe"
+        title="Pickaxe - kailangan munang i-craft (wala pang crafting recipe)"
+      >
+        <img src="./assets/items/pickaxe.png" alt="" class="tool-radial-icon-img" />
+      </button>
+      <button
+        type="button"
+        class="tool-radial-option tool-radial-right tool-radial-locked"
+        id="tool-radial-rake"
+        title="Rake - kailangan munang i-craft (wala pang crafting recipe)"
+      >
+        <img src="./assets/items/rake.png" alt="" class="tool-radial-icon-img" />
+      </button>
+      <button
+        type="button"
+        class="tool-radial-option tool-radial-bottom tool-radial-locked"
+        id="tool-radial-axe"
+        title="Axe - kailangan munang i-craft (wala pang crafting recipe)"
+      >
+        <img src="./assets/items/axe.png" alt="" class="tool-radial-icon-img" />
+      </button>
+      <button
+        type="button"
+        class="tool-radial-option tool-radial-left"
+        id="tool-radial-arrow"
+        title="Kamao - parang cursor lang, puwedeng kasabay ng ibang kasangkapan"
+      >
+        <img src="./assets/items/punch.png" alt="" class="tool-radial-icon-img" />
+      </button>
+    </div>
+
+    <!-- Bag panel: 4 na kolum, "craft > equipment > inventory bag >
+         crafter" - tingnan ang #craft-dock/#equipment-column/
+         #bag-panel-main/#crafter-dock sa ibaba. Bukas/sara gamit ang
+         "B" key o ang bag slot sa hotbar (walang "X" na close button
+         sa buong panel - hilahin lang sa header para ilipat). -->
+    <div id="bag-panel" class="hidden">
+      <div id="bag-panel-header"></div>
+
+      <div id="bag-panel-body">
+        <!-- Craft (DOCKED, "basic" 2x2 mode) - UNANG kolum ng
+             #bag-panel-body (craft > equipment > bag > crafter),
+             HINDI floating - naka-toggle gamit ang #bag-craft sa footer
+             ng bag (tingnan ang toggleCraftPanel/syncCraftPanel sa
+             craft.js). Bahagi ito ng #bag-panel kaya awtomatiko itong
+             nawawala kapag isinara ang buong bag. Pinaliit/hindi
+             naka-stretch (tingnan ang align-self sa style.css) - walang
+             dead space dahil maliit lang ang laman nito (2x2 grid).
+             Ang #craft-panel-body (output+input slots) ay ini-reparent
+             papasok dito ng JS kapag "basic" ang mode - tingnan ang
+             syncCraftPanel. -->
+        <div id="craft-dock" class="hidden">
+          <div id="craft-dock-label">Craft</div>
+        </div>
+
+        <!-- Equipment - RPG-style na paperdoll. Walang asset pa ang
+             helmet/tshirt/armor/gauntlets/boots/pet (emoji placeholder
+             muna) - wala pang paraan makakuha nito sa laro, naka-laan
+             lang para sa susunod na feature. Ang left/right hand lang
+             ang may aktwal na gawi ngayon (tingnan ang syncEquipmentPanel
+             sa hotbar.js): right hand = kasalukuyang naka-equip na
+             kasangkapan (Alt radial - puwedeng magkasabay sa torch, iba
+             itong kamay); left hand = kasalukuyang naka-highlight na
+             item sa hotbar, O ang torch kapag i-drag/i-double-click ito
+             papunta rito (tingnan ang "TORCH SA LEFT HAND" sa
+             hotbar.js). Puwede ring i-drag PABALIK sa bag ang laman ng
+             left/right hand para alisin ito. -->
+        <div id="equipment-column">
+          <div id="equipment-panel">
+            <div id="equip-character"></div>
+            <div id="equip-slot-ring-left" class="equip-slot" title="Ring">
+              💍
+            </div>
+            <div id="equip-slot-helmet" class="equip-slot" title="Helmet">
+              🪖
+            </div>
+            <div id="equip-slot-ring-right" class="equip-slot" title="Ring">
+              💍
+            </div>
+            <div
+              id="equip-slot-gauntlet-left"
+              class="equip-slot"
+              title="Gauntlet"
+            >
+              🧤
+            </div>
+            <div
+              id="equip-slot-gauntlet-right"
+              class="equip-slot"
+              title="Gauntlet"
+            >
+              🧤
+            </div>
+            <div id="equip-slot-tshirt" class="equip-slot" title="T-Shirt">
+              👕
+            </div>
+            <div id="equip-slot-boots" class="equip-slot" title="Boots">🥾</div>
+            <div
+              id="equip-slot-lefthand"
+              class="equip-slot"
+              title="Left Hand - naka-highlight na item, o i-drag/i-double-click dito ang torch para i-equip"
+            ></div>
+            <div id="equip-slot-pet" class="equip-slot" title="Pet">🐾</div>
+            <div
+              id="equip-slot-righthand"
+              class="equip-slot"
+              title="Right Hand - kasalukuyang naka-equip na kasangkapan"
+            ></div>
+          </div>
+
+          <!-- Stats - purong placeholder/cosmetic pa lang (wala pang
+               tunay na combat/leveling system) - naka-laan para sa
+               susunod na feature. Tingnan ang syncEquipmentStats sa
+               hotbar.js. -->
+          <div id="equipment-stats">
+            <div class="stat-row" id="stat-row-health">
+              <span class="stat-icon">❤️</span>
+              <div class="stat-bar">
+                <div class="stat-bar-fill" id="stat-fill-health"></div>
+              </div>
+            </div>
+            <div class="stat-row" id="stat-row-stamina">
+              <span class="stat-icon">⚡</span>
+              <div class="stat-bar">
+                <div class="stat-bar-fill" id="stat-fill-stamina"></div>
+              </div>
+            </div>
+            <div class="stat-row" id="stat-row-exp">
+              <span class="stat-icon">✨</span>
+              <div class="stat-bar">
+                <div class="stat-bar-fill" id="stat-fill-exp"></div>
+              </div>
+            </div>
+            <div class="stat-line">
+              <span class="stat-line-label">LVL</span>
+              <span class="stat-line-value" id="stat-value-level">1</span>
+            </div>
+            <div class="stat-line">
+              <span class="stat-line-label">ATK</span>
+              <span class="stat-line-value" id="stat-value-atk">0</span>
+            </div>
+            <div class="stat-line">
+              <span class="stat-line-label">DEF</span>
+              <span class="stat-line-value" id="stat-value-def">0</span>
+            </div>
+            <div class="stat-line">
+              <span class="stat-line-label">Crit DMG</span>
+              <span class="stat-line-value" id="stat-value-critdmg">0%</span>
+            </div>
+            <div class="stat-line">
+              <span class="stat-line-label">Crit Chance</span>
+              <span class="stat-line-value" id="stat-value-critchance">0%</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="bag-panel-main">
+          <div id="bag-panel-grid"></div>
+          <div id="bag-panel-footer">
+            <span id="bag-gold-badge">
+              <span id="bag-gold-icon">🪙</span>
+              <span id="bag-gold-count">0</span>
+            </span>
+
+            <!-- Craft - i-click para buksan/isara ang docked na crafting
+                 section (#craft-dock, katabi nito sa kanan - tingnan ang
+                 toggleCraftPanel sa craft.js). -->
+            <button type="button" id="bag-craft" title="Craft">🛠️</button>
+
+            <!-- Sort - i-click para PAGSAMAHIN (hanggang 99 bawat isa)
+                 at PAALPABETIKO (A-Z) na ayusin ang mga item sa loob ng
+                 bag grid - tingnan ang sortBagItems sa hotbar.js. -->
+            <button
+              type="button"
+              id="bag-sort"
+              title="I-sort ang mga item sa bag (A-Z)"
+            >
+              🔀
+            </button>
+
+            <!-- Trash - i-drag dito ang isang item (mula sa slot, equip
+                 slot, o mismong bag) para permanenteng tanggalin/i-delete
+                 ito (hindi tulad ng pagtapon sa canvas, na inilalapag
+                 lang ito sa mundo - tingnan ang hotbar.js). -->
+            <div
+              id="bag-trash"
+              title="I-drag dito para tanggalin/i-delete ang item"
+            >
+              🗑️
+            </div>
+          </div>
+        </div>
+
+        <!-- Crafter (DOCKED, "advanced" 3x3 mode) - HULING kolum ng
+             #bag-panel-body (craft > equipment > bag > crafter),
+             lumalabas kapag na-click ang isang naka-lagay na Crafter sa
+             mundo (tingnan ang openAdvancedCraftPanel sa craft.js -
+             ito na rin ang nagbubukas ng buong bag kung sarado pa),
+             may "✕" close button (hindi na naka-drag/floating, kaya
+             hindi na kailangan ng draggable header). Kasing-taas ng
+             equipment/bag column (tingnan ang style.css) - ang natitirang
+             dead space sa ibaba ay pinupunuan ng #craft-recipe-guide
+             (listahan ng mga puwedeng gawin - tingnan ang
+             renderCraftGuide sa craft.js). Ang #craft-panel-body
+             (output+input slots) ay ini-reparent papasok dito ng JS
+             kapag "advanced" ang mode - tingnan ang syncCraftPanel. -->
+        <div id="crafter-dock" class="hidden">
+          <div id="crafter-dock-header">
+            <span id="crafter-dock-label">Crafter</span>
+            <button type="button" id="crafter-dock-close" title="Isara">
+              <
+            </button>
+          </div>
+
+          <!-- Recipe guide - listahan ng mga craftable na item sa
+               ilalim ng dead space. I-click ang isang icon para makita
+               ang recipe nito bilang GUIDE/PREVIEW lang (naka-opacity,
+               placeholder) sa loob ng 1-9 na input slots sa itaas -
+               kailangan pa ring maglagay ng AKTWAL na item sa bawat
+               cell (i-drag mula sa bag) para talagang makapag-craft,
+               hindi ito otomatikong nalalagyan - tingnan ang
+               renderCraftGuide/getSelectedGuideRecipe sa craft.js. -->
+          <div id="craft-recipe-guide">
+            <div id="craft-recipe-guide-label">Craftable Items</div>
+            <div id="craft-recipe-guide-icons"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Craft slots (output + input grid) - IISA lang ang element na
+         ito, ini-reparent ng JS (syncCraftPanel sa craft.js) papunta sa
+         #craft-dock (basic) o #crafter-dock (advanced) depende sa mode,
+         kaya iisang set lang ng ID/event listener ang kailangan
+         panatilihin kahit dalawa ang "shell" (Craft vs Crafter). -->
+    <div id="craft-panel-body">
+      <div id="craft-output-slot" class="craft-slot"></div>
+      <div id="craft-input-grid"></div>
+    </div>
+
+    <!-- Stove panel: cooking/smelting station, FLOATING tulad ng
+         #bag-panel (may draggable header) - lumalabas kapag na-click
+         ang isang naka-lagay na Stove sa mundo (tingnan ang
+         openStovePanel sa stove.js). May 3 smelt slot sa itaas
+         (output <- ingredient <- fuel - "strictly" wood/charcoal lang
+         ang fuel), tapos buong "copy" ng inventory grid sa ibaba
+         (PAREHONG DATA mismo ng bag, hindi hiwalay na storage - tingnan
+         ang renderBagGridInto sa hotbar.js). -->
+    <div id="stove-panel" class="hidden">
+      <div id="stove-panel-header">
+        <span id="stove-panel-label">Stove</span>
+        <button
+          type="button"
+          id="stove-panel-close"
+          class="panel-no-drag"
+          title="Isara"
+        >
+          ✕
+        </button>
+      </div>
+
+      <div id="stove-smelt-row">
+        <div id="stove-output-slot" class="craft-slot"></div>
+        <span class="stove-arrow">⟵</span>
+        <div
+          class="craft-slot smelt-input-slot"
+          data-smelt-slot="ingredient"
+          title="Ingredient (wood/meat)"
+        ></div>
+        <span class="stove-arrow">⟵</span>
+        <div
+          class="craft-slot smelt-input-slot"
+          data-smelt-slot="fuel"
+          title="Fuel (wood/charcoal)"
+        ></div>
+      </div>
+
+      <div id="stove-panel-grid"></div>
+    </div>
+
+    <!-- Oldman shop panel: lumalabas kapag na-click ang oldman NPC sa
+         mundo (decor.js) - FLOATING tulad ng #stove-panel (may
+         draggable header). Grid ng mga BINEBENTA niya (i-click para
+         bumili, i-hover para makita ang presyo/pangalan). Ang
+         PAGBEBENTA sa kanya ay HINDI na dito - i-DRAG na lang ang
+         item mula sa bag/hotbar papunta dito (tingnan ang
+         getDropTargetsAt/pointerup sa hotbar.js at startOldManSellFlow
+         sa decor.js). -->
+    <div id="oldman-shop-panel" class="hidden">
+      <div id="oldman-shop-panel-header">
+        <span id="oldman-shop-panel-label">Missionary</span>
+        <button
+          type="button"
+          id="oldman-shop-panel-close"
+          class="panel-no-drag"
+          title="Isara"
+        >
+          ✕
+        </button>
+      </div>
+
+      <div id="oldman-shop-gold-row">
+        <span id="oldman-shop-gold-icon">🪙</span>
+        <span id="oldman-shop-gold-amount">0</span>
+      </div>
+
+      <div id="oldman-shop-body">
+        <div id="oldman-shop-grid"></div>
+      </div>
+    </div>
+
+    <!-- Quantity popup: lumalabas kapag nag-drop ng item na may HIGIT
+         SA 1 piraso papunta sa #oldman-shop-panel - tingnan ang
+         startOldManSellFlow/confirmOldManSell sa decor.js. -->
+    <div id="oldman-sell-qty-popup" class="hidden">
+      <div id="oldman-sell-qty-card">
+        <div id="oldman-sell-qty-header">
+          <span id="oldman-sell-qty-icon"></span>
+          <span id="oldman-sell-qty-label">Quantity?</span>
+        </div>
+
+        <div id="oldman-sell-qty-controls">
+          <button
+            type="button"
+            id="oldman-sell-qty-minus"
+            class="oldman-sell-qty-step"
+          >
+            −
+          </button>
+          <input type="number" id="oldman-sell-qty-input" min="1" value="1" />
+          <button
+            type="button"
+            id="oldman-sell-qty-plus"
+            class="oldman-sell-qty-step"
+          >
+            +
+          </button>
+        </div>
+
+        <div id="oldman-sell-qty-total">Receive: 🪙0</div>
+
+        <div id="oldman-sell-qty-actions">
+          <button type="button" id="oldman-sell-qty-cancel">Cancel</button>
+          <button type="button" id="oldman-sell-qty-confirm">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quantity popup: lumalabas kapag nag-drag ng item mula sa
+         #oldman-shop-grid papunta sa bag/hotbar, kung may HIGIT SA 1 na
+         kayang bilhin (stock at gold) - tingnan ang
+         startOldManBuyFlow/buyFromOldManQuantity sa decor.js. -->
+    <div id="oldman-buy-qty-popup" class="hidden">
+      <div id="oldman-buy-qty-card">
+        <div id="oldman-buy-qty-header">
+          <span id="oldman-buy-qty-icon"></span>
+          <span id="oldman-buy-qty-label">Quantity?</span>
+        </div>
+
+        <div id="oldman-buy-qty-controls">
+          <button
+            type="button"
+            id="oldman-buy-qty-minus"
+            class="oldman-buy-qty-step"
+          >
+            −
+          </button>
+          <input type="number" id="oldman-buy-qty-input" min="1" value="1" />
+          <button
+            type="button"
+            id="oldman-buy-qty-plus"
+            class="oldman-buy-qty-step"
+          >
+            +
+          </button>
+        </div>
+
+        <div id="oldman-buy-qty-total">Gold: 🪙0</div>
+
+        <div id="oldman-buy-qty-actions">
+          <button type="button" id="oldman-buy-qty-cancel">Cancel</button>
+          <button type="button" id="oldman-buy-qty-confirm">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings menu (burger icon) + Kalendaryo/orasan - pareho itong
+         nasa itaas-kanan, kaya magkasama sa loob ng isang flex row
+         wrapper (#top-right-bar) para hindi sila magkapatong (dynamic
+         ang lapad ng calendar-panel depende sa laman/weather icon nito).
+         Tingnan ang settings-menu.js. -->
+    <div id="top-right-bar">
+      <div id="settings-menu">
+        <div id="calendar-panel">
+          <span id="calendar-icon">☀️</span>
+          <div id="calendar-text">
+            <div id="calendar-date">Jan 1, 2000</div>
+            <div id="calendar-time">06:00</div>
+          </div>
+          <span id="calendar-weather-icon" class="hidden"></span>
+        </div>
+
+        <button type="button" id="settings-menu-button" title="Menu">☰</button>
+
+        <div id="settings-menu-dropdown" class="hidden">
+          <button type="button" id="settings-menu-save">
+            <span class="settings-menu-item-icon">💾</span> Save
+          </button>
+          <button type="button" id="settings-menu-load">
+            <span class="settings-menu-item-icon">📂</span> Load
+          </button>
+          <button type="button" id="settings-menu-settings">
+            <span class="settings-menu-item-icon">⚙️</span> Settings
+          </button>
+          <button type="button" id="settings-menu-exit">
+            <span class="settings-menu-item-icon">🚪</span> Exit
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings sub-panel (Fullscreen toggle, reset ng save data) -
+         lumalabas kapag "Settings" ang pinili sa dropdown sa itaas.
+         Tingnan ang settings-menu.js. -->
+    <div id="settings-panel" class="hidden">
+      <div id="settings-panel-header">
+        <span id="settings-panel-label">Settings</span>
+        <button type="button" id="settings-panel-close" title="Isara">✕</button>
+      </div>
+
+      <div id="settings-panel-body">
+        <button type="button" id="settings-fullscreen-toggle">
+          🖥️ Fullscreen
+        </button>
+        <button type="button" id="settings-reset-save">
+          🗑️ I-reset ang laro (burahin ang save)
+        </button>
+      </div>
+    </div>
+
+    <!-- Maikling mensahe (hal. "Na-save!") - lumalabas saglit tapos
+         nawawala mag-isa. Tingnan ang showSettingsToast sa
+         settings-menu.js. -->
+    <div id="settings-toast" class="hidden"></div>
+
+    <!-- Fade overlay (buong itim na screen) - habang "natutulog" sa
+         kama (bed.js). Tingnan ang fadeScreenThenBack sa bed.js. -->
+    <div id="bed-sleep-overlay" class="hidden"></div>
+
+    <!-- MOBILE/TOUCH CONTROLS - lumalabas LANG kapag touch device
+         (tingnan ang mobile-controls.js - nagdadagdag ng
+         "touch-controls-active" class sa <body>, hindi ito
+         lumalabas/walang epekto sa desktop, keyboard+mouse pa rin ang
+         default doon). Virtual joystick (kaliwang ibaba) - drag mula
+         sa gitna papunta sa gustong direksyon, kumakatawan ito sa
+         WASD (keys["w"/"a"/"s"/"d"] - PAREHONG global na "keys" object
+         na binabasa ng update.js), mas malayo ang hila = tumatakbo
+         (kaparehong Shift). Mga action button (kanang ibaba) - "E"
+         (pintuan) at "V" (tool radial - i-tap para buksan, tapos
+         i-tap ang gustong icon, kaparehong click-to-equip fallback na
+         nasa tool-radial.js na). -->
+    <div id="mobile-joystick">
+      <div id="mobile-joystick-base">
+        <div id="mobile-joystick-stick"></div>
+      </div>
+    </div>
+
+    <!-- Skill-cluster (kanang-ibaba, puro bilog, MLBB-style) - hiling
+         ng user: Enter/Exit at Bag/Menu na floating button ay
+         TINANGGAL na (Enter/Exit -> auto-door na ngayon, worlds.js;
+         Bag -> hotbar's own bag slot pa rin; Menu -> back-button na
+         ang bahalang magbukas nito, tingnan ang mobile-controls.js).
+         Natitira: Tools (pinaliit, inibaba) at Run (katabi ng Tools,
+         parehong nasa itaas ng Punch), at Punch bilang PINAKAMALAKING
+         button, gamit ang totoong assets/items/punch.png. -->
+    <div id="mobile-skill-cluster">
+      <button type="button" id="mobile-btn-run" class="mobile-skill-btn mobile-skill-run" title="Run (Shift)">🏃</button>
+      <button type="button" id="mobile-btn-tools" class="mobile-skill-btn mobile-skill-tools" title="Tools (V)">
+        <img src="./assets/items/pickaxe.png" alt="Tools" />
+      </button>
+      <button type="button" id="mobile-btn-punch" class="mobile-skill-btn mobile-skill-punch" title="Punch">
+        <img src="./assets/items/punch.png" alt="Punch" />
+      </button>
+    </div>
+
+    <script src="./js/canvas.js?v=1787160000000"></script>
+    <script src="./js/assets.js?v=1787160000000"></script>
+    <script src="./js/audio.js?v=1787369862288"></script>
+    <!-- gametime.js: ang "game clock" (epoch + sleep offset) - walang
+         dependency, kaya puwede itong maaga (basta pagkatapos ng
+         assets.js). Ginagamit ito ng calendar.js/atmosphere.js/dig.js/
+         decor.js/resources.js/snow.js (getGameNow()) at ng bed.js
+         (advanceGameTime()). -->
+    <script src="./js/gametime.js?v=1787160000000"></script>
+    <script src="./js/player.js?v=1787499284504"></script>
+    <script src="./js/camera.js?v=1787160000000"></script>
+    <script src="./js/input.js?v=1787160000000"></script>
+    <script src="./js/collisions.js?v=1787239415311"></script>
+    <!-- worlds.js ay dapat mauna sa map.js - dun nakalista ang mga mapa
+         at pintuan, at ginagamit agad ito ng map.js pagka-load. -->
+    <script src="./js/worlds.js?v=1787499284504"></script>
+    <script src="./js/footprints.js?v=1787160000000"></script>
+    <script src="./js/map.js?v=1787499284504"></script>
+    <!-- dig.js: paghukay ng niyebe gamit ang mouse. Pagkatapos ng
+         map.js dahil ginagamit nito ang drawTile at flattenTileLayers. -->
+    <script src="./js/dig.js?v=1787281481550"></script>
+    <!-- resources.js: random na puno/bato (axe/pickaxe). Ginagamit nito
+         ang getObjectCells/isTileInReach (dig.js), kaya kailangang mauna
+         iyon. Dapat ito MAUNA sa hotbar.js - agad tinatawag ng hotbar.js
+         ang syncHotbarUI() sa sarili nitong script (hindi lang sa
+         keydown/click), kaya kailangang existing na ang axeEquipped
+         (idineklara dito) bago pa man tumakbo ang hotbar.js. -->
+    <script src="./js/resources.js?v=1787377872638"></script>
+    <!-- decor.js: purong palamuti - random na oak trees at ang oldman
+         NPC malapit sa bahay (may sarili na siyang random na
+         paglalakad/pagkawala-pagbalik ngayon). May click/interaction
+         (tindahan) pero hiwalay itong tinatawag mula sa dig.js, kaya
+         puwede pa ring sumunod nang basta-basta pagkatapos ng
+         resources.js. -->
+    <script src="./js/decor.js?v=1787407000000"></script>
+    <!-- pig.js: mga baboy na gumagala sa mapa (random na paglalakad,
+         pagkawala/pagbalik, "health"/clickable, namamatay-nabubuhay-
+         muli). Umaasa sa isFreeWanderTile/randomBetween (decor.js) at
+         sa mismong canvas mousedown pattern ng resources.js - kaya
+         DAPAT SUMUNOD ito agad pagkatapos ng decor.js. -->
+    <script src="./js/pig.js?v=1787242410868"></script>
+    <script src="./js/grass.js?v=1787376753690"></script>
+    <!-- bed.js: ang kama sa loob ng bahay (houseInside) - i-click para
+         matulog hanggang 6am (gabi lang puwede). Kailangan ng TILE_SIZE
+         (assets.js, nasa itaas na) - ang getCalendarState()/getGameNow()
+         nito ay function-scoped lang (dig.js mousedown handler ang
+         tumatawag dito), kaya OK lang kahit MAUNA pa ito sa
+         calendar.js/gametime.js sa pagkaka-declare, basta na-load na
+         ang lahat bago pa man i-click ng manlalaro ang kama. -->
+    <script src="./js/bed.js?v=1787160000000"></script>
+    <!-- ground-items.js: mga item na nakalapag sa lupa (galing sa ani o
+         inihagis) - ginagamit nito ang CARROT_ICON_IMAGE (dig.js). -->
+    <script src="./js/ground-items.js?v=1787241991756"></script>
+    <!-- hotbar.js: ang UI sa ibaba ng screen - ginagamit nito ang mga
+         estado/function ng dig.js/resources.js/ground-items.js
+         (pickaxeEquipped, equipPickaxe, axeEquipped,
+         dropItemFromSlotIntoWorld, atbp). -->
+    <script src="./js/hotbar.js?v=1787369862288"></script>
+    <!-- craft.js: crafting panel (2x2 basic / 3x3 advanced, parang
+         Minecraft) at ang "Crafter" (crafting table) na puwedeng
+         ilagay sa mundo - ginagamit nito ang BAG_ITEMS/getItemIconHTML/
+         dragState (hotbar.js) at getPlayerFacingTile (ground-items.js),
+         kaya kailangang mauna ang mga iyon. Ginagamit lang ng dig.js
+         ang getPlacedCrafterAt sa PAGTAKBO (runtime, sa loob ng mousedown
+         listener), hindi sa pag-parse, kaya OK lang kahit MAUNA pa ang
+         dig.js sa script order. -->
+    <script src="./js/craft.js?v=1787369862288"></script>
+    <!-- stove.js: cooking/smelting station (parang "Crafter" pero may
+         sariling smelting UI) - ginagamit nito ang BAG_ITEMS/
+         getItemIconHTML/renderBagGridInto (hotbar.js), kaya kailangang
+         mauna ang mga iyon. Ginagamit lang ng dig.js ang
+         getPlacedStoveAt/isStoveSlotSelected sa PAGTAKBO, kaya OK
+         lang kahit MAUNA pa ang dig.js sa script order. -->
+    <script src="./js/stove.js?v=1787369862288"></script>
+    <!-- inventory-save.js: nag-lo-load/nagsa-save ng buong inventory/
+         hotbar/crafting/placed-structures papunta sa localStorage -
+         kailangang HULI ito sa lahat ng script na nagdedeklara ng mga
+         variable na ito (hotbar.js/dig.js/resources.js/craft.js/
+         stove.js), kaya dito na ilagay pagkatapos ng stove.js. -->
+    <script src="./js/inventory-save.js?v=1787240931571"></script>
+    <!-- settings-menu.js: ang burger-icon na menu sa itaas-kanan (I-save/
+         I-load/Settings/Lumabas) - dapat SUMUNOD sa inventory-save.js
+         (at sa dig/resources/player/decor) dahil tinatawag nito ang
+         save function ng bawat isa (saveInventoryState/savePlayerPosition/
+         saveDugTiles/saveHarvestedResources/saveHarvestedOakTrees). -->
+    <script src="./js/settings-menu.js?v=1787499284504"></script>
+    <!-- tool-radial.js: ang roulette-style na menu sa gitna ng screen
+         habang naka-hold ang "V", kapalit ng dating pickaxe/kamay/axe
+         na hiwalay na slots. -->
+    <script src="./js/tool-radial.js?v=1787160000000"></script>
+    <script src="./js/atmosphere.js?v=1787468947701"></script>
+    <!-- calendar.js: petsa/buwan/oras at ang schedule ng snow/ulan - dapat
+         mauna sa snow.js/rain.js dahil ginagamit nila ang calendar state.
+         Ginagamit din ito ng resources.js sa itaas (seededRandom) pero
+         wala namang AGAD na tumatawag dito sa resources.js mismo kaya
+         hindi mahalaga ang pagkakasunod nila. -->
+    <script src="./js/calendar.js?v=1787484371753"></script>
+    <script src="./js/snow.js?v=1787160000000"></script>
+    <script src="./js/rain.js?v=1787160000000"></script>
+    <!-- fireflies.js: alitaptap sa gabi - ginagamit nito ang
+         getNightAmount (atmosphere.js). -->
+    <script src="./js/fireflies.js?v=1787160000000"></script>
+    <!-- calendar-ui.js: ang UI sa itaas-kanan (petsa/oras/araw-gabi). -->
+    <script src="./js/calendar-ui.js?v=1787160000000"></script>
+    <script src="./js/update.js?v=1787499284504"></script>
+    <script src="./js/draw.js?v=1787499284504"></script>
+    <script src="./js/main.js?v=1787160000000"></script>
+    <script src="./js/mobile-controls.js?v=1787500805555"></script>
+  </body>
+</html>

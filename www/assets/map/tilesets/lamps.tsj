@@ -1,0 +1,14 @@
+{ "columns":12,
+ "image":"lamps.png",
+ "imageheight":60,
+ "imagewidth":200,
+ "margin":0,
+ "name":"lamps",
+ "spacing":0,
+ "tilecount":36,
+ "tiledversion":"1.12.2",
+ "tileheight":16,
+ "tilewidth":16,
+ "type":"tileset",
+ "version":"1.10"
+}

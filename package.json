@@ -1,0 +1,16 @@
+{
+  "name": "my-game-android",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Android wrapper (Capacitor) para sa Tralala Game - vanilla JS/HTML canvas na laro, walang build step, dinideliver lang bilang mismong static assets sa loob ng WebView.",
+  "scripts": {
+    "sync": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.1",
+    "@capacitor/core": "^6.2.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.1"
+  }
+}

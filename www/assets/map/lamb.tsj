@@ -1,0 +1,14 @@
+{ "columns":2,
+ "image":"..\/..\/..\/..\/..\/Downloads\/lamb.png",
+ "imageheight":52,
+ "imagewidth":35,
+ "margin":0,
+ "name":"lamb",
+ "spacing":0,
+ "tilecount":9,
+ "tiledversion":"1.12.2",
+ "tileheight":16,
+ "tilewidth":16,
+ "type":"tileset",
+ "version":"1.10"
+}

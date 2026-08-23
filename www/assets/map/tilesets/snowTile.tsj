@@ -1,0 +1,14 @@
+{ "columns":96,
+ "image":"..\/..\/..\/..\/..\/Downloads\/Inspire\/Libresprite\/Snow.png",
+ "imageheight":1024,
+ "imagewidth":1536,
+ "margin":0,
+ "name":"snowTile",
+ "spacing":0,
+ "tilecount":6144,
+ "tiledversion":"1.12.2",
+ "tileheight":16,
+ "tilewidth":16,
+ "type":"tileset",
+ "version":"1.10"
+}

@@ -1,0 +1,61 @@
+name: Build Android APK
+
+# Tumatakbo ito kada push sa "main" (o "master"), at puwede ring i-
+# trigger nang manu-mano gamit ang "Run workflow" button sa Actions tab
+# (workflow_dispatch) - kapaki-pakinabang kung gusto mo lang subukan
+# muna kahit walang bagong commit.
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch: {}
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install npm dependencies
+        run: npm install
+
+      # Kinokopya lang ng "cap sync" ang laman ng www/ (index.html/js/
+      # css/assets - ang mismong laro) papuntang
+      # android/app/src/main/assets/public - kaya hindi na kailangang
+      # i-commit ang "android/app/src/main/assets/public" nang manu-
+      # mano tuwing may binabago sa www/.
+      - name: Sync web assets into the Android project
+        run: npx cap sync android
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x android/gradlew
+
+      # "assembleDebug" - hindi kailangan ng signing key, puwede
+      # agad i-install sa Android device/emulator (pagkatapos paganahin
+      # ang "Install from unknown sources"). Kung gusto mo ng
+      # "release" build (mas maliit, naka-optimize, pero KAILANGAN ng
+      # sarili mong signing keystore) - sabihin mo lang, may hiwalay
+      # na setup iyon (GitHub Secrets para sa keystore/password).
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tralala-game-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

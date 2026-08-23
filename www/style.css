@@ -1,0 +1,2783 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: black;
+}
+
+canvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+
+  /* Pigilan ang default touch gestures ng browser (pinch-zoom,
+     double-tap zoom, pan/scroll) habang naglalaro sa touch device -
+     hindi nito hinahadlangan ang "synthetic" mouse events na
+     awtomatikong ginagawa ng browser mula sa tap (mousemove/mousedown/
+     mouseup) - iyon pa rin ang ginagamit ng dig.js para sa
+     tap-to-interact, kaya gumagana pa rin ito nang walang extra touch
+     listener. */
+  touch-action: none;
+}
+
+/* =========================
+   HOTBAR (UI sa ibaba ng screen)
+   ========================= */
+
+#hotbar {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 6px;
+  background: rgba(20, 22, 28, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+
+  font-family: system-ui, sans-serif;
+  user-select: none;
+  z-index: 10;
+}
+
+.hotbar-slot {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 44px;
+  height: 44px;
+
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+
+  cursor: pointer;
+  padding: 0;
+}
+
+button.hotbar-slot {
+  font: inherit;
+  color: inherit;
+}
+
+.hotbar-icon {
+  font-size: 20px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.hotbar-key {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.65);
+  pointer-events: none;
+}
+
+.hotbar-slot.active {
+  background: rgba(255, 210, 90, 0.28);
+  border-color: rgba(255, 210, 90, 0.9);
+  box-shadow: 0 0 6px rgba(255, 210, 90, 0.5);
+}
+
+.hotbar-slot-empty {
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.02);
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Bakanteng slot na na-click/naka-select (tingnan ang startPointerAction
+   sa hotbar.js) - plain WHITE border na lang (hindi gold/dashed pa rin),
+   kaiba sa .hotbar-slot.active na gold (para lang sa mga FILLED na slot) -
+   kailangan itong mas mataas ang specificity para talunin ang gold. */
+.hotbar-slot-empty.active {
+  background: rgba(255, 255, 255, 0.08);
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.85);
+  box-shadow: none;
+}
+
+.hotbar-slot:not(.hotbar-slot-empty):hover {
+  border-color: rgba(255, 210, 90, 0.55);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.hotbar-slot.drop-target,
+#bag-panel.drop-target,
+.bag-item.drop-target,
+.bag-item-empty.drop-target,
+.craft-slot.drop-target {
+  border-color: rgba(120, 220, 140, 0.95) !important;
+  box-shadow: 0 0 8px rgba(120, 220, 140, 0.6);
+}
+
+/* Pula (hindi berde) ang drop-target ng trash - mapanganib/permanente
+   ito (tanggal, hindi lang ilipat), kaya iba dapat ang kulay nito kesa
+   sa ibang drop target. */
+#bag-trash.drop-target {
+  border-color: rgba(230, 90, 90, 0.95) !important;
+  box-shadow: 0 0 8px rgba(230, 90, 90, 0.6);
+}
+
+#hotbar-drag-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+
+  width: 40px;
+  height: 40px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  pointer-events: none;
+  opacity: 0.85;
+  z-index: 50;
+}
+
+/* Lumulutang na item mula sa Alt+click "paghati" ng stack (tingnan ang
+   "ALT + LEFT-CLICK" sa hotbar.js) - kaparehong-pareho ng #hotbar-drag-
+   ghost, pero sinusundan ang mouse KAHIT WALANG HAWAK na mouse button
+   (basta naka-hold ang Alt), kaya may sariling element ito. */
+#floating-pickup-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+
+  width: 40px;
+  height: 40px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  pointer-events: none;
+  opacity: 0.9;
+  z-index: 50;
+
+  filter: drop-shadow(0 0 6px rgba(255, 210, 90, 0.7));
+}
+
+.hotbar-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hotbar-gap {
+  width: 18px;
+}
+
+.hotbar-bag {
+  cursor: default;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.hotbar-slot-item-img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.hotbar-badge {
+  position: absolute;
+  bottom: -6px;
+  right: -6px;
+
+  min-width: 16px;
+  padding: 1px 4px;
+
+  background: #2b2f38;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+
+  font-size: 10px;
+  text-align: center;
+  color: white;
+}
+
+/* Cooldown overlay ng "food" na slot (Alt+digit para kumain, EAT_
+   COOLDOWN_MS sa hotbar.js) - konting lightgray na may opacity, naka-
+   anchor sa IBABA ng slot (bottom:0) kaya ang TAAS na dulo (itaas) nito
+   ang unti-unting bumababa/lumiliit habang tumatakbo ang 3 segundong
+   cooldown, hanggang mawala nang tuluyan (height:0) kapag puwede nang
+   makakain ulit. Sinusukat ang height nito KADA FRAME (updateEatCooldownVisual
+   sa hotbar.js), hindi CSS transition, para eksaktong tumutugma sa
+   totoong natitirang oras. */
+.hotbar-eat-cooldown {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+
+  height: 0%;
+
+  background: rgba(210, 210, 210, 0.55);
+  border-radius: 0 0 7px 7px;
+
+  pointer-events: none;
+}
+
+/* =========================
+   BAG PANEL (lahat ng item)
+   ========================= */
+
+#bag-panel {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+
+  width: max-content;
+  max-height: 90vh;
+
+  display: flex;
+  flex-direction: column;
+
+  background: rgba(20, 22, 28, 0.92);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  border-radius: 10px;
+
+  font-family: system-ui, sans-serif;
+  color: white;
+  user-select: none;
+  z-index: 11;
+}
+
+#bag-panel.hidden {
+  display: none;
+}
+
+#bag-panel-header {
+  flex-shrink: 0;
+
+  height: 14px;
+  background: linear-gradient(
+    180deg,
+    rgba(212, 175, 55, 0.35),
+    rgba(212, 175, 55, 0.12)
+  );
+  border-bottom: 1px solid rgba(212, 175, 55, 0.5);
+  border-radius: 9px 9px 0 0;
+
+  cursor: grab;
+  touch-action: none;
+}
+
+#bag-panel-header:active {
+  cursor: grabbing;
+}
+
+/* Katawan ng panel - equipment sa kaliwa, bag grid sa kanan. */
+#bag-panel-body {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+
+  min-height: 0;
+}
+
+#bag-panel-main {
+  display: flex;
+  flex-direction: column;
+
+  min-height: 0;
+
+  border-left: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+/* #stove-panel-grid ay "copy"/mirror ng parehong bag grid (PAREHONG
+   DATA - tingnan ang renderBagGridInto sa hotbar.js), kaya pareho rin
+   ang estilo. */
+#bag-panel-grid,
+#stove-panel-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 40px);
+  grid-auto-rows: 40px;
+  gap: 4px;
+
+  padding: 8px;
+
+  /* 7 hanay lang ang nakikita nang sabay (para lumiit ang panel at
+     mabawasan ang patay na espasyo sa footer/trash/gold), pero 15 hanay
+     pa rin ang TOTAL na kapasidad ng bag (BAG_GRID_ROWS sa hotbar.js) -
+     mag-scroll na lang para sa natitira: 7*40 + 6*4(gap) + 2*8(padding) */
+  max-height: 320px;
+  overflow-y: auto;
+
+  /* Manipis na gold scrollbar, kapareho ng tema ng bag - Firefox. */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(212, 175, 55, 0.65) rgba(255, 255, 255, 0.06);
+}
+
+/* Manipis na gold scrollbar - Chrome/Edge/Safari (webkit). */
+#bag-panel-grid::-webkit-scrollbar,
+#stove-panel-grid::-webkit-scrollbar {
+  width: 4px;
+}
+
+#bag-panel-grid::-webkit-scrollbar-track,
+#stove-panel-grid::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+}
+
+#bag-panel-grid::-webkit-scrollbar-thumb,
+#stove-panel-grid::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.65);
+  border-radius: 4px;
+  min-height: 7px;
+}
+
+#bag-panel-grid::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 175, 55, 0.9);
+}
+
+/* Footer ng bag panel - gold (naka-stretch, sinasakop ang natitirang
+   espasyo) sa kaliwa, tapos sort, tapos trash sa kanang sulok. */
+#bag-panel-footer {
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 6px 8px;
+
+  border-top: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 0 0 9px 0;
+}
+
+/* =========================
+   CRAFTING (2x2 basic / 3x3 advanced, tingnan ang craft.js)
+   =========================
+   Dalawang shell, depende sa mode (tingnan ang syncCraftPanel sa
+   craft.js), pareho na ngayong DOCKED (hindi na floating) - bahagi
+   silang dalawa ng #bag-panel-body: #craft-dock ("basic") - UNANG
+   kolum ("craft > equipment > bag > crafter"), pinaliit/hindi
+   naka-stretch (walang dead space, maliit lang ang laman - 2x2 grid),
+   walang close button; #crafter-dock ("advanced", kapag na-click ang
+   isang naka-lagay na Crafter sa mundo) - HULING kolum, naka-stretch
+   kasing-taas ng equipment/bag (may "✕" close button - tingnan ang
+   ".panel-no-drag" sa hotbar.js), may recipe guide sa ilalim (dead
+   space) - tingnan ang #craft-recipe-guide. Ang aktwal na laman (output
+   slot + input grid, #craft-panel-body) ay IISA lang - ini-reparent
+   papunta sa tamang shell ng JS. */
+#craft-dock {
+  flex-shrink: 0;
+  align-self: flex-start;
+
+  display: flex;
+  flex-direction: column;
+
+  border-right: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+#craft-dock.hidden {
+  display: none;
+}
+
+#craft-dock-label {
+  padding: 6px 8px 0;
+
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(212, 175, 55, 0.85);
+}
+
+/* Card-style na "Crafter" window (tingnan ang reference na screenshot) -
+   sariling background/radius (hindi lang basta plain na kolum gaya ng
+   #craft-dock), may DECORATIVE na manipis na gold strip sa kaliwang
+   gilid (::before) - WALANG border sa buong card, at WALANG scroll (ni
+   saan man dito, kasama na ang "CRAFTABLE ITEMS" - tingnan ang
+   #craft-recipe-guide-icons). */
+#crafter-dock {
+  position: relative;
+  flex-shrink: 0;
+  width: max-content;
+
+  display: flex;
+  flex-direction: column;
+
+  margin: 6px;
+  padding-left: 10px;
+
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 10px;
+}
+
+#crafter-dock.hidden {
+  display: none;
+}
+
+/* Ang header (title na lang) ay naka-align sa mismong TAAS ng gold bar
+   sa kaliwa (::before, na nagsisimula sa "top: 8px") - kaya
+   "padding-top: 8px" din dito, para magkapareho ang taas nila. Ang
+   close button ay LABAS na sa normal flex flow nito (position: absolute
+   - tingnan ang #crafter-dock-close sa ibaba), kaya hindi na kailangan
+   ng "justify-content: space-between". WALANG "position: relative" dito
+   (dating meron) - sadyang HINDI ito ang positioning context ng close
+   button, kaya "tumatagos" pataas ang absolute positioning nito papunta
+   sa #crafter-dock (buong card) sa halip na dito lang sa header. */
+#crafter-dock-header {
+  flex-shrink: 0;
+
+  padding: 8px 24px 8px 4px;
+}
+
+#crafter-dock-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 210, 90, 0.95);
+}
+
+/* Close ("✕") - naka-circle, naka-overlap mismo sa KANANG GILID/BORDER
+   ng card (hindi na kasama sa normal flex flow ng header, tingnan ang
+   "position: absolute" dito) - "top: 50%" + "transform: translate(50%,
+   -50%)" ay laging naka-CENTER VERTICALLY sa BUONG TAAS ng #crafter-dock
+   mismo (ang RELATIVE na ninuno nito - WALANG "position: relative" ang
+   #crafter-dock-header sa itaas, sadyang tumatagos pataas ang
+   positioning context papunta dito), kaya nasa "right-center" ng buong
+   card ito, hindi lang ng header. Gold ang border (tulad ng ibang
+   bukas na accent sa buong panel), dark ang background para "itago"/
+   i-blend ang linya sa likod nito. z-index para laging nasa ibabaw ng
+   gilid/laman ng card. I-click para isara ang #crafter-dock - tingnan
+   ang #crafter-dock-close listener sa craft.js. */
+#crafter-dock-close {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translate(80%, -50%);
+  z-index: 1;
+
+  width: 20px;
+  height: 50px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 11px;
+  line-height: 1;
+
+  background: rgba(20, 22, 28, 0.95);
+  border: 1px solid rgba(212, 175, 55, 0.7);
+  border-radius: 10%;
+  color: rgba(255, 255, 255, 0.75);
+
+  cursor: pointer;
+}
+
+#crafter-dock-close:hover {
+  border-color: rgba(255, 210, 90, 0.9);
+  color: white;
+}
+
+#craft-panel-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+
+  padding: 4px 10px 10px 4px;
+}
+
+#craft-input-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 40px);
+  grid-auto-rows: 40px;
+  gap: 4px;
+}
+
+.craft-slot {
+  width: 40px;
+  height: 40px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed rgba(212, 175, 55, 0.35);
+  border-radius: 6px;
+}
+
+/* Output slot - lagi itong nasa kaliwa ng input grid (tingnan ang
+   #craft-panel-body sa itaas), pero solid (hindi dashed) ang border at
+   may munting glow kapag may laman na (may nagawa nang resulta) - para
+   makita agad na "handa nang kunin". */
+#craft-output-slot {
+  border-style: solid;
+  border-color: rgba(212, 175, 55, 0.4);
+  cursor: default;
+}
+
+/* Sa "advanced" mode (#crafter-dock), MAS MALAKI/NAKA-STRETCH ang
+   output slot para tumugma sa buong taas ng 3x3 grid (kagaya ng
+   reference na screenshot) - tingnan ang "craft-panel-body-advanced"
+   class na idinadagdag ng syncCraftPanel (craft.js). Sa "basic" mode
+   (#craft-dock), plain 40x40 lang pa rin. */
+#craft-panel-body.craft-panel-body-advanced #craft-output-slot {
+  align-self: stretch;
+  width: 60px;
+  height: auto;
+}
+
+#craft-output-slot.craft-output-ready,
+#stove-output-slot.craft-output-ready {
+  border-color: rgba(255, 210, 90, 0.95);
+  box-shadow: 0 0 8px rgba(255, 210, 90, 0.6);
+  cursor: pointer;
+}
+
+/* Ghost/preview ng recipe guide (tingnan ang renderCraftGuide/
+   getSelectedGuideRecipe sa craft.js) - naka-opacity/placeholder LANG
+   ang icon dito, hindi tunay na ingredient (hindi pa naubos ang stock),
+   kaya dapat maglagay pa rin ng AKTWAL na item para talagang makapag-
+   craft. */
+.craft-slot-ghost {
+  border-style: solid;
+  border-color: rgba(212, 175, 55, 0.55);
+}
+
+.craft-slot-ghost > * {
+  opacity: 0.35;
+}
+
+/* Hindi ito tunay na "filled" na cell (walang drag listener - tingnan
+   ang syncCraftPanel sa craft.js), kaya hindi dapat magmukhang
+   kaka-drag (default cursor ng .craft-input-slot:not(:empty)). */
+.craft-input-slot.craft-slot-ghost {
+  cursor: default;
+}
+
+/* Recipe guide - listahan ng mga craftable na item (CRAFT_GUIDE_ITEMS),
+   diretso sa ILALIM ng grid (walang "margin-top: auto" na pagtulak) -
+   tingnan ang renderCraftGuide sa craft.js. Dahil naka-stretch ang
+   buong #crafter-dock (kasing-taas ng equipment/bag column) pero
+   maliit lang ang laman sa itaas (header+grid+guide), natural na lang
+   ang natitirang dead space SA ILALIM ng guide - kagaya ng reference na
+   screenshot. */
+#craft-recipe-guide {
+  flex-shrink: 0;
+
+  display: flex;
+  flex-direction: column;
+  /* Sumasakop sa NATITIRANG dead space ng #crafter-dock (flex column) -
+     "min-height: 0" para gumana ang overflow ng anak nito sa ibaba. */
+  flex: 1;
+  min-height: 0;
+
+  padding: 8px 10px 10px 4px;
+  border-top: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+#craft-recipe-guide-label {
+  flex-shrink: 0;
+  margin-bottom: 8px;
+
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(212, 175, 55, 0.85);
+}
+
+/* WALANG scroll dito (walang scrollbar) - naka-hidden na lang ang
+   sobra kung mangyari man (bihira, 4 lang na icon ang default list). */
+#craft-recipe-guide-icons {
+  flex: 1;
+  min-height: 0;
+
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 6px;
+
+  overflow: hidden;
+}
+
+/* Isang icon kada craftable item sa guide - i-click para makita ang
+   ghost/preview nito sa loob ng input grid sa itaas (.craft-slot-ghost)
+   - GUIDE LANG ito, hindi ito tunay na crafting action. */
+.craft-guide-icon {
+  width: 32px;
+  height: 32px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 16px;
+
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed rgba(212, 175, 55, 0.35);
+  border-radius: 6px;
+  color: white;
+
+  cursor: pointer;
+}
+
+.craft-guide-icon:hover {
+  background: rgba(212, 175, 55, 0.18);
+}
+
+.craft-guide-icon-active {
+  background: rgba(255, 210, 90, 0.28);
+  border-style: solid;
+  border-color: rgba(255, 210, 90, 0.9);
+}
+
+.craft-input-slot:empty:hover {
+  border-color: rgba(212, 175, 55, 0.6);
+}
+
+.craft-input-slot:not(:empty) {
+  cursor: pointer;
+  border-style: solid;
+}
+
+/* =========================
+   STOVE PANEL (cooking/smelting station, tingnan ang stove.js)
+   =========================
+   FLOATING window ito, PAREHONG estilo/istruktura ng #bag-panel
+   (naka-drag na header, parehong background/border/radius - tingnan
+   ang setupDraggablePanel sa hotbar.js) - may "✕" close button
+   (".panel-no-drag", iniiwasan ang bug kung saan hinaharang ng drag ang
+   click - tingnan ang paliwanag sa setupDraggablePanel). */
+#stove-panel {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+
+  width: max-content;
+  max-height: 90vh;
+
+  display: flex;
+  flex-direction: column;
+
+  background: rgba(20, 22, 28, 0.92);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  border-radius: 10px;
+
+  font-family: system-ui, sans-serif;
+  color: white;
+  user-select: none;
+  z-index: 11;
+}
+
+#stove-panel.hidden {
+  display: none;
+}
+
+#stove-panel-header {
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  height: 20px;
+  padding: 0 6px 0 10px;
+
+  background: linear-gradient(
+    180deg,
+    rgba(212, 175, 55, 0.35),
+    rgba(212, 175, 55, 0.12)
+  );
+  border-bottom: 1px solid rgba(212, 175, 55, 0.5);
+  border-radius: 9px 9px 0 0;
+
+  cursor: grab;
+  touch-action: none;
+}
+
+#stove-panel-header:active {
+  cursor: grabbing;
+}
+
+#stove-panel-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(212, 175, 55, 0.85);
+}
+
+#stove-panel-close {
+  flex-shrink: 0;
+
+  width: 16px;
+  height: 16px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 11px;
+  line-height: 1;
+
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.75);
+
+  cursor: pointer;
+  touch-action: auto;
+}
+
+#stove-panel-close:hover {
+  background: rgba(255, 90, 90, 0.35);
+  color: white;
+}
+
+/* Smelt row: [output] <- [ingredient] <- [fuel] - laging pareho ang
+   pagkakasunod-sunod (tingnan ang index.html). */
+#stove-smelt-row {
+  position: relative; /* para sa progress bar ng pagluluto (::after) */
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 10px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+/* Progress bar ng "niluluto" na piraso - SMELT_COOK_DURATION_MS (10
+   segundo) kada piraso, tingnan ang updateStoveCookVisual/
+   updateStoveCooking sa stove.js. Kaparehong estilo ng torch burn bar
+   (#equip-slot-lefthand::after sa itaas) - naka-anchor sa ILALIM ng row,
+   nagtataas ang LAPAD nito (0 -> buo) habang papalapit sa 10 segundo,
+   naka-reset pabalik sa 0 kada bagong piraso. Naka-hidden (opacity 0)
+   maliban kung aktibong may niluluto (.stove-cooking, tingnan ang
+   updateStoveCookVisual). */
+#stove-smelt-row::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  bottom: 0;
+
+  height: 3px;
+  border-radius: 2px;
+
+  background: linear-gradient(90deg, #ffcf6b, #ff8a3d);
+
+  width: calc(var(--stove-cook-progress, 0) * (100% - 20px));
+
+  opacity: 0;
+  transition: width 0.15s linear;
+}
+
+#stove-smelt-row.stove-cooking::after {
+  opacity: 1;
+}
+
+.stove-arrow {
+  font-size: 16px;
+  color: rgba(212, 175, 55, 0.7);
+}
+
+.smelt-input-slot:empty:hover {
+  border-color: rgba(212, 175, 55, 0.6);
+}
+
+.smelt-input-slot:not(:empty) {
+  cursor: pointer;
+  border-style: solid;
+}
+
+/* =========================
+   EQUIPMENT PANEL (paperdoll, kaliwang bahagi ng bag)
+   ========================= */
+
+/* Iisang column - equipment grid sa taas, stats sa ibaba - para
+   magkasunod silang bumaba sa loob ng flex ROW ng #bag-panel-body
+   (kaliwang bahagi = equipment+stats, kanan = bag grid). */
+#equipment-column {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+#equipment-panel {
+  flex-shrink: 0;
+
+  display: grid;
+  /* Mas malapad ang gitnang column para may mas malaking espasyo ang
+     character sprite - pero HINDI ito nagbabago sa laki ng bawat
+     .equip-slot (nakadikit pa rin sila sa 40px via justify-self:
+     center - tingnan sa ibaba), ang gap/padding lang (spacing) ang
+     dinagdagan para hindi na masyadong siksikan/sobrang liit ang
+     buong panel. */
+  grid-template-columns: 40px 56px 40px;
+  grid-template-rows: repeat(4, 40px);
+  grid-template-areas:
+    "ringleft      helmet     ringright"
+    "gauntletleft  character  gauntletright"
+    "tshirt        character  boots"
+    "lefthand      pet        righthand";
+  gap: 10px;
+
+  padding: 14px;
+}
+
+/* Katawan/display sa gitna ng equipment panel - isang FRAME lang (frame
+   0/"tayo", hindi buong animation) mula sa idleFront.png, ipinapakita
+   bilang background-image na na-crop (background-size ang buong 6-frame
+   sheet nang naka-scale, pero 1 frame lang ang laki ng box mismo kaya
+   iyon lang ang nakikita). Ang eksaktong 954x271 (6 frame, 159x271 kada
+   isa) ay ang totoong laki ng idleFront.png - kailangang tumugma ang mga
+   sukat dito kung magpapalit ng ibang sprite dito balang araw. */
+#equip-character {
+  grid-area: character;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#equip-character::before {
+  content: "";
+
+  width: 45px;
+  height: 77px;
+
+  background-image: url("./assets/player/idleFront.png");
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  background-size: 270px 77px;
+
+  image-rendering: pixelated;
+}
+
+/* Fixed 40x40 lahat ng slot (hindi na ito basta "stretch" papunta sa
+   laki ng grid cell nito) - kailangan ito ngayon dahil mas malapad na
+   ang gitnang column (56px, para sa character) kesa sa 40px na
+   inaasahang laki ng slot. */
+.equip-slot {
+  position: relative;
+
+  width: 40px;
+  height: 40px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 18px;
+
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed rgba(212, 175, 55, 0.35);
+  border-radius: 6px;
+
+  opacity: 0.6;
+}
+
+#equip-slot-helmet {
+  grid-area: helmet;
+  justify-self: center;
+}
+
+#equip-slot-ring-left {
+  grid-area: ringleft;
+}
+
+#equip-slot-ring-right {
+  grid-area: ringright;
+}
+
+#equip-slot-gauntlet-left {
+  grid-area: gauntletleft;
+}
+
+#equip-slot-gauntlet-right {
+  grid-area: gauntletright;
+}
+
+#equip-slot-tshirt {
+  grid-area: tshirt;
+}
+
+#equip-slot-boots {
+  grid-area: boots;
+}
+
+#equip-slot-pet {
+  grid-area: pet;
+  justify-self: center;
+}
+
+/* Left/right hand - MAY aktwal na gawi (syncEquipmentPanel sa
+   hotbar.js), kaya solid (hindi dashed/malabo) ang border kapag may
+   laman, kumpara sa ibang slot na wala pang mekanika. */
+#equip-slot-lefthand,
+#equip-slot-righthand {
+  grid-area: lefthand;
+
+  font-size: 22px;
+  opacity: 1;
+}
+
+#equip-slot-righthand {
+  grid-area: righthand;
+}
+
+#equip-slot-lefthand.equip-slot-filled,
+#equip-slot-righthand.equip-slot-filled {
+  border-style: solid;
+  border-color: rgba(255, 210, 90, 0.7);
+  background: rgba(255, 210, 90, 0.1);
+}
+
+/* Progress bar ng pagkasunog ng torch - WALANG TEXT, purong bar lang
+   sa loob ng kahon (inner box), naka-bound sa loob ng border ng
+   parisukat. Kinokontrol ang lapad nito ng --torch-progress custom
+   property (1 = bagong-bagong torch, 0 = halos naubos na - tingnan ang
+   updateTorchBurnVisual sa hotbar.js). Pseudo-element ito (::after) -
+   sadyang hindi apektado ng innerHTML updates (setEquipSlotContent). */
+#equip-slot-lefthand {
+  position: relative;
+  overflow: hidden;
+}
+
+#equip-slot-lefthand::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 2px;
+
+  height: 4px;
+  border-radius: 2px;
+
+  background: linear-gradient(90deg, #ffcf6b, #ff8a3d);
+
+  width: calc(var(--torch-progress, 1) * 100%);
+
+  opacity: 0;
+  transition: width 0.25s linear;
+}
+
+#equip-slot-lefthand.torch-burning::after {
+  opacity: 1;
+}
+
+/* =========================
+   TOP-LEFT HUD (#player-hud) - laging nakikita, LABAS ng bag panel.
+   Kaparehong "salamin/frame" na itsura ng #calendar-panel (itaas-
+   kanan) - madilim na translucent na background, bilog na sulok.
+   ========================= */
+#player-hud {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 10;
+
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  min-width: 150px;
+  padding: 8px 12px;
+
+  background: rgba(20, 22, 28, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+
+  font-family: system-ui, sans-serif;
+  color: white;
+  user-select: none;
+}
+
+#player-hud-name {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-hud-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.player-hud-icon {
+  font-size: 12px;
+  line-height: 1;
+  width: 14px;
+  flex-shrink: 0;
+  text-align: center;
+}
+
+/* "Lv. N" - katabi (kaliwa) ng exp bar, hindi icon kagaya ng health/
+   stamina - tingnan ang hiling: "level at left side of exp". */
+#player-hud-level {
+  font-size: 10px;
+  font-weight: 700;
+  color: #ffd97a;
+
+  width: 32px;
+  flex-shrink: 0;
+  text-align: center;
+
+  white-space: nowrap;
+}
+
+.player-hud-bar {
+  flex: 1;
+  height: 8px;
+
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+
+  overflow: hidden;
+}
+
+.player-hud-bar-fill {
+  height: 100%;
+  width: 0%;
+
+  border-radius: 999px;
+}
+
+#player-hud-fill-health {
+  background: linear-gradient(90deg, #ff6b6b, #e53e3e);
+}
+
+#player-hud-fill-stamina {
+  background: linear-gradient(90deg, #6bdc6b, #2f9e44);
+}
+
+#player-hud-fill-exp {
+  background: linear-gradient(90deg, #6ba8ff, #3b6fe0);
+}
+
+/* =========================
+   EQUIPMENT STATS (sa ilalim ng equipment-panel)
+   =========================
+   Purong placeholder/cosmetic pa lang - wala pang tunay na combat/
+   leveling system sa likod nito (tingnan ang syncEquipmentStats sa
+   hotbar.js). HP/Stamina/EXP = maliit na bar (walang text sa loob,
+   kagaya ng torch progress bar); ATK/DEF/Crit DMG/Crit Chance = plain
+   na label+value. */
+#equipment-stats {
+  flex-shrink: 0;
+
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  /* Sumusunod sa buong lapad ng equipment column (hindi na naka-fix sa
+     136px) - "nakaabot hanggang sagad" kagaya ng equipment-panel sa
+     itaas nito. */
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 14px 14px;
+
+  border-radius: 0 0 0 9px;
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.stat-icon {
+  font-size: 12px;
+  line-height: 1;
+  width: 14px;
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.stat-bar {
+  flex: 1;
+  height: 8px;
+
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+
+  overflow: hidden;
+}
+
+.stat-bar-fill {
+  height: 100%;
+  width: 100%;
+
+  border-radius: 999px;
+}
+
+#stat-fill-health {
+  background: linear-gradient(90deg, #ff6b6b, #e53e3e);
+}
+
+#stat-fill-stamina {
+  background: linear-gradient(90deg, #6bdc6b, #2f9e44);
+}
+
+#stat-fill-exp {
+  background: linear-gradient(90deg, #6ba8ff, #3b6fe0);
+}
+
+.stat-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.stat-line-value {
+  color: white;
+  font-weight: 600;
+}
+
+/* Trash - nasa ilalim-kaliwa ng BAG (footer, katabi ng gold sa kanan) -
+   ibang kulay ang border (mapula) kaysa sa ibang equip slot (dashed
+   gold) para agad malaman na MAPANGANIB/PERMANENTE ang epekto nito
+   (tanggal, hindi ilipat). */
+#bag-trash {
+  flex-shrink: 0;
+
+  width: 28px;
+  height: 28px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 16px;
+
+  background: rgba(230, 90, 90, 0.08);
+  border: 1px dashed rgba(230, 90, 90, 0.4);
+  border-radius: 6px;
+
+  opacity: 0.75;
+  cursor: default;
+}
+
+#bag-gold-badge {
+  flex: 1;
+
+  display: flex;
+  align-items: center;
+  gap: 5px;
+
+  padding: 2px 10px 2px 6px;
+
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  border-radius: 999px;
+}
+
+/* Sort - i-click para awtomatikong ibalik sa default na pagkakasunod-
+   sunod ang mga item sa bag (tingnan ang sortBagItems sa hotbar.js) -
+   parehong laki/istilo ng #bag-trash, pero gold ang tema (hindi
+   destructive/pula ang aksyon nito). */
+#bag-sort {
+  flex-shrink: 0;
+
+  width: 28px;
+  height: 28px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 14px;
+
+  background: rgba(212, 175, 55, 0.08);
+  border: 1px dashed rgba(212, 175, 55, 0.5);
+  border-radius: 6px;
+  color: white;
+
+  cursor: pointer;
+}
+
+#bag-sort:hover {
+  background: rgba(212, 175, 55, 0.18);
+}
+
+/* Craft - i-click para buksan/isara ang docked crafting section
+   (#craft-dock, katabi ng bag - tingnan ang toggleCraftPanel sa
+   craft.js) - parehong laki/istilo ng #bag-sort, pero may "naka-bukas"
+   na estado (active - gold, kagaya ng ibang bukas na toggle sa
+   hotbar). */
+#bag-craft {
+  flex-shrink: 0;
+
+  width: 28px;
+  height: 28px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 14px;
+
+  background: rgba(212, 175, 55, 0.08);
+  border: 1px dashed rgba(212, 175, 55, 0.5);
+  border-radius: 6px;
+  color: white;
+
+  cursor: pointer;
+}
+
+#bag-craft:hover {
+  background: rgba(212, 175, 55, 0.18);
+}
+
+#bag-craft.active {
+  background: rgba(255, 210, 90, 0.28);
+  border-style: solid;
+  border-color: rgba(255, 210, 90, 0.9);
+}
+
+#bag-gold-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+#bag-gold-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f0d78c;
+}
+
+.bag-item {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  aspect-ratio: 1;
+
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+}
+
+.bag-item-plantable {
+  cursor: pointer;
+}
+
+.bag-item-plantable:hover {
+  border-color: rgba(255, 210, 90, 0.6);
+}
+
+.bag-item-plantable.active {
+  background: rgba(255, 210, 90, 0.28);
+  border-color: rgba(255, 210, 90, 0.9);
+  box-shadow: 0 0 6px rgba(255, 210, 90, 0.5);
+}
+
+.bag-item img {
+  width: 60%;
+  height: 60%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.bag-item-emoji {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.bag-item-count {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+
+  min-width: 14px;
+  padding: 0 3px;
+
+  background: #2b2f38;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+
+  font-size: 9px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.bag-item-empty {
+  background: rgba(255, 255, 255, 0.02);
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* =========================
+   CALENDAR PANEL (itaas-kanan)
+   ========================= */
+
+#calendar-panel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 8px 12px;
+  background: rgba(20, 22, 28, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+
+  font-family: system-ui, sans-serif;
+  color: white;
+  user-select: none;
+}
+
+#calendar-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+#calendar-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+#calendar-date {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+#calendar-time {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+#calendar-weather-icon {
+  font-size: 20px;
+  line-height: 1;
+  margin-left: 2px;
+}
+
+#calendar-weather-icon.hidden {
+  display: none;
+}
+
+/* =========================
+   TOOL RADIAL MENU (gitna ng screen, hawak-"V")
+   ========================= */
+
+#tool-radial {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+
+  width: 190px;
+  height: 190px;
+
+  pointer-events: none;
+  z-index: 40;
+}
+
+#tool-radial.hidden {
+  display: none;
+}
+
+/* Kapag LABAS ng bilog ang tinutukan ng mouse (walang mapipiling tool -
+   mag-uunequip kapag bumitaw sa Alt, tingnan ang tool-radial.js) -
+   pinapapula nang bahagya ang border para ipahiwatig na "walang pili"
+   ang kalalabasan, iba sa payak na "cancel" ng gitnang dead zone. */
+#tool-radial.aim-outside::before {
+  border-color: rgba(255, 100, 90, 0.55);
+}
+
+#tool-radial::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+
+  border-radius: 50%;
+  background: rgba(10, 11, 15, 0.55);
+  border: 1px solid rgba(255, 210, 90, 0.3);
+}
+
+/* Ang naka-highlight na "pie slice" (1 sa 6) - kung saan kasalukuyang
+   nakatutok ang mouse habang naka-hold ang Alt. Isa lang sa 6 na klase
+   (aim-top/topRight/bottomRight/bottom/bottomLeft/topLeft) ang naka-set
+   kada sandali (tool-radial.js), bawat isa ay 60° na hiwa. */
+#tool-radial-highlight {
+  position: absolute;
+  inset: 0;
+
+  border-radius: 50%;
+  opacity: 0;
+}
+
+/* 4 na direksyon ngayon (90° kada isa) - tinanggal na ang "kamay"
+   (awtomatiko na ito ngayon) at ang torch (nasa left hand na lang ng
+   equipment panel) sa Alt radial. */
+#tool-radial-highlight.aim-top {
+  opacity: 1;
+  background: conic-gradient(
+    from -45deg,
+    rgba(255, 210, 90, 0.4) 0deg 90deg,
+    transparent 90deg 360deg
+  );
+}
+
+#tool-radial-highlight.aim-right {
+  opacity: 1;
+  background: conic-gradient(
+    from 45deg,
+    rgba(255, 210, 90, 0.4) 0deg 90deg,
+    transparent 90deg 360deg
+  );
+}
+
+#tool-radial-highlight.aim-bottom {
+  opacity: 1;
+  background: conic-gradient(
+    from 135deg,
+    rgba(255, 210, 90, 0.4) 0deg 90deg,
+    transparent 90deg 360deg
+  );
+}
+
+#tool-radial-highlight.aim-left {
+  opacity: 1;
+  background: conic-gradient(
+    from 225deg,
+    rgba(255, 210, 90, 0.4) 0deg 90deg,
+    transparent 90deg 360deg
+  );
+}
+
+/* Munting gitnang tuldok - "dead zone" (kapag dito nakatutok ang mouse,
+   walang napipiling opsyon - "Cancel"). */
+#tool-radial-hub {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  transform: translate(-50%, -50%);
+
+  border-radius: 50%;
+  background: rgba(255, 210, 90, 0.85);
+  box-shadow: 0 0 6px rgba(255, 210, 90, 0.7);
+}
+
+/* Icon lang - walang bilog/border na backdrop kada isa (nasa
+   #tool-radial-highlight na lang ang pie-slice highlight). */
+.tool-radial-option {
+  position: absolute;
+
+  width: 54px;
+  height: 54px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 26px;
+  line-height: 1;
+
+  background: none;
+  border: none;
+
+  color: white;
+  cursor: pointer;
+  pointer-events: auto;
+
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
+/* PNG icons (pickaxe/rake/axe/kamao) sa halip na emoji - tingnan ang
+   assets/items/. */
+.tool-radial-icon-img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.tool-radial-option:hover,
+.tool-radial-option.active,
+.tool-radial-option.aimed {
+  filter: drop-shadow(0 0 6px rgba(255, 210, 90, 0.95));
+}
+
+/* Naka-lock (kailangan pang i-craft) - pickaxe/rake/axe pansamantala
+   (walang recipe pa - tingnan ang pickaxeUnlocked/rakeUnlocked sa
+   dig.js, axeUnlocked sa resources.js). Malabo/greyed-out, at HINDI
+   dapat mag-goldglow kahit i-hover/i-aim (kailangang MAS HULI ito sa
+   stylesheet kaysa sa ".tool-radial-option:hover/.aimed" sa itaas -
+   pareho lang ang specificity nila, kaya ang PAGKAKASUNOD ang
+   nagdedesisyon). */
+.tool-radial-locked {
+  opacity: 0.3;
+  filter: grayscale(1) !important;
+  cursor: not-allowed;
+}
+
+/* Bawat direksyon ay may sariling positioning transform (4 na direksyon
+   ngayon - tinanggal na ang kamay/torch - pantay na 90° kada isa sa
+   palibot ng bilog, R≈52px mula gitna - medyo mas malapit sa gitna,
+   hindi na kasing-lapit sa radius/gilid ng bilog ang dati) - kailangang
+   isama (hindi papalitan) ang scale sa hover/active/aimed, kaya hiwalay
+   ang combo kada direksyon. Iisa lang ang top/left (50%) kada isa, ang
+   transform na lang ang nag-iiba. */
+.tool-radial-top,
+.tool-radial-right,
+.tool-radial-bottom,
+.tool-radial-left {
+  top: 50%;
+  left: 50%;
+}
+
+.tool-radial-top {
+  transform: translate(-50%, calc(-50% - 52px));
+}
+
+.tool-radial-top:hover,
+.tool-radial-top.active,
+.tool-radial-top.aimed {
+  transform: translate(-50%, calc(-50% - 52px)) scale(1.15);
+}
+
+.tool-radial-right {
+  transform: translate(calc(-50% + 52px), -50%);
+}
+
+.tool-radial-right:hover,
+.tool-radial-right.active,
+.tool-radial-right.aimed {
+  transform: translate(calc(-50% + 52px), -50%) scale(1.15);
+}
+
+.tool-radial-bottom {
+  transform: translate(-50%, calc(-50% + 52px));
+}
+
+.tool-radial-bottom:hover,
+.tool-radial-bottom.active,
+.tool-radial-bottom.aimed {
+  transform: translate(-50%, calc(-50% + 52px)) scale(1.15);
+}
+
+.tool-radial-left {
+  transform: translate(calc(-50% - 52px), -50%);
+}
+
+.tool-radial-left:hover,
+.tool-radial-left.active,
+.tool-radial-left.aimed {
+  transform: translate(calc(-50% - 52px), -50%) scale(1.15);
+}
+
+/* =========================
+   OLDMAN SHOP PANEL (tindahan ng oldman NPC, tingnan ang decor.js)
+   =========================
+   FLOATING window, PAREHONG estilo/istruktura ng #stove-panel (may
+   draggable header, "✕" close - tingnan ang setupDraggablePanel sa
+   hotbar.js). Ang laman: iisang GRID lang (ang inventory/stock niya) -
+   i-click para bumili, i-hover para makita ang presyo/pangalan
+   (tooltip, pure CSS via data-tooltip). Ang PAGBEBENTA (sell) ay HINDI
+   na dito nakabutton - i-DRAG na lang ang item mula sa bag/hotbar
+   papunta sa panel na ito (tingnan ang #oldman-shop-panel.drop-target
+   sa ibaba, at ang pointerup listener sa hotbar.js). */
+#oldman-shop-panel {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+
+  width: 380px;
+  max-height: 85vh;
+
+  display: flex;
+  flex-direction: column;
+
+  background: rgba(20, 22, 28, 0.92);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  border-radius: 10px;
+
+  font-family: system-ui, sans-serif;
+  color: white;
+  user-select: none;
+  z-index: 11;
+}
+
+#oldman-shop-panel.hidden {
+  display: none;
+}
+
+/* Naka-highlight (drop-target, tingnan ang moveDragGhost/clearDropHighlights
+   sa hotbar.js) habang may hinihila kang item PAPUNTA dito - visual cue
+   na "puwede mo dito i-drop para ibenta". */
+#oldman-shop-panel.drop-target {
+  border-color: rgba(255, 210, 90, 0.95);
+  box-shadow: 0 0 0 2px rgba(255, 210, 90, 0.35);
+}
+
+#oldman-shop-panel-header {
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  height: 20px;
+  padding: 0 6px 0 10px;
+
+  background: linear-gradient(
+    180deg,
+    rgba(212, 175, 55, 0.35),
+    rgba(212, 175, 55, 0.12)
+  );
+  border-bottom: 1px solid rgba(212, 175, 55, 0.5);
+  border-radius: 9px 9px 0 0;
+
+  cursor: grab;
+  touch-action: none;
+}
+
+#oldman-shop-panel-header:active {
+  cursor: grabbing;
+}
+
+#oldman-shop-panel-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(212, 175, 55, 0.85);
+}
+
+#oldman-shop-panel-close {
+  flex-shrink: 0;
+
+  width: 16px;
+  height: 16px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 11px;
+  line-height: 1;
+
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.75);
+
+  cursor: pointer;
+  touch-action: auto;
+}
+
+#oldman-shop-panel-close:hover {
+  background: rgba(255, 90, 90, 0.35);
+  color: white;
+}
+
+#oldman-shop-gold-row {
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  gap: 5px;
+
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 210, 90, 0.95);
+}
+
+#oldman-shop-gold-icon {
+  font-size: 13px;
+}
+
+#oldman-shop-body {
+  padding: 10px 12px 12px;
+  overflow-y: auto;
+}
+
+#oldman-shop-hint {
+  margin-bottom: 8px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+}
+
+#oldman-shop-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+}
+
+.oldman-shop-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  aspect-ratio: 1;
+
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+
+  cursor: grab;
+}
+
+.oldman-shop-cell:active:not(:disabled) {
+  cursor: grabbing;
+}
+
+.oldman-shop-cell:hover:not(:disabled) {
+  border-color: rgba(212, 175, 55, 0.6);
+  background: rgba(212, 175, 55, 0.15);
+}
+
+.oldman-shop-cell:disabled {
+  opacity: 0.35;
+  filter: grayscale(1);
+  cursor: not-allowed;
+}
+
+/* Blangkong cell (pandagdag lang para mabuo ang 8x8 grid) - walang
+   laman, walang interaction, mas madilim kaysa sa may-lamang cell. */
+.oldman-shop-cell-empty {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+  cursor: default;
+}
+
+.oldman-shop-cell-empty:hover {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.oldman-shop-cell-icon .hotbar-slot-item-img {
+  width: 22px;
+  height: 22px;
+}
+
+.oldman-shop-cell-icon .hotbar-icon {
+  font-size: 18px;
+}
+
+.oldman-shop-cell-stock {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+
+  min-width: 14px;
+  padding: 0 3px;
+
+  background: #2b2f38;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+
+  font-size: 9px;
+  line-height: 1.4;
+  text-align: center;
+  color: #ffffff;
+}
+
+/* Tooltip (presyo + pangalan) - PURONG CSS, walang JS - lumalabas sa
+   ITAAS ng cell habang naka-hover (data-tooltip="..." mula sa decor.js). */
+.oldman-shop-cell[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+
+  padding: 3px 7px;
+
+  background: rgba(10, 11, 14, 0.95);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  border-radius: 5px;
+
+  font-size: 10px;
+  white-space: nowrap;
+  color: white;
+
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* =========================
+   OLDMAN SELL QUANTITY POPUP (tingnan ang startOldManSellFlow sa
+   decor.js) - lumalabas kapag nag-drop ng item na may HIGIT SA 1
+   piraso papunta sa #oldman-shop-panel. */
+#oldman-sell-qty-popup {
+  position: fixed;
+  inset: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(0, 0, 0, 0.5);
+
+  z-index: 30;
+}
+
+#oldman-sell-qty-popup.hidden {
+  display: none;
+}
+
+#oldman-sell-qty-card {
+  width: 220px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  padding: 14px;
+
+  background: rgba(24, 26, 32, 0.97);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  border-radius: 10px;
+
+  font-family: system-ui, sans-serif;
+  color: white;
+}
+
+#oldman-sell-qty-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+#oldman-sell-qty-icon .hotbar-slot-item-img {
+  width: 20px;
+  height: 20px;
+}
+
+#oldman-sell-qty-icon .hotbar-icon {
+  font-size: 17px;
+}
+
+#oldman-sell-qty-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.oldman-sell-qty-step {
+  width: 26px;
+  height: 26px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+
+  font: inherit;
+  font-size: 14px;
+  color: white;
+
+  cursor: pointer;
+}
+
+.oldman-sell-qty-step:hover {
+  background: rgba(212, 175, 55, 0.25);
+  border-color: rgba(212, 175, 55, 0.6);
+}
+
+#oldman-sell-qty-input {
+  width: 56px;
+
+  padding: 4px 6px;
+
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+
+  font: inherit;
+  font-size: 13px;
+  color: white;
+  text-align: center;
+}
+
+#oldman-sell-qty-total {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 210, 90, 0.95);
+  text-align: center;
+}
+
+#oldman-sell-qty-actions {
+  display: flex;
+  gap: 8px;
+}
+
+#oldman-sell-qty-actions button {
+  flex: 1;
+
+  padding: 7px 0;
+
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+#oldman-sell-qty-cancel {
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+}
+
+#oldman-sell-qty-cancel:hover {
+  background: rgba(255, 90, 90, 0.3);
+}
+
+#oldman-sell-qty-confirm {
+  background: rgba(212, 175, 55, 0.3);
+  border-color: rgba(212, 175, 55, 0.6);
+  color: white;
+}
+
+#oldman-sell-qty-confirm:hover {
+  background: rgba(212, 175, 55, 0.5);
+}
+
+/* =========================
+   OLDMAN BUY QUANTITY POPUP (tingnan ang startOldManBuyFlow sa
+   decor.js) - lumalabas kapag nag-drag ng item mula sa #oldman-shop-grid
+   papunta sa bag/hotbar, kung may HIGIT SA 1 na kayang bilhin (stock at
+   gold). Kapareho lang ng estilo ng sell quantity popup sa itaas. */
+#oldman-buy-qty-popup {
+  position: fixed;
+  inset: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(0, 0, 0, 0.5);
+
+  z-index: 30;
+}
+
+#oldman-buy-qty-popup.hidden {
+  display: none;
+}
+
+#oldman-buy-qty-card {
+  width: 220px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  padding: 14px;
+
+  background: rgba(24, 26, 32, 0.97);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  border-radius: 10px;
+
+  font-family: system-ui, sans-serif;
+  color: white;
+}
+
+#oldman-buy-qty-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+#oldman-buy-qty-icon .hotbar-slot-item-img {
+  width: 20px;
+  height: 20px;
+}
+
+#oldman-buy-qty-icon .hotbar-icon {
+  font-size: 17px;
+}
+
+#oldman-buy-qty-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.oldman-buy-qty-step {
+  width: 26px;
+  height: 26px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+
+  font: inherit;
+  font-size: 14px;
+  color: white;
+
+  cursor: pointer;
+}
+
+.oldman-buy-qty-step:hover {
+  background: rgba(212, 175, 55, 0.25);
+  border-color: rgba(212, 175, 55, 0.6);
+}
+
+#oldman-buy-qty-input {
+  width: 56px;
+
+  padding: 4px 6px;
+
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+
+  font: inherit;
+  font-size: 13px;
+  color: white;
+  text-align: center;
+}
+
+#oldman-buy-qty-total {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 210, 90, 0.95);
+  text-align: center;
+}
+
+#oldman-buy-qty-actions {
+  display: flex;
+  gap: 8px;
+}
+
+#oldman-buy-qty-actions button {
+  flex: 1;
+
+  padding: 7px 0;
+
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+#oldman-buy-qty-cancel {
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+}
+
+#oldman-buy-qty-cancel:hover {
+  background: rgba(255, 90, 90, 0.3);
+}
+
+#oldman-buy-qty-confirm {
+  background: rgba(212, 175, 55, 0.3);
+  border-color: rgba(212, 175, 55, 0.6);
+  color: white;
+}
+
+#oldman-buy-qty-confirm:hover {
+  background: rgba(212, 175, 55, 0.5);
+}
+
+/* =========================
+   SETTINGS MENU (burger icon, itaas-kanan) - tingnan ang
+   settings-menu.js. Kasama dito ang wrapper (#top-right-bar) na
+   naghahawak parehong ng burger button at ng #calendar-panel (dating
+   sarili nitong "position: fixed" - inalis na, ang wrapper na ngayon
+   ang may hawak ng posisyon), para magkatabi sila nang hindi
+   nagkakapatong kahit magbago ang lapad ng calendar-panel.
+   ========================= */
+
+#top-right-bar {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+
+  z-index: 10;
+}
+
+#settings-menu {
+  position: relative;
+  display: flex;
+}
+
+#settings-menu-button {
+  width: 36px;
+  height: 36px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(20, 22, 28, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+
+  font-size: 17px;
+  color: white;
+
+  cursor: pointer;
+}
+
+#settings-menu-button:hover,
+#settings-menu-button.active {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+#settings-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+
+  width: 168px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  padding: 6px;
+
+  background: rgba(20, 22, 28, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+
+  font-family: system-ui, sans-serif;
+}
+
+#settings-menu-dropdown.hidden {
+  display: none;
+}
+
+#settings-menu-dropdown button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 8px 10px;
+
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  color: white;
+
+  cursor: pointer;
+}
+
+#settings-menu-dropdown button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+#settings-menu-exit:hover {
+  background: rgba(255, 90, 90, 0.25);
+}
+
+.settings-menu-item-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+/* =========================
+   SETTINGS PANEL (Fullscreen, reset save) - lumalabas kapag pinili ang
+   "Settings" sa dropdown sa itaas.
+   ========================= */
+
+#settings-panel {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+
+  width: 260px;
+
+  display: flex;
+  flex-direction: column;
+
+  background: rgba(20, 22, 28, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+
+  font-family: system-ui, sans-serif;
+  color: white;
+  user-select: none;
+  z-index: 31;
+}
+
+#settings-panel.hidden {
+  display: none;
+}
+
+#settings-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+#settings-panel-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+#settings-panel-close {
+  width: 20px;
+  height: 20px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+
+  cursor: pointer;
+}
+
+#settings-panel-close:hover {
+  background: rgba(255, 90, 90, 0.35);
+  color: white;
+}
+
+#settings-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  padding: 12px;
+}
+
+#settings-panel-body button {
+  padding: 9px 10px;
+
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 7px;
+
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  text-align: left;
+
+  cursor: pointer;
+}
+
+#settings-panel-body button:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+#settings-reset-save:hover {
+  background: rgba(255, 90, 90, 0.3);
+  border-color: rgba(255, 90, 90, 0.5);
+}
+
+/* =========================
+   SETTINGS TOAST (maikling mensahe, hal. "Na-save!") - gitna-ibaba,
+   sa ibabaw halos ng lahat.
+   ========================= */
+
+#settings-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 90px;
+  transform: translate(-50%, 0);
+
+  padding: 9px 16px;
+
+  background: rgba(20, 22, 28, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+
+  font-family: system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+
+  pointer-events: none;
+  z-index: 40;
+
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+#settings-toast.visible {
+  opacity: 1;
+}
+
+#settings-toast.hidden {
+  display: none;
+}
+
+/* =========================
+   BED SLEEP OVERLAY (buong itim na screen) - tingnan ang
+   fadeScreenThenBack sa js/bed.js.
+   ========================= */
+
+#bed-sleep-overlay {
+  position: fixed;
+  inset: 0;
+
+  background: black;
+
+  pointer-events: none;
+  z-index: 45;
+
+  opacity: 0;
+  transition: opacity 0.55s ease;
+}
+
+#bed-sleep-overlay.visible {
+  opacity: 1;
+}
+
+#bed-sleep-overlay.hidden {
+  display: none;
+}
+
+/* =========================
+   MOBILE/TOUCH CONTROLS (virtual joystick + skill-cluster)
+   =========================
+   Nakatago LANG hangga't hindi idinagdag ng mobile-controls.js ang
+   "touch-controls-active" class sa <body> (touch device lang, hindi
+   desktop) - tingnan ang paliwanag sa index.html/mobile-controls.js.
+
+   BAGONG LAYOUT (hiling ng user, MLBB-style): puro BILOG na "skill
+   cluster" sa kanang-ibaba - Punch ang PINAKAMALAKI (totoong
+   punch.png), Tools at Run ay magkatabi, parehong nasa ITAAS ng
+   Punch. Enter/Exit, Bag, at Menu na floating button ay TINANGGAL
+   na (auto-door na ang Enter/Exit, hotbar's own bag slot pa rin ang
+   Bag, at ang phone BACK button na ang nagbubukas ng Settings sa
+   gitna ng screen - tingnan ang mobile-controls.js). */
+
+#mobile-joystick,
+#mobile-skill-cluster {
+  display: none;
+}
+
+body.touch-controls-active #mobile-joystick {
+  display: block;
+}
+
+body.touch-controls-active #mobile-skill-cluster {
+  display: block;
+}
+
+#mobile-joystick {
+  position: fixed;
+  left: max(18px, env(safe-area-inset-left));
+  /* Inibaba ng konti (dating 92px) - hiling ng user. */
+  bottom: max(66px, calc(66px + env(safe-area-inset-bottom)));
+  z-index: 50;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#mobile-joystick-base {
+  position: relative;
+  width: 108px;
+  height: 108px;
+
+  background: rgba(20, 22, 28, 0.55);
+  border: 2px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+
+  touch-action: none;
+}
+
+#mobile-joystick-stick {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 46px;
+  height: 46px;
+  margin-top: -23px;
+  margin-left: -23px;
+
+  background: rgba(212, 175, 55, 0.55);
+  border: 2px solid rgba(212, 175, 55, 0.85);
+  border-radius: 50%;
+
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* Bahagyang naka-highlight ang stick habang naka-hawak/naka-drag -
+   simpleng visual feedback lang (tingnan ang mobile-controls.js). */
+#mobile-joystick-base.active #mobile-joystick-stick {
+  background: rgba(212, 175, 55, 0.8);
+}
+
+/* --- SKILL CLUSTER (kanang-ibaba) --- */
+
+#mobile-skill-cluster {
+  position: fixed;
+  right: max(14px, env(safe-area-inset-right));
+  bottom: max(66px, calc(66px + env(safe-area-inset-bottom)));
+  z-index: 50;
+
+  width: 190px;
+  height: 150px;
+}
+
+.mobile-skill-btn {
+  position: absolute;
+  border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: radial-gradient(circle at 35% 30%, #2c3040, #12141c);
+  border: 2px solid rgba(120, 170, 255, 0.55);
+  box-shadow:
+    0 0 10px rgba(90, 150, 255, 0.35),
+    inset 0 0 10px rgba(0, 0, 0, 0.45);
+
+  padding: 0;
+  font-size: 20px;
+  color: white;
+
+  touch-action: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-skill-btn img {
+  width: 60%;
+  height: 60%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
+.mobile-skill-btn:active,
+.mobile-skill-btn.active {
+  background: radial-gradient(circle at 35% 30%, #3a4058, #1a1c26);
+  transform: scale(0.94);
+}
+
+/* Punch - pinakamalaki, gold ring, nasa kanang-ibabang sulok. */
+.mobile-skill-punch {
+  width: 92px;
+  height: 92px;
+  right: 0;
+  bottom: 0;
+
+  border-color: rgba(255, 205, 90, 0.75);
+  box-shadow:
+    0 0 16px rgba(255, 195, 70, 0.5),
+    inset 0 0 12px rgba(0, 0, 0, 0.45);
+  background: radial-gradient(circle at 35% 30%, #4a3a1c, #201608);
+}
+
+.mobile-skill-punch:active {
+  background: radial-gradient(circle at 35% 30%, #5c481f, #2a1d0c);
+}
+
+/* Tools - inibaba + pinaliit ng konti (dati'y 58px, mas mataas). */
+.mobile-skill-tools {
+  width: 46px;
+  height: 46px;
+  right: 92px;
+  bottom: 78px;
+
+  border-color: rgba(160, 200, 255, 0.6);
+}
+
+/* Run - katabi ng Tools, parehong nasa itaas ng Punch (hindi na
+   malapit sa joystick). */
+.mobile-skill-run {
+  width: 44px;
+  height: 44px;
+  right: 34px;
+  bottom: 88px;
+
+  border-color: rgba(140, 220, 150, 0.65);
+  background: radial-gradient(circle at 35% 30%, #23361f, #0f180d);
+}
+
+.mobile-skill-run.active {
+  background: radial-gradient(circle at 35% 30%, #2f4a29, #16240f);
+  border-color: rgba(140, 220, 150, 0.95);
+}
+
+/* =========================
+   LOADING OVERLAY (door teleport - map.js loadWorld)
+   ========================= */
+
+#world-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+
+  background: rgba(0, 0, 0, 0.92);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  opacity: 1;
+  transition: opacity 220ms ease;
+}
+
+#world-loading-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#world-loading-spinner {
+  width: 34px;
+  height: 34px;
+
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: rgba(212, 175, 55, 0.9);
+  border-radius: 50%;
+
+  animation: world-loading-spin 700ms linear infinite;
+}
+
+@keyframes world-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* =========================
+   SETTINGS MENU - CENTERED MODE (phone BACK button)
+   =========================
+   Normal: naka-anchor ang dropdown sa ilalim ng burger icon (top-
+   right). Kapag binuksan sa pamamagitan ng phone BACK button
+   (mobile-controls.js, setSettingsMenuOpen(true, true)) - naka-
+   center ito sa GITNA ng screen sa halip, hiling ng user. */
+
+#settings-menu-dropdown.settings-menu-centered {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+
+  width: 200px;
+  z-index: 200;
+
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+
+/* =========================
+   MOBILE HUD / TOUCH LAYOUT
+   =========================
+   BAGO: naka-gate ito sa "body.touch-controls-active" (parehong
+   class na nagpapakita/nagtatago ng joystick/skill-cluster), HINDI
+   na sa "@media (max-width: 700px)" - NAHANAP na bug: karamihan sa
+   totoong phone sa LANDSCAPE (hiling ng user, dapat strictly
+   landscape) ay MAS MALAPAD sa 700px (hal. iPhone 13 = 844px pahiga),
+   kaya HINDI kailanman nag-fi-fire ang buong block na ito sa totoong
+   paggamit - "flat" lang laging desktop-sized ang buong HUD (kasama
+   ang naka-off-center na hotbar) kahit touch device na. Gamit ang
+   touch-controls-active bilang gate, gumagana ito base sa TALAGANG
+   uri ng device, hindi sa lapad ng screen. */
+
+body.touch-controls-active #player-hud {
+  transform: scale(0.9);
+  transform-origin: top left;
+  top: max(8px, env(safe-area-inset-top));
+  left: max(8px, env(safe-area-inset-left));
+}
+
+/* Ang burger/settings button ay nananatili sa itaas-KANAN (walang
+   binago dito - #top-right-bar pa rin ang humahawak nito). */
+body.touch-controls-active #top-right-bar {
+  top: max(8px, env(safe-area-inset-top));
+  right: max(8px, env(safe-area-inset-right));
+}
+
+/* Calendar/petsa/panahon - INILIPAT na sa ILALIM ng #player-hud
+   (kaliwang column, sunod-sunod), sa halip na kasama ng burger sa
+   itaas-kanan - hiling ng user. Position:fixed ito - independiyente
+   sa DOM parent nito (#settings-menu/#top-right-bar), dahil ang mga
+   ninuno nito ay walang transform (walang bagong "containing block"
+   na nabubuo), kaya normal pa ring gumagana ang fixed positioning
+   kahit nested pa rin ito sa markup. 91px ≈ player-hud top (8px) +
+   rendered height nito sa scale 0.9 (~75-83px) + gap - sinukat gamit
+   ang totoong laki ng #player-hud sa touch-controls-active mode. */
+body.touch-controls-active #calendar-panel {
+  position: fixed;
+  left: max(8px, env(safe-area-inset-left));
+  top: max(96px, calc(96px + env(safe-area-inset-top)));
+  transform: scale(0.9);
+  transform-origin: top left;
+  z-index: 10;
+}
+
+body.touch-controls-active #hotbar {
+  bottom: max(10px, env(safe-area-inset-bottom));
+  /* MAHALAGA: panatilihin ang translateX(-50%) KASAMA ng scale() -
+     kung "scale(...)" LANG ang laman (dating bug), nawawala ang
+     centering (left:50% na walang katapat na -50% shift), kaya
+     lumilihis ang buong hotbar papunta sa KANAN sa mobile sa halip
+     na manatiling naka-center sa gitna-ibaba. */
+  transform: translateX(-50%) scale(0.82);
+  transform-origin: bottom center;
+  max-width: 100vw;
+}
+
+body.touch-controls-active #mobile-joystick-base {
+  width: 116px;
+  height: 116px;
+}
+
+body.touch-controls-active #mobile-joystick-stick {
+  width: 50px;
+  height: 50px;
+  margin-top: -25px;
+  margin-left: -25px;
+}
+
+body.touch-controls-active #mobile-skill-cluster {
+  width: 176px;
+  height: 140px;
+}
+
+body.touch-controls-active .mobile-skill-punch {
+  width: 84px;
+  height: 84px;
+}
+
+body.touch-controls-active .mobile-skill-tools {
+  width: 42px;
+  height: 42px;
+  right: 84px;
+  bottom: 72px;
+}
+
+body.touch-controls-active .mobile-skill-run {
+  width: 40px;
+  height: 40px;
+  right: 30px;
+  bottom: 82px;
+}
+
+/* Sobrang KIPOT na screen (hal. maliit na phone sa PORTRAIT, o
+   sobrang liit na window) - konting extra shrink pa. Kasama pa rin
+   dapat ang touch-controls-active check, para hindi maapektuhan ang
+   isang desktop browser window na basta pinaliit lang. */
+@media (max-width: 430px) {
+  body.touch-controls-active #hotbar {
+    transform: translateX(-50%) scale(0.7);
+  }
+
+  body.touch-controls-active #mobile-joystick {
+    left: 12px;
+    bottom: max(58px, calc(58px + env(safe-area-inset-bottom)));
+  }
+
+  body.touch-controls-active #mobile-skill-cluster {
+    right: 10px;
+    bottom: max(58px, calc(58px + env(safe-area-inset-bottom)));
+  }
+}
+
+/* Landscape pero MABABANG height (hal. phone na medyo maliit ang
+   screen kahit pahiga na) - itaas nang konti ang joystick/cluster/
+   hotbar para hindi masagasaan ng mababang taas. */
+@media (orientation: landscape) and (max-height: 520px) {
+  body.touch-controls-active #mobile-joystick {
+    bottom: max(48px, calc(48px + env(safe-area-inset-bottom)));
+  }
+
+  body.touch-controls-active #mobile-skill-cluster {
+    bottom: max(48px, calc(48px + env(safe-area-inset-bottom)));
+  }
+
+  body.touch-controls-active #hotbar {
+    transform: translateX(-50%) scale(0.68);
+  }
+}

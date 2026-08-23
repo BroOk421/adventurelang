@@ -1,0 +1,9 @@
+{
+  "appId": "com.tralala.game",
+  "appName": "Tralala Game",
+  "webDir": "www",
+  "backgroundColor": "#000000",
+  "android": {
+    "allowMixedContent": false
+  }
+}

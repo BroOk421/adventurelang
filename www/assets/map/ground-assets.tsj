@@ -1,0 +1,14 @@
+{ "columns":15,
+ "image":"ground-assets.png",
+ "imageheight":150,
+ "imagewidth":250,
+ "margin":0,
+ "name":"ground-assets",
+ "spacing":0,
+ "tilecount":135,
+ "tiledversion":"1.12.2",
+ "tileheight":16,
+ "tilewidth":16,
+ "type":"tileset",
+ "version":"1.10"
+}
