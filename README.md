@@ -62,9 +62,14 @@ commit` / `git push`.
   gusto mo ng ibang package name (hal. `com.iyongpangalan.laro`),
   palitan mo ito BAGO mag-publish (mahirap nang baguhin pagkatapos
   ma-publish sa Play Store, kung balak mo doon ilagay balang araw).
-- **Icon/splash:** default Capacitor placeholder icon pa ang gamit
-  (asul na "cap" logo) - kung gusto mo ng custom na icon, sabihin mo
-  lang, may hiwalay na proseso iyon (`@capacitor/assets` tool).
+- **Icon/splash:** GINAMIT na ang na-upload mong logo (`AdventureLang`)
+  bilang app icon (lahat ng density, kasama ang adaptive icon
+  foreground/background) at splash screen - awtomatiko nang nabuo
+  gamit ang `@capacitor/assets` (`assets/icon-*.png`, `assets/splash*.png`
+  sa root ng project na ito, kung sakaling gusto mong palitan/i-
+  regenerate balang araw: `npx capacitor-assets generate --android`).
+- **App name:** "AdventureLang" na rin (dating "Tralala Game") -
+  `capacitor.config.json`, `android/app/src/main/res/values/strings.xml`.
 - **Debug vs. Release build:** ang workflow ay gumagawa ng **debug**
   APK (walang kailangang signing key, direkta nang ma-i-install) -
   sapat na ito para subukan/i-share sa mga kaibigan. Kung balak mong
