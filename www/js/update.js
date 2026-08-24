@@ -325,7 +325,7 @@ function update(deltaMs) {
     player.frame++;
     player.frameTimer = 0;
 
-    if (player.frame >= 6) {
+    if (player.frame >= PLAYER_ANIM_FRAME_COUNT) {
       player.frame = 0;
     }
   }

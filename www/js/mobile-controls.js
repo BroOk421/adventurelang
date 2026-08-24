@@ -103,17 +103,32 @@ if (isMobileTouchDevice) {
   let activePointerId = null;
 
   function setDirectionKeys(dx, dy, distRatio) {
-    // 0° = pakanan, dumadagdag PABABA (screen space, +Y = pababa) -
-    // kino-convert papunta sa 8 octant, para puwedeng magsabay ang 2
-    // direksyon (diagonal) - PAREHONG "keys" object (input.js) na
-    // binabasa mismo ng update.js, kaya walang ibang code na
-    // kailangang baguhin doon.
-    const deg = (Math.atan2(dy, dx) * 180) / Math.PI;
+    // Dating 8 octant (45° kada isa) - puwedeng magsabay ang 2
+    // direksyon (hal. "w"+"d" - diagonal na galaw, tulad ng talagang
+    // paghawak ng 2 keyboard key nang sabay). Hiling ng user: alisin
+    // ang diagonal - 4 na direksyon LANG (itaas/ibaba/kaliwa/kanan),
+    // isa lang ang naka-ON kada sandali.
+    //
+    // Ginagawa ito sa pamamagitan ng "dominant axis" - kung alin sa dx
+    // (kaliwa/kanan) o dy (itaas/ibaba) ang MAS MALAKI ang distansya
+    // mula sa gitna ng joystick, YUON lang ang direksyon na susundin -
+    // kahit medyo directional-diagonal ang hila ng daliri, ang
+    // pinakamalapit/pinaka-dominanteng axis lang ang mananalo (parang
+    // "snap" sa pinakamalapit na 4 na direksyon sa halip na 8).
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
 
-    keys["d"] = deg > -67.5 && deg < 67.5;
-    keys["a"] = deg > 112.5 || deg < -112.5;
-    keys["s"] = deg > 22.5 && deg < 157.5;
-    keys["w"] = deg < -22.5 && deg > -157.5;
+    if (absDx > absDy) {
+      keys["d"] = dx > 0;
+      keys["a"] = dx < 0;
+      keys["s"] = false;
+      keys["w"] = false;
+    } else {
+      keys["s"] = dy > 0;
+      keys["w"] = dy < 0;
+      keys["a"] = false;
+      keys["d"] = false;
+    }
 
     if (!document.getElementById("mobile-btn-run")?.classList.contains("active")) {
       keys["shift"] = distRatio > RUN_THRESHOLD_RATIO;

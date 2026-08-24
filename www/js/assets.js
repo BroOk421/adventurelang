@@ -39,36 +39,72 @@ let tilesets = [];
 // PLAYER SPRITES
 // =========================
 
+// =========================
+// OLDMAN SKIN (bagong itsura ng player)
+// =========================
+//
+// Pinalitan na ang player mula sa dating "generic" na sprite tungo sa
+// oldman art (assets/player/oldman/) - idle, walk, sit, pick, pickaxe.
+// Iba ang FORMAT ng mga bagong asset na ito kumpara dati: hindi na
+// isang spritesheet-strip na hinahati sa frameCount (tulad ng dating
+// idleFront.png/walkFront.png/sit.png) - HIWALAY na larawan na ito
+// kada frame (tulad na rin ng dating "pick"), at may APAT na direksyon
+// na ngayon (front/back/left/right) sa halip na dalawa lang
+// (left/right) para sa pick/pickaxe.
+//
+// WALANG oldman art para sa AXE at PUNCH (kamao) - kulang pa ang mga
+// asset na iyon (tingnan ang CLAUDE.md/usapan) - kaya PINANATILI muna
+// natin ang DATING sprite set (sprites.axeStrike, sprites.punchStrike)
+// sa ibaba - ibang itsura pa rin ito habang naghahampas ng axe/kamao,
+// hanggang sa magkaroon ng tamang oldman art para dito.
+//
+// WALANG hiwalay na "run" art ang oldman - ginagamit na lang natin
+// ulit ang WALK frames kapag tumatakbo (sprites.run = sprites.walk sa
+// ibaba) - kulang lang ito sa art, hindi bug.
+const OLDMAN_ANIM_FRAME_COUNT = 8;
+
+// down = "front", up = "back" - ganito ang naka-pangalan ang mga
+// folder/file sa assets/player/oldman/.
+const OLDMAN_DIR_PREFIX = {
+  down: "front",
+  up: "back",
+  left: "left",
+  right: "right",
+};
+
+// Kinakarga ang APAT na direksyon (front/back/left/right) ng isang
+// oldman animation (\"idle\", \"walk\", \"sit\", \"pick\", \"pickaxe\") -
+// parehong pattern ang folder/file naming sa lahat ng ito:
+//   assets/player/oldman/<anim>/<prefix><anim>/<prefix><anim><N>.png
+// kung saan walang <N> (blangko) ang unang frame, saka 2..8 sunod.
+function loadOldmanAnim(anim) {
+  const frames = { down: [], up: [], left: [], right: [] };
+
+  Object.keys(OLDMAN_DIR_PREFIX).forEach((dir) => {
+    const prefix = OLDMAN_DIR_PREFIX[dir];
+
+    for (let i = 1; i <= OLDMAN_ANIM_FRAME_COUNT; i++) {
+      const img = new Image();
+      const suffix = i === 1 ? "" : String(i);
+
+      img.src = `./assets/player/oldman/${anim}/${prefix}${anim}/${prefix}${anim}${suffix}.png`;
+
+      frames[dir].push(img);
+    }
+  });
+
+  return frames;
+}
+
 const sprites = {
-  idle: {
-    down: new Image(),
-    up: new Image(),
-    left: new Image(),
-    right: new Image(),
-  },
-
-  walk: {
-    down: new Image(),
-    up: new Image(),
-    left: new Image(),
-    right: new Image(),
-  },
-
-  run: {
-    down: new Image(),
-    up: new Image(),
-    left: new Image(),
-    right: new Image(),
-  },
-
-  sit: new Image(),
+  idle: loadOldmanAnim("idle"),
+  walk: loadOldmanAnim("walk"),
+  sit: loadOldmanAnim("sit"),
 
   // Hiwalay na larawan kada frame (hindi spritesheet) - tingnan ang
-  // PICK_FRAME_COUNT sa player.js.
-  pick: {
-    left: [],
-    right: [],
-  },
+  // PICK_FRAME_COUNT sa player.js. Apat na direksyon na ngayon
+  // (dati left/right lang).
+  pick: loadOldmanAnim("pick"),
 
   // Axe swing (pagputol ng puno) - hiwalay na larawan kada frame kada
   // direksyon (hindi na naka-mirror/flip pa - totoong Left/Right art na
@@ -79,11 +115,8 @@ const sprites = {
   },
 
   // Pickaxe swing (paghukay ng bato) - tingnan ang startPickaxeStrike
-  // sa player.js.
-  pickaxeStrike: {
-    left: [],
-    right: [],
-  },
+  // sa player.js. Apat na direksyon na ngayon (dati left/right lang).
+  pickaxeStrike: loadOldmanAnim("pickaxe"),
 
   // Rake swing (paggamit ng rake) - tingnan ang startRakeStrike sa
   // player.js. PANSININ: sa ngayon, PICKAXE ang laman ng aktwal na mga
@@ -103,32 +136,10 @@ const sprites = {
   },
 };
 
-sprites.idle.down.src = "./assets/player/idleFront.png";
-sprites.idle.up.src = "./assets/player/idleBack.png";
-sprites.idle.left.src = "./assets/player/idleLeft.png";
-sprites.idle.right.src = "./assets/player/idleright.png";
-
-sprites.walk.down.src = "./assets/player/walkFront.png";
-sprites.walk.up.src = "./assets/player/walkBack.png";
-sprites.walk.left.src = "./assets/player/walkLeft.png";
-sprites.walk.right.src = "./assets/player/walkRight.png";
-
-sprites.run.down.src = "./assets/player/runFront.png";
-sprites.run.up.src = "./assets/player/runBack.png";
-sprites.run.left.src = "./assets/player/runLeft.png";
-sprites.run.right.src = "./assets/player/runRight.png";
-
-sprites.sit.src = "./assets/player/sit.png";
-
-for (let i = 1; i <= 6; i++) {
-  const left = new Image();
-  left.src = `./assets/player/pick/Left/pickLeft${i}.png`;
-  sprites.pick.left.push(left);
-
-  const right = new Image();
-  right.src = `./assets/player/pick/Right/pickRight${i}.png`;
-  sprites.pick.right.push(right);
-}
+// Walang hiwalay na "run" art ang oldman - ginagamit na lang natin
+// ulit ang WALK frames (parehong Image object references, hindi
+// kinokopya - okay lang, hindi naman ito nire-render nang magkasabay).
+sprites.run = sprites.walk;
 
 for (let i = 1; i <= 6; i++) {
   const left = new Image();
@@ -138,16 +149,6 @@ for (let i = 1; i <= 6; i++) {
   const right = new Image();
   right.src = `./assets/player/axe/right/AxeStrikeRight${i}.png`;
   sprites.axeStrike.right.push(right);
-}
-
-for (let i = 1; i <= 6; i++) {
-  const left = new Image();
-  left.src = `./assets/player/pickaxe/left/PickaxeLeft${i}.png`;
-  sprites.pickaxeStrike.left.push(left);
-
-  const right = new Image();
-  right.src = `./assets/player/pickaxe/right/PickaxeRight${i}.png`;
-  sprites.pickaxeStrike.right.push(right);
 }
 
 for (let i = 1; i <= 6; i++) {
