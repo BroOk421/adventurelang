@@ -103,32 +103,17 @@ if (isMobileTouchDevice) {
   let activePointerId = null;
 
   function setDirectionKeys(dx, dy, distRatio) {
-    // Dating 8 octant (45° kada isa) - puwedeng magsabay ang 2
-    // direksyon (hal. "w"+"d" - diagonal na galaw, tulad ng talagang
-    // paghawak ng 2 keyboard key nang sabay). Hiling ng user: alisin
-    // ang diagonal - 4 na direksyon LANG (itaas/ibaba/kaliwa/kanan),
-    // isa lang ang naka-ON kada sandali.
-    //
-    // Ginagawa ito sa pamamagitan ng "dominant axis" - kung alin sa dx
-    // (kaliwa/kanan) o dy (itaas/ibaba) ang MAS MALAKI ang distansya
-    // mula sa gitna ng joystick, YUON lang ang direksyon na susundin -
-    // kahit medyo directional-diagonal ang hila ng daliri, ang
-    // pinakamalapit/pinaka-dominanteng axis lang ang mananalo (parang
-    // "snap" sa pinakamalapit na 4 na direksyon sa halip na 8).
-    const absDx = Math.abs(dx);
-    const absDy = Math.abs(dy);
+    // 0° = pakanan, dumadagdag PABABA (screen space, +Y = pababa) -
+    // kino-convert papunta sa 8 octant, para puwedeng magsabay ang 2
+    // direksyon (diagonal) - PAREHONG "keys" object (input.js) na
+    // binabasa mismo ng update.js, kaya walang ibang code na
+    // kailangang baguhin doon.
+    const deg = (Math.atan2(dy, dx) * 180) / Math.PI;
 
-    if (absDx > absDy) {
-      keys["d"] = dx > 0;
-      keys["a"] = dx < 0;
-      keys["s"] = false;
-      keys["w"] = false;
-    } else {
-      keys["s"] = dy > 0;
-      keys["w"] = dy < 0;
-      keys["a"] = false;
-      keys["d"] = false;
-    }
+    keys["d"] = deg > -67.5 && deg < 67.5;
+    keys["a"] = deg > 112.5 || deg < -112.5;
+    keys["s"] = deg > 22.5 && deg < 157.5;
+    keys["w"] = deg < -22.5 && deg > -157.5;
 
     if (!document.getElementById("mobile-btn-run")?.classList.contains("active")) {
       keys["shift"] = distRatio > RUN_THRESHOLD_RATIO;
@@ -226,7 +211,6 @@ if (isMobileTouchDevice) {
 (function setupMobileActionButtons() {
   const toolsBtn = document.getElementById("mobile-btn-tools");
   const runBtn = document.getElementById("mobile-btn-run");
-  const punchBtn = document.getElementById("mobile-btn-punch");
 
   // NOTE: Wala nang "Enter/Exit" button dito - lahat ng pintuan ay
   // "auto" na ngayon (worlds.js, DOORS - auto:true), kaya awtomatiko
@@ -269,89 +253,7 @@ if (isMobileTouchDevice) {
     runBtn.addEventListener("pointercancel", clearRun);
     runBtn.addEventListener("pointerleave", clearRun);
   }
-
-  if (punchBtn) {
-    punchBtn.addEventListener("pointerdown", (event) => {
-      event.preventDefault();
-      punchBtn.classList.add("active");
-      triggerMobilePunch();
-    });
-
-    const releasePunch = () => punchBtn.classList.remove("active");
-    punchBtn.addEventListener("pointerup", releasePunch);
-    punchBtn.addEventListener("pointercancel", releasePunch);
-    punchBtn.addEventListener("pointerleave", releasePunch);
-  }
 })();
-
-// =========================
-// (c) PUNCH BUTTON - i-TAP ang tile na KAHARAP ng player
-// =========================
-//
-// Sa halip na gumawa ng bagong hiwalay na "attack system" (duplicate
-// ng logic sa dig.js/resources.js), dito na lang natin GINAGAYA ang
-// isang totoong TAP sa mundo - kinukwenta natin ang tile na kaharap
-// ng player (base sa player.direction), ico-convert papuntang SCREEN
-// coordinates (kabaligtaran ng ginagawa ng getMouseTile, dig.js), at
-// nagpapadala ng SYNTHETIC mousemove/mousedown/mouseup/click sa
-// canvas doon - kaya AWTOMATIKONG gumagana ang lahat ng existing na
-// interaction (puno/bato gamit ang kamao -> startPunchStrike,
-// pagdampot, Oldman shop, kama, crafter/stove, atbp.), walang
-// duplicate na code, at laging tugma sa kahit anong pagbabago sa
-// ibang file balang araw.
-function simulateWorldTap(worldX, worldY) {
-  if (typeof camera === "undefined" || typeof canvas === "undefined") return;
-
-  const snappedCameraX = Math.round(camera.x * camera.zoom) / camera.zoom;
-  const snappedCameraY = Math.round(camera.y * camera.zoom) / camera.zoom;
-
-  const screenX = (worldX - snappedCameraX) * camera.zoom;
-  const screenY = (worldY - snappedCameraY) * camera.zoom;
-
-  const rect = canvas.getBoundingClientRect();
-  const clientX = rect.left + screenX;
-  const clientY = rect.top + screenY;
-
-  const opts = { clientX, clientY, bubbles: true, button: 0 };
-
-  canvas.dispatchEvent(new MouseEvent("mousemove", opts));
-  canvas.dispatchEvent(new MouseEvent("mousedown", opts));
-  canvas.dispatchEvent(new MouseEvent("mouseup", opts));
-  canvas.dispatchEvent(new MouseEvent("click", opts));
-}
-
-function triggerMobilePunch() {
-  if (typeof player === "undefined" || player.putting) return;
-  if (typeof TILE_SIZE === "undefined") return;
-
-  const box =
-    typeof getPlayerCollisionBox === "function"
-      ? getPlayerCollisionBox()
-      : { x: player.x, y: player.y, width: player.width, height: player.height };
-
-  let targetX = box.x + box.width / 2;
-  let targetY = box.y + box.height / 2;
-
-  // Isang buong tile pasulong, base sa direction na hinaharap ng
-  // player ngayon - kaparehong-pareho sa "isTileInReach" (dig.js,
-  // ±1 tile sa paligid ng player), kaya tiyak na aabot ito.
-  switch (player.direction) {
-    case "up":
-      targetY -= TILE_SIZE;
-      break;
-    case "down":
-      targetY += TILE_SIZE;
-      break;
-    case "left":
-      targetX -= TILE_SIZE;
-      break;
-    case "right":
-      targetX += TILE_SIZE;
-      break;
-  }
-
-  simulateWorldTap(targetX, targetY);
-}
 
 // =========================
 // (d) PHONE BACK BUTTON -> BUKSAN ANG SETTINGS SA GITNA NG SCREEN

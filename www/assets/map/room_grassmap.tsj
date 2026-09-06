@@ -1,0 +1,14 @@
+{ "columns":15,
+ "image":"room_grassmap.png",
+ "imageheight":224,
+ "imagewidth":240,
+ "margin":0,
+ "name":"room_grassmap",
+ "spacing":0,
+ "tilecount":210,
+ "tiledversion":"1.12.2",
+ "tileheight":16,
+ "tilewidth":16,
+ "type":"tileset",
+ "version":"1.10"
+}

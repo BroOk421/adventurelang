@@ -42,12 +42,13 @@ const CALENDAR_MONTHS_PER_YEAR = 12;
 // Sunny->Rain->Snow, atbp.) - seeded sa (year, monthIndex) kaya pareho
 // palagi ang resulta para sa parehong buwan, pero iba-iba sa
 // magkakaibang buwan.
-// AYOS: naka-"rain"-lang ito (walang "snow"/"sunny") - kaya kailanman
-// hindi naging totoo ang isSnowDay/isSnowWeather() sa buong laro
-// (walang block na maaaring pumili ng "snow"). Ibinalik sa
-// dokumentadong gawi (tingnan ang CLAUDE.md, entry 26) para
-// matestuhan ang bagong snowtown reskin ng "town" (worlds.js/map.js).
-const WEATHER_TYPES = ["snow"];
+// AYOS (hiling ng user): "gusto ko implement mo rin yung ganung dilim
+// sa sunny at sa snow" - para MAKITA/MARANASAN talaga ang bagong
+// snow/sunny na overcast mood (atmosphere.js), kailangang MURING
+// aktibo ang 3-panahong pag-ikot (dating "rain" lang ang laman nito,
+// pansamantalang narrowing para sa isang partikular na testing dati -
+// tingnan ang paliwanag sa itaas). Ibinalik sa TATLONG panahon.
+const WEATHER_TYPES = ["rain", "snow", "sunny"];
 const WEATHER_BLOCK_DAYS = CALENDAR_DAYS_PER_MONTH / WEATHER_TYPES.length;
 
 // Sa loob ng isang "rain" block: ilang porsyento ng mga araw doon ang

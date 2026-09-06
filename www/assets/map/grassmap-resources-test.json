@@ -1,0 +1,14 @@
+{
+  "_note": "TESTING FILE lang ito - hiwalay sa grassmap-resources.json (yung 'fixedTrees'/'fixedStones'/'fixedGrassTufts'). Ang mga puno/bato dito ('trees'/'stones', WALANG 'fixed' sa pangalan) ay para lang subukan/dagdagan nang mabilis nang hindi kinakailangang idagdag/alisin sa opisyal na grassmap-resources.json - tingnan ang resources.js (world.trees/world.stones) at worlds.js (GRASSMAP_RESOURCES_TEST_URL) kung paano ito hinahalo sa fixedTrees/fixedStones. GUMAGANA PA RIN dito ang PAREHONG axe/pickaxe-strike hit animation, harvested-tracking, at 15-minutong respawn system ng normal na fixedTrees/fixedStones - PERMANENTE pa ring nawawala ang isang node dito 'pag na-ubos na (parehong-pareho ng gawi ng fixedTrees/fixedStones, walang espesyal na 'di-permanente' na kaso).",
+
+  "_paano_gamitin": "'variant' key sa trees: PINETREE LANG (0) ang valid ngayon sa grassmap (tinanggal na ang bigtree, tingnan ang GRASSMAP_TREE_VARIANT_PATHS sa resources.js) - kaya 0 palagi ito, o pwede na lang tanggalin/i-default. 'variant' sa stones: 0-5 (stone1.png hanggang stone6.png, tingnan ang GRASSMAP_STONE_VARIANT_PATHS). Gamitin ang 'P' key habang naglalaro (input.js) para makita sa console kung anong col/row ang kinatatayuan mo.",
+
+  "_pinetree_paalala": "TANDAAN: kapag na-cut ng axe ang isang pinetree dito (variant 0, 7 hits), gagana pa rin ang PAREHONG cut-down/fall animation (pinetreecutanimation.png, 7 frame - isang frame kada hit) saka ang tuluyang \"cutted\" na animation (pinetreecuttedanimation.png) bago ito PERMANENTENG mapalitan ng nakatayong tuod (pinetreecut.png, mananatili/stay sa tile) - tingnan ang \"PINETREE AXE-STRIKE ANIMATION\" section sa resources.js. Walang dagdag na code na kailangan dito - AUTOMATIC na itong gumagana dahil PAREHONG variant/col/row/harvest mechanism lang ang ginagamit ng mga node na ito, kaparehong-pareho ng fixedTrees.",
+
+  "stones": [
+    { "col": 40, "row": 15, "variant": 0 },
+    { "col": 43, "row": 17, "variant": 2 },
+    { "col": 47, "row": 19, "variant": 4 },
+    { "col": 13, "row": 31.7, "variant": 4 }
+  ]
+}

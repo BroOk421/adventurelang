@@ -121,9 +121,7 @@ async function loadTilesets(map) {
 
   // Mula sa pinakamalaki papuntang pinakamaliit ang firstgid, para
   // mabilis lang ang paghahanap sa getTilesetForGid.
-  tilesets = loaded
-    .filter(Boolean)
-    .sort((a, b) => b.firstgid - a.firstgid);
+  tilesets = loaded.filter(Boolean).sort((a, b) => b.firstgid - a.firstgid);
 
   console.log(
     "Tilesets loaded:",
@@ -187,6 +185,15 @@ houseImage.src = "./assets/map/sprites/house.png";
 const snowhouseImage = new Image();
 snowhouseImage.src = "./assets/map/sprites/snowhouse.png";
 
+// BAGO (hiling ng user, minimap.js): "yung mismong img na lang ilagay
+// tapos medyo lakihan sa map ng mga assets like bahay" - cache ng mga
+// bbox ng bahay ng KASALUKUYANG mundo (parehong listahan na ginagawa sa
+// loadWorld sa ibaba para sa buildHouseWallCollisions) - ginagamit ito
+// ng minimap.js (drawMinimapHouses) para malaman kung SAAN iguguhit ang
+// icon ng bahay (gamit rin ang parehong houseImage/snowhouseImage sa
+// itaas), sa halip na basta generic na collision box.
+let currentWorldHouseBBoxes = [];
+
 // Iginuguhit ang larawan sa NATIVE na sukat nito (walang stretch/
 // scale papunta sa laki ng lumang tile-bbox - maaaring magkaiba nang
 // bahagya ang sukat ng house.png kumpara sa snowhouse.png, sadya
@@ -237,7 +244,8 @@ function getLampLightPoints() {
 
   const allTileLayers = flattenTileLayers(mapData.layers);
   const layer = allTileLayers.find(
-    (candidate) => candidate.name.toLowerCase() === "lamps" ||
+    (candidate) =>
+      candidate.name.toLowerCase() === "lamps" ||
       candidate.name.toLowerCase() === "snowlamps",
   );
 
@@ -426,6 +434,42 @@ const SNOWHOUSE_WINDOW_OFFSETS = [
   { x: 56, y: 68 },
 ];
 
+// BAGO (hiling ng user): "kapag naka off or wala pang lamp sa loob ng
+// bahay, yung labas ng bahay ay dapat WALANG ilaw sa bintana - once
+// lang meron nang lamp AT naka-ON, doon lang lalabas" - dating basta
+// GABI NA lang ang batayan ng drawHouseWindowLights (atmosphere.js),
+// kahit walang aktwal na naka-ON na Light sa loob ng partikular na
+// bahay na iyon. Para malaman KANINONG interior world ang isang bahay
+// (walang direktang "name"/identity ang mga overlap-instance na bahay,
+// connected-component detection lang sila mula sa sprite pixels),
+// tinitingnan natin ang PINAKAMALAPIT na pintuan (DOORS, worlds.js) sa
+// KASALUKUYANG mundo base sa X position - ang bawat bahay dito ay may
+// kaakibat na pintuan papasok (world: "town", to: "manuelHouse" atbp.)
+// na naka-anchor din sa parehong X area ng bahay mismo.
+function findInteriorWorldForHouseBBox(bbox) {
+  if (typeof DOORS === "undefined") return null;
+
+  const centerX = bbox.x + bbox.width / 2;
+
+  let closestWorld = null;
+  let closestDistance = Infinity;
+
+  for (const door of DOORS) {
+    if (door.world !== currentWorld) continue;
+    if (!door.to || door.to === "__return__") continue;
+
+    const doorCenterX = door.area.x + door.area.width / 2;
+    const distance = Math.abs(doorCenterX - centerX);
+
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestWorld = door.to;
+    }
+  }
+
+  return closestWorld;
+}
+
 // Pinupunuan ito ni drawMapObjects (isang beses kada frame, bago mag-
 // Y-sort) - listahan ng LAHAT ng bintanang dapat magliwanag ngayong
 // frame (world space na coordinates), para magamit ito ni
@@ -443,8 +487,22 @@ function collectHouseWindowLightPoints(bbox) {
   const x = bbox.x + bbox.width / 2 - image.naturalWidth / 2;
   const y = bbox.y + bbox.height - image.naturalHeight;
 
+  // BAGO: alamin muna kung KANINONG interior world ang bahay na ito
+  // (tingnan ang paliwanag sa findInteriorWorldForHouseBBox sa itaas) -
+  // isasama ito sa bawat point para malaman ng drawHouseWindowLights
+  // (atmosphere.js) kung TALAGANG may naka-ON na Light sa loob bago
+  // magpasya kung magliliwanag ang bintanang ito.
+  const interiorWorld =
+    typeof findInteriorWorldForHouseBBox === "function"
+      ? findInteriorWorldForHouseBBox(bbox)
+      : null;
+
   for (const offset of offsets) {
-    houseWindowLightPoints.push({ x: x + offset.x, y: y + offset.y });
+    houseWindowLightPoints.push({
+      x: x + offset.x,
+      y: y + offset.y,
+      world: interiorWorld,
+    });
   }
 }
 
@@ -705,9 +763,7 @@ function getOverlapClusters(layers) {
 
     if (!isOverlapLayer(layer)) continue;
 
-    const tileLayers = isGroup
-      ? flattenTileLayers(layer.layers)
-      : [layer];
+    const tileLayers = isGroup ? flattenTileLayers(layer.layers) : [layer];
 
     if (tileLayers.length > 0) {
       // "type" - pangalan ng ORIHINAL na group/layer sa Tiled ("trees",
@@ -785,8 +841,14 @@ function isOverlapLayer(layer) {
 // tamang pagkakasunod-sunod.
 
 const NEIGHBOR_OFFSETS = [
-  [1, 0], [-1, 0], [0, 1], [0, -1],
-  [1, 1], [1, -1], [-1, 1], [-1, -1],
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+  [1, 1],
+  [1, -1],
+  [-1, 1],
+  [-1, -1],
 ];
 
 // Tiled can store flip flags in the highest 3 bits - kailangan tanggalin
@@ -908,13 +970,26 @@ function makeInstance(cells, stackOf, width, type) {
   // "bbox" (world-space) ng buong stamp na ito - ginagamit para malaman
   // kung nag-o-overlap ang player dito (tingnan ang "SEE-THROUGH NA
   // OCCLUSION" sa drawMapObjects). Para sa "trees" - NIPISIN ang bbox
-  // papuntang gitna (halos katumbas lang ng puno/trunk, hindi ang buong
-  // lapad ng dahon/canopy) - kung hindi, nag-o-opacity na rin kahit
-  // nasa TABI lang ng puno ang player (hindi pa siya nasa LIKOD talaga).
+  // papuntang gitna, PERO HINDI na masyadong makitid (tingnan ang AYOS
+  // sa ibaba).
   let bbox = { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 
+  // AYOS (bug report ng user, may video): "kahit di mag-gamit ng axe is
+  // dapat nag-oopacity parin" - VERIFIED sa recording: nakatayo ang
+  // player sa ILALIM/GILID ng MALAPAD na canopy (kitang-kita, natatakpan
+  // pa nga ang ulo niya ng dahon), PERO hindi nag-fade ang puno - SANHI:
+  // masyadong MAKITID (35% lang ng lapad, "trunk only") ang dating bbox
+  // dito, kaya kahit malinaw na nasa ILALIM ng canopy ang player,
+  // hindi ito na-de-detect bilang "overlap" (lampas na sa makitid na
+  // 35% band, kahit pa nasa loob ng buong 100% canopy). PALAKIHIN sa
+  // 70% ng lapad (mas malapit sa TALAGANG lapad ng canopy, hindi na
+  // basta "trunk only" katulad ng dating 35%) - sapat pa ring may
+  // margin sa mismong gilid (hindi 100%) para hindi masyadong agad
+  // mag-trigger kapag TALAGANG nasa TABI pa lang (hindi pa LIKOD) ng
+  // puno ang player, pero MAS MALAKING bahagi na ng canopy ang saklaw
+  // nito ngayon kumpara sa dati.
   if (type === "trees") {
-    const trunkWidth = bbox.width * 0.35;
+    const trunkWidth = bbox.width * 0.7;
 
     bbox = {
       x: bbox.x + (bbox.width - trunkWidth) / 2,
@@ -1022,8 +1097,7 @@ function splitTreeInstancesAroundHouses(treeInstances, houses) {
       const hb = house.bbox;
       const ib = inst.bbox;
 
-      const colsOverlap =
-        ib.x < hb.x + hb.width && ib.x + ib.width > hb.x;
+      const colsOverlap = ib.x < hb.x + hb.width && ib.x + ib.width > hb.x;
 
       const treeReachesAboveHouseBase = ib.y < hb.y + hb.height;
 
@@ -1090,7 +1164,11 @@ function makeTreePiece(tiles, forcedBaseY = null) {
   }
 
   const fullWidth = maxX - minX;
-  const trunkWidth = fullWidth * 0.35;
+  // AYOS (parehong bug fix ng makeInstance sa itaas - "kahit di
+  // mag-gamit ng axe is dapat nag-oopacity parin") - PALAKIHIN sa 70%
+  // (dati'y 35%, masyadong makitid) para SAKUP ang mas malaking bahagi
+  // ng TALAGANG nakikitang canopy, hindi lang ang gitnang trunk.
+  const trunkWidth = fullWidth * 0.7;
 
   const bbox = {
     x: minX + (fullWidth - trunkWidth) / 2,
@@ -1101,7 +1179,8 @@ function makeTreePiece(tiles, forcedBaseY = null) {
 
   return {
     tiles,
-    baseY: forcedBaseY !== null ? forcedBaseY : getArtGroundY(tiles, tileBottom),
+    baseY:
+      forcedBaseY !== null ? forcedBaseY : getArtGroundY(tiles, tileBottom),
     bbox,
     type: "trees",
   };
@@ -1136,7 +1215,10 @@ function findTileLayerByName(layers, name) {
     if (layer.type === "group") {
       const found = findTileLayerByName(layer.layers, name);
       if (found) return found;
-    } else if (layer.type === "tilelayer" && layer.name.toLowerCase() === name) {
+    } else if (
+      layer.type === "tilelayer" &&
+      layer.name.toLowerCase() === name
+    ) {
       return layer;
     }
   }
@@ -1157,7 +1239,10 @@ function findAllTileLayersByName(layers, name, out = []) {
   for (const layer of layers) {
     if (layer.type === "group") {
       findAllTileLayersByName(layer.layers, name, out);
-    } else if (layer.type === "tilelayer" && layer.name.toLowerCase() === name) {
+    } else if (
+      layer.type === "tilelayer" &&
+      layer.name.toLowerCase() === name
+    ) {
       out.push(layer);
     }
   }
@@ -1277,8 +1362,7 @@ function getTileArtBottom(gid) {
       let hasArt = false;
 
       for (let col = 0; col < TILE_SIZE; col++) {
-        const index =
-          ((sourceY + row) * pixels.width + sourceX + col) * 4 + 3;
+        const index = ((sourceY + row) * pixels.width + sourceX + col) * 4 + 3;
 
         if (pixels.data[index] > ALPHA_THRESHOLD) {
           hasArt = true;
@@ -1455,7 +1539,6 @@ function buildHouseInfo(layers, width, height) {
   return { cells, bbox, baseY: getCollisionGroundY(bbox) };
 }
 
-
 // =========================
 // DRAW MAP
 // =========================
@@ -1475,8 +1558,32 @@ function drawMapBackground() {
 
   const world = getWorld();
 
-  if (world && world.placeholderRoom) {
-    drawPlaceholderRoom();
+  // AYOS: TINANGGAL na ang "placeholderRoom" na sanga (drawPlaceholderRoom,
+  // worlds.js) - hiling ng user, walang WORLDS entry na dapat gumamit
+  // nito mula ngayon (lahat ng interior ay may TUNAY na tileset na).
+
+  // GRASSMAP: hiling ng user - "erase the bug of house in the ground"
+  // (isang maliit na "ghost"/stray na guhit na lumalabas sa lupa,
+  // malapit sa bahay). SANHI: dating tile-by-tile na RECONSTRUCTION
+  // ito ng "upperground" layer (drawTileLayer, gamit ang gid/tileset
+  // resolution) - VERIFIED (Python pixel-diff): may MALIIT na
+  // pagkakaiba (ilang daang pixel lang, malapit sa bahay) sa pagitan
+  // ng reconstruction na ito at ng TALAGANG grassmap.png - malamang
+  // dahil sa mga pagbabago ng user sa Tiled (pag-eerase ng puno)
+  // habang hindi pareho ang na-re-export na tile DATA laban sa
+  // na-edit na larawan. Sa halip na umasa pa sa gid/tileset
+  // reconstruction (madaling ma-out-of-sync, at palaging nare-reset
+  // ang tileset path sa SIRA tuwing mag-e-export ulit sa Tiled - tingnan
+  // ang paliwanag sa .tmj/.tsj file), DIREKTA na lang ngayong iginuguhit
+  // ang BUONG grassmap.png bilang IISANG flat na larawan (isang
+  // drawImage call lang) - GARANTISADONG eksaktong-eksakto ang
+  // makikita sa laro laban sa TALAGANG larawan, kahit anong baguhin pa
+  // sa Tiled/tileset sa hinaharap.
+  if (currentWorld === "grassmap") {
+    const mapWidthPx = mapData.width * mapData.tilewidth;
+    const mapHeightPx = mapData.height * mapData.tileheight;
+
+    drawGrassmapDirectRegion(0, 0, mapWidthPx, mapHeightPx);
     return;
   }
 
@@ -1533,7 +1640,8 @@ function drawTownLampsForeground() {
 
   const allTileLayers = flattenTileLayers(mapData.layers);
   const layer = allTileLayers.find(
-    (candidate) => candidate.name.toLowerCase() === "lamps" ||
+    (candidate) =>
+      candidate.name.toLowerCase() === "lamps" ||
       candidate.name.toLowerCase() === "snowlamps",
   );
 
@@ -1556,29 +1664,63 @@ function drawTownLampsForeground() {
 const OCCLUSION_ALPHA = 0.45;
 
 // "type" ng Tiled overlap instance na PUWEDENG mag-occlude - "trees"
-// LANG (tingnan ang OVERLAP_LAYER_NAMES) - HINDI ang "house" (tinanggal
-// na ito sa request ng user: dating madalas mag-trigger ang fade kahit
-// hindi pa talaga LIKOD ng bahay ang player - hal. nakatayo lang siya
-// sa TABI nito - kaya laging mukhang malabo/nakalusaw ang bahay. Hindi
-// rin ang "fence" o "rocks", kahit may bbox din sila (tingnan ang
-// buildOverlapInstances/makeInstance) - hindi natin sila gustong
-// lumabo.
-const OCCLUDABLE_OVERLAP_TYPES = new Set(["trees"]);
+// AT "house" (tingnan ang OVERLAP_LAYER_NAMES). Hindi ang "fence" o
+// "rocks", kahit may bbox din sila (tingnan ang buildOverlapInstances/
+// makeInstance) - hindi natin sila gustong lumabo.
+//
+// AYOS (hiling ng user): "yung mga trees or house na matakpan yung
+// character is dapat nag oopacity" - IBINALIK ang "house" (dating
+// tinanggal dahil madalas mag-trigger ang fade kahit sa TABI lang ng
+// bahay ang player, hindi pa talaga LIKOD) - ngayon, NGINIPIN muna ang
+// bbox ng bawat bahay papuntang gitnang 55% ng lapad lang (tingnan ang
+// paliwanag sa loob ng overlapInstances.push para sa "house" sa ibaba)
+// bago ito idinaragdag dito - PAREHONG konsepto ng "trunk-narrowing" na
+// ginagawa na ng puno (makeInstance), kaya hindi na dapat masyadong
+// mag-trigger kapag nasa gilid lang.
+const OCCLUDABLE_OVERLAP_TYPES = new Set(["trees", "house"]);
+
+// AYOS (bug report ng user, may video): "yung pinetree kailangan pa
+// i-axe ng isang beses bago mag-opacity kapag dumaan yung character;
+// dapat kahit di mag-gamit ng axe is dapat nag-oopacity parin" -
+// SANHI: ang occlusion check ay naghahambing ng BASE/paanan ng puno
+// (item.sortY = tree.row*TILE+TILE) laban sa PAANAN ng player
+// (playerSortY). PERO ang pinetree ay MATAAS (~7.7 tiles) - malawak
+// ang canopy nito na LUMULUKOB sa player kahit ang PAANAN ng player ay
+// nasa MISMONG hanay pa lang (o bahagyang mas mababa) kaysa sa ugat ng
+// puno. Sa ganoong posisyon, item.sortY <= playerSortY, kaya
+// (nang WALANG tolerance) HINDI ito nag-fa-fade - kahit malinaw na
+// nakatakip na ang canopy sa player. (Kaya "gumagana kapag nag-axe":
+// ang axe-strike ay nagpo-force ng item.sortY = MAX_SAFE_INTEGER, na
+// LAGING lalampas sa playerSortY, kaya doon lang nag-fa-fade.) AYOS:
+// magdagdag ng TOLERANCE (para sa MATAAS na occluder LANG - puno,
+// HINDI bahay) - nag-fa-fade na rin ito kung ang base ng puno ay
+// nasa loob ng ~1.5 tiles PABABA ng paanan ng player, hindi na kailangang
+// TALAGANG mas mataas pa. Sapat ito para saklawin ang "katabi/harap-
+// tabi ng matangkad na puno" na sitwasyon, pero hindi masyadong
+// agresibo (hindi lahat ng puno sa paligid ay biglang mag-fa-fade).
+const TREE_OCCLUSION_SORT_TOLERANCE = TILE_SIZE * 1.5;
 
 function shouldOccludeForPlayer(item, playerVisualBox, playerSortY) {
   if (item.isPlayer || !item.bbox) return false;
 
-  // Iguguhit lang ito PAGKATAPOS ng player (kaya siya sana ang
-  // "tatakip") - kung nauna pa ito sa player, wala namang epekto ang
-  // pagpalabo (nasa harap na ang player kahit ganoon).
-  if (item.sortY <= playerSortY) return false;
-
   // "type" - Tiled overlap instance lang ang meron nito (trees/house/
   // rocks/fence). Ang mga random na puno mula sa resources.js
-  // (getResourceDrawables) ay WALANG "type" - okay lang, laging puno
-  // lang sila (tinanggal na ang bbox ng stones doon, kaya awtomatiko
-  // nang hindi sila naka-qualify dito).
+  // (getResourceDrawables) at oak (decor.js) ay WALANG "type" - okay
+  // lang, laging puno lang sila.
   if (item.type && !OCCLUDABLE_OVERLAP_TYPES.has(item.type)) return false;
+
+  // MATAAS na occluder (puno - lahat maliban sa "house")? Bigyan ng
+  // sort-tolerance (tingnan ang TREE_OCCLUSION_SORT_TOLERANCE sa itaas)
+  // - ang bahay ay WALANG tolerance (0), dahil mababa/patag lang ito
+  // at ayaw nating mag-fade ito kapag nasa tabi/harap lang ang player.
+  const isTallOccluder = item.type !== "house";
+  const sortTolerance = isTallOccluder ? TREE_OCCLUSION_SORT_TOLERANCE : 0;
+
+  // Iguguhit lang ito PAGKATAPOS ng player (kaya siya sana ang
+  // "tatakip") - kung TALAGANG nauna pa ito nang malaki sa player
+  // (lampas pa sa tolerance), wala namang epekto ang pagpalabo (nasa
+  // harap na ang player kahit ganoon).
+  if (item.sortY <= playerSortY - sortTolerance) return false;
 
   return isColliding(item.bbox, playerVisualBox);
 }
@@ -1593,6 +1735,70 @@ function drawDrawableWithOcclusion(item, playerVisualBox, playerSortY) {
   ctx.globalAlpha = OCCLUSION_ALPHA;
   item.draw();
   ctx.restore();
+}
+
+// =========================
+// GRASSMAP - "DIRECT POSITION CROP" para sa house/trees/rocks
+// =========================
+//
+// NATUKLASAN (VERIFIED sa pamamagitan ng isang Python simulation ng
+// buong render): ang "upperground" background layer ng grassmap.tmj ay
+// TAMA (gumagamit ng tileset firstgid=1, columns=70, larawan
+// grassmap.png - eksaktong-eksaktong kapareho ng reference), PERO ang
+// "house"/"trees"/"rocks" na OVERLAP layers (para sa Y-sort laban sa
+// player) ay gumagamit ng IBANG tileset (firstgid=2801) na SIRA ang
+// tunay na .tsj definition nito (parehong klase ng "sirang absolute
+// path mula sa Tiled ng dating developer" na paulit-ulit nang nangyari
+// sa proyektong ito - tingnan CLAUDE.md). Kapag ginawa itong basta
+// "grassmap.png din" (parehong paraan ng ginawa sa firstgid=1), MALI
+// ang kinukuha nitong crop (nagre-resulta sa "garbled"/maling
+// parisukat na kulay-brick sa maling posisyon - ito ang sanhi ng
+// report ng user).
+//
+// AYOS: dahil PAREHONG (col,row) POSITION sa mapa ang ginagamit ng
+// overlap layer at ng background sa ILALIM nito (kopya lang ito para
+// sa Y-sort, hindi bagong larawan), ang TAMANG paraan ay basta
+// KUNIN DIREKTA ang pixel content mula sa grassmap.png sa EKSAKTONG
+// PAREHONG (col,row) na posisyon nito sa mapa - HINDI na kailangang
+// gumamit ng gid/tileset resolution kahit kailan para dito. VERIFIED
+// (parehong Python simulation) - eksaktong-eksaktong tumutugma ito sa
+// reference na larawan.
+const grassmapDirectImage = new Image();
+grassmapDirectImage.src = "./assets/map/grassmap.png";
+
+// AYOS (hiling ng user: "di mo nilapat yung snowgrassmap sa grassmap")
+// - ang totoong dahilan: itong drawGrassmapDirectRegion (ginagamit ng
+// BUONG background NG grassmap, kasama pa ang mga puno/bato overlap
+// instance sa ibaba) ay direktang gumuguhit mula sa IISANG hardcoded
+// na Image (grassmapDirectImage, laging "grassmap.png") - kaya kahit
+// matagumpay namang na-swap ng loadWorld() (map.js) ang .tmj papuntang
+// snowgrassmap.tmj kapag snow weather, WALANG epekto ito sa TALAGANG
+// nakikita sa screen, dahil hindi naman dito ginagamit ang loaded na
+// tileset image - dito lang palagi, sa grassmap.png, kumukuha ng pixel
+// ang function na ito. (Ito rin ang dahilan kung bakit gumana ang
+// snowgrassmap2 - walang katulad na hardcoded na shortcut ang
+// "grassmap2", normal na drawTile()/tileset system pa rin ang gamit
+// doon.) AYOS: dagdag na "snow" na bersyon ng parehong Image - dito na
+// pipiliin (batay mismo sa isSnowWeather(), kaparehong basehan ng
+// snowhouseImage/houseImage sa itaas) kung alin sa dalawang larawan
+// ang gagamitin, sa BAWAT tawag sa drawGrassmapDirectRegion.
+const grassmapDirectSnowImage = new Image();
+grassmapDirectSnowImage.src = "./assets/map/snowgrassmap.png";
+
+function getGrassmapDirectImage() {
+  const snowing = typeof isSnowWeather === "function" && isSnowWeather();
+
+  return snowing ? grassmapDirectSnowImage : grassmapDirectImage;
+}
+
+function drawGrassmapDirectRegion(x, y, width, height) {
+  const image = getGrassmapDirectImage();
+
+  if (!image.complete || image.naturalWidth === 0) {
+    return;
+  }
+
+  ctx.drawImage(image, x, y, width, height, x, y, width, height);
 }
 
 function drawMapObjects() {
@@ -1615,9 +1821,7 @@ function drawMapObjects() {
 
   const allTileLayers = flattenTileLayers(mapData.layers);
 
-  const overlapLayerSet = new Set(
-    allTileLayers.filter(isOverlapLayer),
-  );
+  const overlapLayerSet = new Set(allTileLayers.filter(isOverlapLayer));
 
   if (overlapLayerSet.size === 0) {
     // Walang puno/bahay (Tiled overlap layers) dito, pero puwede pa
@@ -1627,7 +1831,7 @@ function drawMapObjects() {
     const playerBox = getPlayerCollisionBox();
     const playerSortY = playerBox.y + playerBox.height;
     const fallbackDrawables = [
-      { sortY: playerSortY, order: Infinity, draw: drawPlayer, isPlayer: true },
+      { sortY: playerSortY, order: Infinity, draw: drawPlayerWithTorchGlow, isPlayer: true },
     ];
 
     if (typeof getResourceDrawables === "function") {
@@ -1652,6 +1856,13 @@ function drawMapObjects() {
 
     if (typeof getBackdropOakDrawables === "function") {
       fallbackDrawables.push(...getBackdropOakDrawables());
+    }
+
+    // GRASSMAP - mga hand-placed na puno (decor.js) - kaparehong-pareho
+    // ng OAK sa itaas (sariling sortY/bbox kada puno), pero FIXED na
+    // posisyon (walang random). No-op sa ibang mundo.
+    if (typeof getGrassmapTreeDrawables === "function") {
+      fallbackDrawables.push(...getGrassmapTreeDrawables());
     }
 
     // Mga baboy (pig.js) - clickable/may health, gumagala sa mapa.
@@ -1692,6 +1903,21 @@ function drawMapObjects() {
     overlapInstances = [];
 
     for (const cluster of clusters) {
+      // GRASSMAP: hiling ng user ("i want the character overlap in this
+      // area") - ang mga DEKORASYONG bato ("rocks" tile layer, malapit
+      // sa pintuan) ay maiksi/mababaw lang talaga (hindi tulad ng puno)
+      // - PERO dahil dynamic Y-sorted pa rin ito, may pagkakataong
+      // MAGKAMALI ang pagkakasunod-sunod (baseY na kinukwenta mula sa
+      // SARILING bbox ng bunton ng bato) kapag malapit dito ang paanan
+      // ng player - resulta, TINATAKPAN ng bato ang bahagi ng
+      // character (VERIFIED sa report/screenshot ng user). Dahil hindi
+      // naman kailangan ng bato ang occlusion/Y-sort effect (maiksi
+      // lang ito, hindi katulad ng puno/bahay na puwedeng "tabunan" ng
+      // player), FLAT/bahagi na lang ito ng background dito (kaparehong
+      // ayos ng bahay sa itaas) - laging LIKOD ng player, walang
+      // panganib na matakpan siya.
+      if (cluster.type === "rocks" && currentWorld === "grassmap") continue;
+
       let built = buildOverlapInstances(
         cluster.layers,
         mapData.width,
@@ -1710,6 +1936,21 @@ function drawMapObjects() {
       overlapInstances.push(...built);
     }
 
+    // BAGO (hiling ng user): kaya nga TINAGGAL natin ang "trees"/"rocks"
+    // dynamic Y-sort para sa grassmap (naunang ayos) - ito lang talaga
+    // ang PANSAMANTALANG paraan para maiwasan ang pagkawala ng player
+    // sa likod ng BAHAY (na SIRA ang baseY nito, tingnan sa ibaba). Ang
+    // "trees"/"rocks" ay LIGTAS/TAMA (`makeInstance()`, itaas) - ang
+    // baseY nila ay kinukuha diretso sa SARILING bbox ng bawat
+    // instance/kumpol (`tileBottom`, hindi umaasa sa `collisions`
+    // array kagaya ng bahay) - kaya walang dahilan para hindi sila
+    // magkaroon ng normal na Y-sort + opacity occlusion (kaparehong
+    // gawi ng random na puno/oak) - IBINALIK na ito ngayon. Ang
+    // ACTUAL na guhit (draw closure sa ibaba) ay gumagamit pa rin ng
+    // direct-position crop (drawGrassmapDirectRegion) sa halip na
+    // drawTile - dahil sira ang gid/tileset ng partikular na layer na
+    // ito (tingnan ang paliwanag doon).
+
     // Ang bahay ay hiwalay na ginagawa (hindi sa stamps), para
     // siguradong IISANG bagay siya na may sariling ground line.
     //
@@ -1726,13 +1967,45 @@ function drawMapObjects() {
     // ng occlusion check (`shouldOccludeForPlayer`), kaya kahit sa
     // GILID lang ng bahay (hindi pa talaga LIKOD) ay nagiging
     // transparent na agad ang player.
-    if (individualHouses.length > 0) {
+    //
+    // AYOS (hiling ng user): "yung mga trees or house na matakpan yung
+    // character is dapat nag oopacity yung trees or bahay" - NGINIPIN
+    // muna ang bbox papuntang GITNANG 55% ng lapad lang (naka-center)
+    // bago gamitin sa occlusion check - PAREHONG konsepto ng "trunk-
+    // narrowing" ng puno (makeInstance, itaas): kung buong lapad/
+    // footprint ang gagamitin, nag-o-opacity na rin kahit nasa GILID
+    // lang (hindi pa talaga LIKOD) ng bahay ang player - ito mismo ang
+    // dahilan kung bakit tinanggal muna ang "house" sa
+    // OCCLUDABLE_OVERLAP_TYPES dati (tingnan sa ibaba - IBINALIK na ito
+    // ngayon).
+    //
+    // GRASSMAP: NANATILI pa ring excluded ang bahay dito (VERIFIED
+    // dati: "random/hindi-kaugnay na malawak na collision box" ang
+    // nahuhuli ng getCollisionGroundY para sa partikular na bahay na
+    // ito, kaya MALI/random ang naging baseY) - IBA kasi ang art
+    // pipeline dito (isang MALAKING pre-drawn na larawan, grassmap.png,
+    // hindi hiwalay na house.png sprite na puwedeng Y-sort/i-occlude
+    // nang ligtas gaya ng ginagawa dito para sa ibang mundo) - kaya
+    // mas malaki ang panganib na masira ang background rendering kung
+    // ito rin ay ipipilit dito nang walang live/visual na pagsubok.
+    // Manatili muna itong FLAT/bahagi ng background (drawMapBackground) -
+    // walang panganib na "matakpan"/mawala ang player, pero wala ring
+    // occlusion fade sa ngayon.
+    if (individualHouses.length > 0 && currentWorld !== "grassmap") {
       for (const house of individualHouses) {
+        const fullBbox = house.bbox;
+        const narrowWidth = fullBbox.width * 0.55;
+
         overlapInstances.push({
           type: "house",
           tiles: [],
-          bbox: house.bbox,
-          baseY: getCollisionGroundY(house.bbox),
+          bbox: {
+            x: fullBbox.x + (fullBbox.width - narrowWidth) / 2,
+            y: fullBbox.y,
+            width: narrowWidth,
+            height: fullBbox.height,
+          },
+          baseY: getCollisionGroundY(fullBbox),
         });
       }
     }
@@ -1802,8 +2075,27 @@ function drawMapObjects() {
         // hindi na isang malaking pinagsama-samang instance), kaya
         // ISANG bbox lang dito, hindi na kailangang mag-loop.
         if (isHouse) {
+          // (Ang bahay ng grassmap ay HINDI na dumarating dito - hindi
+          // na ito idinadagdag sa overlapInstances para sa mundong
+          // iyon, tingnan ang paliwanag sa itaas kung saan ginagawa ang
+          // overlapInstances. Nananatili ang sanga na ito para sa
+          // village/newmap, na gumagamit pa rin ng tunay na
+          // house.png/snowhouse.png sprite.)
           drawHouseImageAt(instance.bbox);
           collectHouseWindowLightPoints(instance.bbox);
+          return;
+        }
+
+        // GRASSMAP: kaparehong dahilan/paraan ng itaas - ang tileset na
+        // ginagamit ng "trees"/"rocks" na overlap layer dito ay SIRA
+        // (tingnan ang paliwanag sa itaas ng drawGrassmapDirectRegion),
+        // kaya sa halip na `drawTile(tile.gid, ...)` (gid-based, mali
+        // ang crop), direkta na lang kunin ang tamang pixel content sa
+        // PAREHONG (x,y) na posisyon mismo mula sa grassmap.png.
+        if (currentWorld === "grassmap") {
+          for (const tile of instance.tiles) {
+            drawGrassmapDirectRegion(tile.x, tile.y, TILE_SIZE, TILE_SIZE);
+          }
           return;
         }
 
@@ -1817,7 +2109,7 @@ function drawMapObjects() {
   drawables.push({
     sortY: playerSortY,
     order: Infinity,
-    draw: drawPlayer,
+    draw: drawPlayerWithTorchGlow,
     isPlayer: true,
   });
 
@@ -1851,6 +2143,14 @@ function drawMapObjects() {
 
   if (typeof getBackdropOakDrawables === "function") {
     drawables.push(...getBackdropOakDrawables());
+  }
+
+  // GRASSMAP - mga hand-placed na puno (decor.js) - tingnan ang
+  // paliwanag sa fallback branch sa itaas (drawMapObjects). Nandito rin
+  // ito para tuloy-tuloy gumana kahit magdagdag pa ng ibang Tiled
+  // overlap layer (trees/house/atbp.) sa grassmap.tmj sa hinaharap.
+  if (typeof getGrassmapTreeDrawables === "function") {
+    drawables.push(...getGrassmapTreeDrawables());
   }
 
   // Mga baboy (pig.js) - clickable/may health, gumagala sa mapa. Y-sort
@@ -2001,7 +2301,18 @@ async function loadWorld(name, spawn) {
     // itaas ng pinto), may BUTAS lang sa eksaktong lugar ng door TRIGGER
     // (worlds.js DOORS) para hindi masira ang "Pumasok" na interaction -
     // tingnan ang buildHouseWallCollisions sa ibaba.
-    const houses = buildIndividualHouseBBoxes(map.layers, map.width, map.height);
+    const houses = buildIndividualHouseBBoxes(
+      map.layers,
+      map.width,
+      map.height,
+    );
+
+    // I-cache globally para magamit ng minimap.js (tingnan ang
+    // paliwanag sa itaas ng currentWorldHouseBBoxes) - HINDI ito
+    // kasama sa mga mundong walang bahay (grassmap, interiors) - basta
+    // blangkong array na lang ang babalik ng buildIndividualHouseBBoxes
+    // dito, kaya safe lang basta i-assign palagi.
+    currentWorldHouseBBoxes = houses;
 
     collisions.push(...buildHouseWallCollisions(name, houses));
 
@@ -2015,9 +2326,12 @@ async function loadWorld(name, spawn) {
     }
 
     console.log(
-      "Mundo:", name,
-      "|", map.width + "x" + map.height,
-      "| collisions:", collisions.length,
+      "Mundo:",
+      name,
+      "|",
+      map.width + "x" + map.height,
+      "| collisions:",
+      collisions.length,
     );
 
     // Kailangang naka-load na ang mapa at ang mga collision bago natin
@@ -2084,18 +2398,33 @@ function checkWorldSnowSwap() {
 // Ibinabalik tayo sa kung saan tayo huling tumigil - pati na kung nasa
 // loob ba tayo ng bahay o nasa labas.
 //
-// MIGRATION: ang "village" (snowMap.tmj) ay LUMANG mapa na, pinalitan
-// na ng "newmap" (DEFAULT_WORLD). Kung may lumang save pa rin na
-// nakatutok sa "village" (mula bago ginawa ang newmap/blackhole gate),
-// dalhin na lang agad sa "newmap" - kung hindi, permanenteng
-// mananatili doon ang manlalaro (kasama ang blackhole gate/portal) at
-// hindi na kailanman makikita.
-let savedWorld = savedPlayer && WORLDS[savedPlayer.world]
-  ? savedPlayer.world
-  : DEFAULT_WORLD;
+// AYOS: TINANGGAL na ang mga dating hiwalay na MIGRATION na sanga para
+// sa "village"/"houseInside" (parehong mundo ay TINANGGAL na rin sa
+// WORLDS, hiling ng user: "2 na lang, town at grassmap") - hindi na
+// ito kailangan dahil ang `WORLDS[savedPlayer.world]` check sa ibaba
+// ay AWTOMATIKO nang bumabalik sa DEFAULT_WORLD ("grassmap") kapag
+// ang naka-save na mundo (kahit "village"/"newmap"/"houseInside"/
+// "starter") ay wala nang entry sa WORLDS - iisang generic na fallback
+// na lang, gumagana pa rin ito kahit anong lumang world name pa ang
+// mahanap sa isang matandang save.
+let savedWorld =
+  savedPlayer && WORLDS[savedPlayer.world] ? savedPlayer.world : DEFAULT_WORLD;
 
-if (savedWorld === "village") {
-  savedWorld = "newmap";
+// AYOS (hiling ng user: "gusto ko lang may loading play load settings
+// exit bago mag start") - ang UNANG pagtawag sa loadWorld() (dating
+// awtomatiko, tumatakbo agad sa sandaling ma-parse ang script na ito)
+// ay NASA LOOB na ngayon ng function na ito - HINDI na ito awtomatikong
+// tumatakbo. Ang js/main-menu.js na ang bahalang tumawag dito, sa
+// sandaling pindutin ng user ang "Play" (o pagkatapos pumili ng save sa
+// "Load" popup - tingnan ang paliwanag doon) sa BAGONG main menu
+// overlay (index.html, #main-menu-overlay) - dati, deretso agad
+// pumapasok sa mundo nang walang anumang menu.
+function beginInitialWorldLoad() {
+  if (typeof GRASSMAP_RESOURCES_LOADED !== "undefined") {
+    GRASSMAP_RESOURCES_LOADED.then(() => {
+      loadWorld(savedWorld, null);
+    });
+  } else {
+    loadWorld(savedWorld, null);
+  }
 }
-
-loadWorld(savedWorld);

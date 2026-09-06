@@ -32,15 +32,22 @@ const DAY_NIGHT_SECONDS = 1800;
 
 // Ang "at" ay posisyon sa loob ng ikot (0 hanggang 1) - i-multiply sa
 // 24 para makuha ang katumbas na oras (hal. 0.25 = 06:00).
+//
+// AYOS (hiling ng user, ULIT): "medyo dark pa lang, gawin BLACK na
+// talaga" - pinababa PA ULIT ang PINAKAMADILIM na mga stop (dating
+// [9,10,18]) papuntang HALOS PUROng itim (average RGB ~5-6 na lang,
+// hindi na ~11-13) - napaka-subtle na lang ng asul na tono (halos
+// hindi na mapapansin, para lang hindi TALAGANG 100% pure black/
+// walang-personalidad na screen). Pinadilim din pa ang 18:00 (dusk).
 const DAY_NIGHT_STOPS = [
-  { at: 0.0, color: [58, 72, 132] }, // 00:00, hatinggabi (pinakamadilim)
-  { at: 0.15, color: [186, 172, 205] }, // 03:36, madaling-araw (lila)
+  { at: 0.0, color: [5, 5, 9] }, // 00:00, hatinggabi (halos purong itim na)
+  { at: 0.15, color: [40, 35, 48] }, // 03:36, madaling-araw (unti-unti pang madilim, lila)
   { at: 0.25, color: [255, 255, 255] }, // 06:00, umaga (maliwanag na)
   { at: 0.5, color: [255, 252, 240] }, // 12:00, tanghali (pinakamaliwanag)
   { at: 0.65, color: [255, 186, 138] }, // 15:36, dapit-hapon (mainit/orange)
-  { at: 0.75, color: [96, 112, 176] }, // 18:00, gabi (dumidilim na)
-  { at: 0.9, color: [58, 72, 132] }, // 21:36, papalapit sa hatinggabi
-  { at: 1.0, color: [58, 72, 132] }, // 24:00/00:00, balik sa hatinggabi
+  { at: 0.75, color: [28, 32, 50] }, // 18:00, gabi (mas mabilis na dumidilim ngayon)
+  { at: 0.9, color: [5, 5, 9] }, // 21:36, papalapit sa hatinggabi (halos purong itim na)
+  { at: 1.0, color: [5, 5, 9] }, // 24:00/00:00, balik sa hatinggabi
 ];
 
 function lerp(from, to, amount) {
@@ -48,7 +55,7 @@ function lerp(from, to, amount) {
 }
 
 // =========================
-// "MAKULIMLIM" NA EPEKTO HABANG UMUULAN
+// "MAKULIMLIM" NA EPEKTO SA BAWAT PANAHON (rain/snow/sunny)
 // =========================
 //
 // Malamig/kulay-abong tono na hinahalo sa kasalukuyang tint ng
@@ -59,6 +66,33 @@ function lerp(from, to, amount) {
 const RAIN_OVERCAST_COLOR = [123, 132, 150]; // malamig na kulay-abong asul
 const RAIN_OVERCAST_STRENGTH = 0.32;
 const RAIN_THUNDERSTORM_OVERCAST_STRENGTH = 0.52;
+
+// BAGO (hiling ng user): "yung pag gabi ng darkness sa rain is
+// maganda, gusto ko implement mo rin yung ganung dilim sa sunny at sa
+// snow" - PAREHONG konsepto/mekanismo ng rain overcast sa itaas, PERO
+// may sarili-sariling KULAY ang bawat panahon, para may sariling
+// personalidad/mood ang bawat isa (hindi lang basta "maputi" tuwing
+// walang ulan/niyebe):
+//   - SNOW: malamig/maputlang asul (parang maulap/malamig na araw ng
+//     niyebe) - mas malakas pa kapag SNOWSTORM (isSnowStorm,
+//     calendar.js).
+//   - SUNNY (walang ulan/niyebe): mainit/alikabok na amber - mas
+//     mahina/subtle lang ito (walang "storm" na bersyon ang sunny),
+//     dagdag lang na atmospera sa halip na basta purong DAY_NIGHT_STOPS
+//     na kulay.
+//
+// PAALALA: ang RESULTA ng blending na ito ay depende pa rin sa
+// KASALUKUYANG oras (DAY_NIGHT_STOPS) - ibig sabihin, kahit gabi na,
+// may sariling subtle na kulay/mood pa rin base sa panahon (hindi na
+// basta parehong purong itim/gabi kahit anong panahon) - ito mismo ang
+// "ganung dilim" (mood/texture ng dilim) na gustong i-generalize ng
+// user sa lahat ng panahon, hindi lang sa ulan.
+const SNOW_OVERCAST_COLOR = [150, 165, 190]; // maputlang malamig na asul
+const SNOW_OVERCAST_STRENGTH = 0.28;
+const SNOW_STORM_OVERCAST_STRENGTH = 0.48;
+
+const SUNNY_OVERCAST_COLOR = [150, 130, 100]; // mainit/alikabok na amber
+const SUNNY_OVERCAST_STRENGTH = 0.18;
 
 // Pinapakinis ang paglipat: mabagal sa umpisa, mabagal sa dulo, mabilis
 // sa gitna. Kung purong linear ang gamit, may bahagyang "kink" sa bawat
@@ -110,7 +144,84 @@ function getNightAmount() {
   return 1 - (red + green + blue) / (3 * 255);
 }
 
+// AYOS: kapag naka-ON ang KAHIT ISANG Light sa kasalukuyang silid
+// (hasLitPlacedLightInCurrentWorld, light.js), LAKTAWAN na TALAGA ang
+// araw/gabi na pagdidilim (ibalik agad, huwag nang mag-fill ng
+// kahit-ano) - parang "naka-ilaw" na talaga ang buong silid,
+// walang-anino, tapos ang warm/mainit na "wash" na lang ng
+// drawPlacedLightGlow (sa IBABAW nito, tingnan ang draw.js) ang
+// bahalang magbigay ng mainit/malamlam na kulay na katulad ng
+// reference - hindi na ito kailangang "labanan" pa ang isang dilim na
+// multiply sa ilalim nito.
+//
+// BAGONG HILING ng user (ULIT - binalik sa dating smooth na bilog):
+// "pangit ng tile-based na ilaw, balik mo na lang sa recent, pero sa
+// CENTER (hindi naka-offset sa direksyon), tapos liitan mo pa ng
+// kaunti" - kaya BINALIK ang SMOOTH RADIAL GRADIENT na "hole" (hindi
+// na tile-by-tile), naka-CENTER TALAGA sa player (walang facing-
+// offset), at PINALIIT ang radius (TORCH_LIGHT_RADIUS * 1.15, dating
+// 1.6, noong naka-offset pa).
+let dayNightTintCanvas = null;
+let dayNightTintCtx = null;
+
+function getDayNightTintSurface() {
+  if (
+    !dayNightTintCanvas ||
+    dayNightTintCanvas.width !== canvas.width ||
+    dayNightTintCanvas.height !== canvas.height
+  ) {
+    dayNightTintCanvas = document.createElement("canvas");
+    dayNightTintCanvas.width = canvas.width;
+    dayNightTintCanvas.height = canvas.height;
+    dayNightTintCtx = dayNightTintCanvas.getContext("2d");
+  } else {
+    dayNightTintCtx.clearRect(0, 0, dayNightTintCanvas.width, dayNightTintCanvas.height);
+    dayNightTintCtx.globalCompositeOperation = "source-over";
+  }
+
+  return dayNightTintCtx;
+}
+
+// Tinatayang posisyon ng MISMONG APOY ng torch (hindi lang basta
+// gitna ng player) - naka-hawak ito nang bahagyang PAITAAS at PATABI
+// (base sa direksyon kung saan nakaharap ang player, player.direction,
+// tingnan ang player.js) - kaya doon mismo dapat nakatapat/naka-center
+// ang liwanag, hindi sa buong katawan.
+const TORCH_FLAME_OFFSETS = {
+  down: { x: 3, y: -6 },
+  up: { x: 3, y: -10 },
+  left: { x: -5, y: -8 },
+  right: { x: 5, y: -8 },
+};
+
+function getTorchFlamePosition() {
+  const direction =
+    typeof player !== "undefined" && player.direction ? player.direction : "down";
+
+  const offset = TORCH_FLAME_OFFSETS[direction] || TORCH_FLAME_OFFSETS.down;
+
+  return {
+    x: player.x + player.width / 2 + offset.x,
+    y: player.y + player.height / 2 + offset.y,
+  };
+}
+
+// "PULSE"/paghinga ng liwanag - mabagal na lumalaki't liliit (sine
+// wave, hindi biglaan/flicker) - 0.9 hanggang 1.1x ng base radius.
+function getTorchPulseFactor() {
+  return 1 + Math.sin(Date.now() / 450) * 0.1;
+}
+
 function drawDayNight() {
+  if (
+    typeof isIndoors === "function" &&
+    isIndoors() &&
+    typeof hasLitPlacedLightInCurrentWorld === "function" &&
+    hasLitPlacedLightInCurrentWorld()
+  ) {
+    return;
+  }
+
   let [red, green, blue] = getDayNightColor(getDayNightProgress());
 
   // AYOS: bagong "makulimlim" na epekto habang umuulan - hinahalo
@@ -119,6 +230,17 @@ function drawDayNight() {
   // ulap ang langit. Mas malakas ito kapag TALAGANG bagyo (kidlat)
   // kaysa sa payak na pag-ulan lang - tingnan ang RAIN_OVERCAST_STRENGTH/
   // RAIN_THUNDERSTORM_OVERCAST_STRENGTH sa ibaba.
+  //
+  // BAGO (hiling ng user): "gusto ko implement mo rin yung ganung
+  // dilim sa sunny at sa snow" - PAREHONG paraan (blend/lerp), pero
+  // ibang kulay/lakas kada panahon - SNOW kapag niyebe (mas malakas
+  // pa kapag snowstorm), SUNNY kapag WALANG ulan/niyebe (default/
+  // malinaw na araw). Parehong naka-guard sa `!isIndoors()` (hindi
+  // dapat maapektuhan ang loob ng bahay ng panahon sa LABAS) - ang
+  // rain lang ang mayroon nang ganitong guard sa loob mismo ng
+  // isRaining(), kaya hiwalay itong tsina-check para sa snow/sunny.
+  const indoorsNow = typeof isIndoors === "function" && isIndoors();
+
   if (typeof isRaining === "function" && isRaining()) {
     const thunderstorm =
       typeof getCalendarState === "function" &&
@@ -131,25 +253,93 @@ function drawDayNight() {
     red = lerp(red, RAIN_OVERCAST_COLOR[0], strength);
     green = lerp(green, RAIN_OVERCAST_COLOR[1], strength);
     blue = lerp(blue, RAIN_OVERCAST_COLOR[2], strength);
+  } else if (
+    !indoorsNow &&
+    typeof isSnowWeather === "function" &&
+    isSnowWeather()
+  ) {
+    const snowstorm =
+      typeof getCalendarState === "function" &&
+      getCalendarState().isSnowStorm;
+
+    const strength = snowstorm
+      ? SNOW_STORM_OVERCAST_STRENGTH
+      : SNOW_OVERCAST_STRENGTH;
+
+    red = lerp(red, SNOW_OVERCAST_COLOR[0], strength);
+    green = lerp(green, SNOW_OVERCAST_COLOR[1], strength);
+    blue = lerp(blue, SNOW_OVERCAST_COLOR[2], strength);
+  } else if (!indoorsNow) {
+    // "Sunny" - default/malinaw na araw (walang ulan, walang niyebe).
+    red = lerp(red, SUNNY_OVERCAST_COLOR[0], SUNNY_OVERCAST_STRENGTH);
+    green = lerp(green, SUNNY_OVERCAST_COLOR[1], SUNNY_OVERCAST_STRENGTH);
+    blue = lerp(blue, SUNNY_OVERCAST_COLOR[2], SUNNY_OVERCAST_STRENGTH);
   }
 
   // Halos puti = tanghali, walang mababago - laktawan na natin, sayang
   // lang ang isang buong fullscreen na guhit.
   if (red > 252 && green > 252 && blue > 252) return;
 
+  const tintColor =
+    "rgb(" + Math.round(red) + ", " + Math.round(green) + ", " + Math.round(blue) + ")";
+
+  const torchOn = typeof torchEquipped !== "undefined" && torchEquipped;
+
+  if (!torchOn) {
+    // Walang naka-equip na torch - direkta sa TALAGANG canvas, walang
+    // hole/butas - PANTAY na dilim kahit saan.
+    ctx.save();
+    ctx.globalCompositeOperation = "multiply";
+    ctx.fillStyle = tintColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+    return;
+  }
+
+  // May naka-equip na torch - gumamit ng off-screen buffer para
+  // makapag-"butas" (smooth radial gradient), ITINAPAT sa mismong
+  // APOY ng torch (hindi na sa gitna ng player mismo), at may
+  // "PULSE"/paghinga (unti-unting lumalaki-liliit) - tingnan ang
+  // getTorchFlamePosition/getTorchPulseFactor sa ibaba.
+  const tintCtx = getDayNightTintSurface();
+
+  tintCtx.fillStyle = tintColor;
+  tintCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const flame = getTorchFlamePosition();
+
+  const screenX = (flame.x - camera.x) * camera.zoom;
+  const screenY = (flame.y - camera.y) * camera.zoom;
+
+  // BAGO (hiling ng user): "liitan mo" - pinaliit pa ang base radius
+  // (dating 1.15x, ngayon 0.85x), tapos may "PULSE" - unti-unting
+  // lumalaki/liliit ang radius (hindi biglaan/flicker, kundi mabagal
+  // na "paghinga") gamit ang isang sine wave.
+  const holeRadius =
+    TORCH_LIGHT_RADIUS * 0.85 * getTorchPulseFactor() * camera.zoom;
+
+  const holeGradient = tintCtx.createRadialGradient(
+    screenX,
+    screenY,
+    0,
+    screenX,
+    screenY,
+    holeRadius,
+  );
+
+  holeGradient.addColorStop(0, "rgba(0, 0, 0, 1)");
+  holeGradient.addColorStop(0.55, "rgba(0, 0, 0, 0.85)");
+  holeGradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+  tintCtx.globalCompositeOperation = "destination-out";
+  tintCtx.fillStyle = holeGradient;
+  tintCtx.beginPath();
+  tintCtx.arc(screenX, screenY, holeRadius, 0, Math.PI * 2);
+  tintCtx.fill();
+
   ctx.save();
-
   ctx.globalCompositeOperation = "multiply";
-  ctx.fillStyle =
-    "rgb(" +
-    Math.round(red) +
-    ", " +
-    Math.round(green) +
-    ", " +
-    Math.round(blue) +
-    ")";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
+  ctx.drawImage(dayNightTintCanvas, 0, 0);
   ctx.restore();
 }
 
@@ -157,52 +347,57 @@ function drawDayNight() {
 // TORCH LIGHT (kapag naka-equip ang torch - resources.js)
 // =========================
 //
-// Bilog na mainit na liwanag sa paligid ng player, sa IBABAW ng
-// araw/gabi na tint (drawDayNight) para talagang "kumakalaban" ito sa
-// dilim - screen space ito (kagaya ng drawDayNight), hindi kasama sa
-// camera transform ng draw.js.
+// AYOS (hiling ng user): "gusto ko lang yung torchglow kapag napadaan
+// sa trees or mga halaman is mag bebehind yung glow niya" - dating
+// SCREEN SPACE ito (kagaya ng drawDayNight), iginuguhit PAGKATAPOS ng
+// LAHAT (kasama ang mga puno/bahay), kaya laging NASA IBABAW ng lahat
+// - hindi ito natatakpan kahit dumaan/tumayo ang player sa LIKOD ng
+// isang puno. Sinubukan munang "ayusin" ito sa pamamagitan ng muling
+// pagguhit sa PLAYER sa itaas ng glow (para hindi bumalot dito) -
+// PERO mali/sobra ang naging epekto noon: naging LAGING NASA IBABAW
+// ng LAHAT (kahit ng puno/bahay) ang buong KATAWAN ng player, hindi
+// lang ang glow.
+//
+// TUNAY na ayos ngayon: WORLD SPACE na ito (hindi na screen space) -
+// iginuguhit bilang BAHAGI ng normal na Y-sort (tingnan ang
+// drawTorchGlowWorld sa ibaba, at ang paggamit nito sa map.js kasabay
+// ng player sa "drawables" list) - kaya SUMUSUNOD ito sa PAREHONG
+// "sortY" ng player. Ang epekto: kung nasa HARAP ang isang puno
+// (mas malaki ang sortY nito kaysa sa paanan ng player), iguguhit
+// ito PAGKATAPOS ng glow+player - kaya TALAGANG NATATAKPAN/NAGIGING
+// LIKOD ng puno ang glow (at ang player) sa tamang pagkakataon.
+const TORCH_LIGHT_RADIUS = 70; // world pixels
 
-const TORCH_LIGHT_RADIUS = 70; // world pixels, hindi pa naka-multiply sa zoom
-const TORCH_LIGHT_COLOR = "255, 200, 120";
+// Kulay ng "torch light" - mainit na dilaw-orange (parang totoong
+// apoy). Ito na ngayon ang TANGING pinagmumulan ng kulay ng torch
+// (dati may hiwalay na additive glow na gumagamit nito, pero
+// tinanggal na iyon - tingnan ang drawTorchGlowWorld sa ibaba) -
+// pinapanatili ito bilang REFERENCE na kulay para GAMITIN din ng
+// WINDOW_LIGHT_COLOR (hiling ng user: "yung window lightray dapat
+// kasing kulay lang ng torch light") - iisang constant na lang ang
+// pinagmumulan ng kulay, kaya GARANTISADONG magkatugma sila.
+const TORCH_LIGHT_COLOR = "255, 178, 90";
 
-function drawTorchLight() {
-  if (typeof torchEquipped === "undefined" || !torchEquipped) return;
-
-  const nightAmount = getNightAmount();
-
-  if (nightAmount <= 0.05) return; // araw pa, halos walang epekto
-
-  const screenX = (player.x + player.width / 2 - camera.x) * camera.zoom;
-  const screenY = (player.y + player.height / 2 - camera.y) * camera.zoom;
-  const radius = TORCH_LIGHT_RADIUS * camera.zoom;
-
-  ctx.save();
-
-  // "lighter" (additive) - dahil "multiply" ang ginamit ng drawDayNight
-  // para padilimin ang lahat, kailangan nating MAGDAGDAG ng liwanag sa
-  // halip na palitan lang ang kulay, para talagang lumabas na parang
-  // may sarili itong ilaw sa dilim.
-  ctx.globalCompositeOperation = "lighter";
-
-  const gradient = ctx.createRadialGradient(
-    screenX,
-    screenY,
-    0,
-    screenX,
-    screenY,
-    radius,
-  );
-
-  gradient.addColorStop(0, `rgba(${TORCH_LIGHT_COLOR}, ${0.55 * nightAmount})`);
-  gradient.addColorStop(0.6, `rgba(${TORCH_LIGHT_COLOR}, ${0.25 * nightAmount})`);
-  gradient.addColorStop(1, `rgba(${TORCH_LIGHT_COLOR}, 0)`);
-
-  ctx.fillStyle = gradient;
-  ctx.beginPath();
-  ctx.arc(screenX, screenY, radius, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.restore();
+// BAGONG AYOS (hiling ng user): "wag na yung may bilog na liwanag na
+// lumalabas" - TINANGGAL na ang dating radial-gradient na BLOB (dating
+// dito iginuguhit, additive/"lighter", may sariling kulay na dilaw/
+// orange - kitang-kita bilang isang bilog na LIWANAG na parang
+// nakapatong lang sa taas ng eksena). LATER na hiling din: TINANGGAL
+// na rin ang sumunod na "hole-punch"/reveal-circle na pinalit dito sa
+// drawDayNight (nagmumukha ring bilog, kahit walang idinaragdag na
+// kulay) - PANTAY na lang ngayon ang dilim kahit saan (tingnan ang
+// drawDayNight sa itaas), walang anumang uri ng "circle" sa paligid ng
+// player.
+//
+// Wala nang ATASIN dito (world-space) - iniiwan na lang itong
+// function na ito bilang no-op (hindi na tinatanggal nang buo dahil
+// tinatawag pa rin ito ng drawPlayerWithTorchGlow, player.js) para
+// hindi na kailangan pang baguhin/i-clean ang ibang file.
+function drawTorchGlowWorld() {
+  // Sinasadyang walang laman - erased na ang dating bilog na
+  // additive glow AT ang sumunod na "hole"/reveal-circle (tingnan ang
+  // malaking paliwanag sa itaas). Pantay na lang ang dilim ngayon
+  // (drawDayNight), walang bilog na epekto kahit saan.
 }
 
 // =========================
@@ -216,9 +411,22 @@ function drawTorchLight() {
 // mga TALAGANG posisyon (world space) ay galing sa
 // houseWindowLightPoints (map.js, pinupunuan ni collectHouseWindowLightPoints
 // kada frame habang iginuguhit ang bawat bahay).
+//
+// AYOS (hiling ng user): "kapag naka off or wala pang lamp sa loob ng
+// bahay, dapat walang ilaw sa bintana sa labas" - dating basta GABI NA
+// lang ang kailangan (palaging naka-ilaw ang bintana ng LAHAT ng bahay
+// sa town kapag gabi, kahit walang Light na naka-ON sa loob) - ngayon,
+// kailangan munang TALAGANG may naka-ON na placed Light (light.js) SA
+// LOOB ng partikular na bahay na iyon (tingnan ang loob ng function sa
+// ibaba - hasLitPlacedLightInWorld per-point, gamit ang world na
+// itinabi ni collectHouseWindowLightPoints).
 
 const WINDOW_LIGHT_RADIUS = 16; // world pixels, hindi pa naka-multiply sa zoom
-const WINDOW_LIGHT_COLOR = "255, 214, 140";
+// BAGO (hiling ng user): "yung window lightray is dapat kasing kulay
+// na lang nung torch light" - ginagamit na lang ngayon ang MISMONG
+// TORCH_LIGHT_COLOR (itaas) sa halip na sariling hiwalay na kulay -
+// garantisadong magkatugma na sila palagi.
+const WINDOW_LIGHT_COLOR = TORCH_LIGHT_COLOR;
 
 function drawHouseWindowLights() {
   if (typeof houseWindowLightPoints === "undefined") return;
@@ -234,6 +442,24 @@ function drawHouseWindowLights() {
   const radius = WINDOW_LIGHT_RADIUS * camera.zoom;
 
   for (const point of houseWindowLightPoints) {
+    // BAGO (hiling ng user): "kapag naka off or wala pang lamp sa loob
+    // ng bahay, yung labas ay dapat WALANG ilaw sa bintana - once lang
+    // meron nang lamp AT naka-ON, doon lang lalabas" - dating basta
+    // GABI NA lang ang batayan (walang pakialam sa aktwal na estado ng
+    // Light sa loob) - ngayon, kailangan munang TALAGANG may naka-ON na
+    // Light (hasLitPlacedLightInWorld, light.js) sa KATUMBAS na interior
+    // world ng bahay na ito (point.world, tingnan ang
+    // findInteriorWorldForHouseBBox/collectHouseWindowLightPoints,
+    // map.js) - laktawan/huwag iguhit kung wala (o hindi natukoy) ang
+    // interior world nito.
+    if (
+      !point.world ||
+      typeof hasLitPlacedLightInWorld !== "function" ||
+      !hasLitPlacedLightInWorld(point.world)
+    ) {
+      continue;
+    }
+
     const screenX = (point.x - camera.x) * camera.zoom;
     const screenY = (point.y - camera.y) * camera.zoom;
 
@@ -259,6 +485,213 @@ function drawHouseWindowLights() {
   ctx.restore();
 }
 
+// =========================
+// ILAW NA LUMALABAS SA BINTANA NG grassmapHouse, MULA SA LOOB
+// =========================
+//
+// AYOS (bagong hiling ng user): "sa lightray lightray_grassmaphouse.png
+// is mag appear yan kapag umilaw yung lamp kapag hindi di siya lilitaw"
+// - IBINALIK ang sprite (assets/lightray/lightray_grassmaphouse.png,
+// dating TINANGGAL - tingnan ang lumang paliwanag na dati nasa itaas
+// nito) - PERO ngayon naka-GATE ito sa TALAGANG estado ng naka-lagay na
+// Light (light.js) SA LOOB ng "grassmapHouse": kailangan munang may
+// naka-ON na Light doon (hasLitPlacedLightInWorld) bago ito lumabas -
+// walang Light (o naka-OFF), walang lightray - kaparehong-pattern ng
+// ginagawa ng drawHouseWindowLights sa itaas (per-house window glow ng
+// mga bahay sa town) - PERO gamit ang MISMONG sprite (hand-drawn na
+// bintana+glow, hindi basta bilog na gradient) dahil kailangang
+// eksaktong-eksaktong tumugma ito sa TALAGANG bintana ng bahay sa
+// grassmap.png (hand-drawn na larawan, hindi tile-based).
+//
+// POSISYON: NA-VERIFY (Python pixel-inspection laban sa TALAGANG
+// grassmap.png) - ang bintana ng bahay ay nasa humigit-kumulang
+// x:286-323, y:441-460 (world pixels). Ang sprite mismo ay may
+// "bintana" na guhit (ang maliwanag na 4-parisukat na outline sa
+// itaas nito) na eksaktong kapareho ng laki nito (37x19px) - kaya ang
+// TAMANG posisyon ng TOP-LEFT CORNER ng buong sprite (60x77px) ay
+// (269, 435), para PAREHONG-PAREHO/naka-align ang guhit ng bintana sa
+// sprite sa TALAGANG bintana sa background.
+const LIGHTRAY_GRASSMAPHOUSE_IMAGE = new Image();
+LIGHTRAY_GRASSMAPHOUSE_IMAGE.src = "./assets/lightray/lightray_grassmaphouse.png";
+
+const LIGHTRAY_GRASSMAPHOUSE_WORLD_X = 269;
+const LIGHTRAY_GRASSMAPHOUSE_WORLD_Y = 435;
+
+// Ang interior world kung saan dapat naka-ON ang isang placed Light
+// bago lumabas ang lightray - tingnan ang worlds.js (DOORS, "to:
+// grassmapHouse").
+const LIGHTRAY_GRASSMAPHOUSE_INTERIOR_WORLD = "grassmapHouse";
+
+// =========================
+// AYOS (bagong hiling ng user): "yung light ray is dapat nakapaloob sa
+// pinetree, overlap siya ng pinetree yung lightray"
+// =========================
+//
+// Ang lightray ay iginuguhit sa SCREEN SPACE, PAGKATAPOS ng
+// drawDayNight ("lighter"/additive blend, tingnan sa ibaba) - kaya
+// kahit may puno (pinetree, resources.js) na naunang naiguhit sa
+// WORLD space (drawMapObjects, mas maaga sa buong frame), NAPAPATONG
+// pa rin dito ang ray sa IBABAW ng puno (dahil huli itong iginuguhit),
+// kahit alin ang mas malapit "dapat" - MALI, hiling ng user na
+// "nakapaloob" dapat sa puno ang ray (ang puno ang nasa HARAP).
+//
+// AYOS: sa halip na buong retrace ng puno mismo (kumplikado - snow
+// stage/chop/shake states), MASKED/PINUTOL na lang ang MISMONG larawan
+// ng ray - isang beses lang ito kina-cache (isang offscreen canvas),
+// gamit ang ALPHA/SILWETA ng BASE na larawan ng kilalang PINETREE na
+// natatabihan/nakaharang dito (fixedTrees sa grassmap-resources.json,
+// col:20/row:30 - ang PINAKAMALAPIT sa bintana) bilang "eraser"
+// (destination-out) - kaya EKSAKTONG hugis ng puno (hindi basta
+// parisukat) ang nabubutas sa ray, TAMA ang itsura ng "puno sa harap".
+//
+// Static/FIXED ang parehong node (col:20,row:30) at ang posisyon ng
+// ray (LIGHTRAY_GRASSMAPHOUSE_WORLD_X/Y sa itaas) - kaya FIXED/hindi
+// nagbabago ang RELATIBONG posisyon nila sa isa't isa (walang
+// pakialam sa camera/zoom) - ligtas itong i-cache nang isang beses
+// lang (hindi kailangang ulitin kada frame).
+const LIGHTRAY_OVERLAPPING_PINETREE_IMAGE = new Image();
+LIGHTRAY_OVERLAPPING_PINETREE_IMAGE.src = "./assets/objects/trees/pinetree.png";
+
+const LIGHTRAY_OVERLAPPING_PINETREE_NODE = { col: 20, row: 30 };
+
+let grassmapHouseLightrayMaskedCanvas = null;
+
+// Kinukuha (o binubuo, isang beses lang) ang NAKA-MASK na bersyon ng
+// ray - `null` habang HINDI pa fully-loaded ang DALAWANG larawan
+// (ray mismo + pinetree).
+function getGrassmapHouseLightrayMaskedSurface() {
+  if (grassmapHouseLightrayMaskedCanvas) return grassmapHouseLightrayMaskedCanvas;
+
+  if (
+    !LIGHTRAY_GRASSMAPHOUSE_IMAGE.complete ||
+    LIGHTRAY_GRASSMAPHOUSE_IMAGE.naturalWidth === 0 ||
+    !LIGHTRAY_OVERLAPPING_PINETREE_IMAGE.complete ||
+    LIGHTRAY_OVERLAPPING_PINETREE_IMAGE.naturalWidth === 0
+  ) {
+    return null;
+  }
+
+  const rayWidth = LIGHTRAY_GRASSMAPHOUSE_IMAGE.naturalWidth;
+  const rayHeight = LIGHTRAY_GRASSMAPHOUSE_IMAGE.naturalHeight;
+
+  const surface = document.createElement("canvas");
+
+  surface.width = rayWidth;
+  surface.height = rayHeight;
+
+  const surfaceCtx = surface.getContext("2d");
+
+  // (1) Ang ray mismo, buo muna - normal na pagguhit (source-over).
+  surfaceCtx.drawImage(LIGHTRAY_GRASSMAPHOUSE_IMAGE, 0, 0);
+
+  // (2) Kinakalkula ang posisyon ng puno RELATIBO sa TOP-LEFT ng ray
+  // (LOCAL na coordinate space ng offscreen canvas na ito) - PAREHONG
+  // FORMULA ng drawTreeAtOpacityAndScale (resources.js): destWidth base
+  // sa TILE_SIZE*getActiveTreeDestWidthInTiles(), destHeight base sa
+  // aspect ratio ng larawan mismo, anchor sa ILALIM-GITNA ng tile nito.
+  const destWidthInTiles =
+    typeof getActiveTreeDestWidthInTiles === "function"
+      ? getActiveTreeDestWidthInTiles()
+      : 4;
+
+  const treeDestWidth = TILE_SIZE * destWidthInTiles;
+  const treeDestHeight =
+    treeDestWidth *
+    (LIGHTRAY_OVERLAPPING_PINETREE_IMAGE.naturalHeight /
+      LIGHTRAY_OVERLAPPING_PINETREE_IMAGE.naturalWidth);
+
+  const treeWorldX =
+    LIGHTRAY_OVERLAPPING_PINETREE_NODE.col * TILE_SIZE +
+    TILE_SIZE / 2 -
+    treeDestWidth / 2;
+  const treeWorldY =
+    LIGHTRAY_OVERLAPPING_PINETREE_NODE.row * TILE_SIZE +
+    TILE_SIZE -
+    treeDestHeight;
+
+  const treeLocalX = treeWorldX - LIGHTRAY_GRASSMAPHOUSE_WORLD_X;
+  const treeLocalY = treeWorldY - LIGHTRAY_GRASSMAPHOUSE_WORLD_Y;
+
+  // (3) "Ibutas" ang EKSAKTONG SILWETA (alpha) ng puno mula sa ray -
+  // "destination-out": kung saan may OPAQUE na pixel ang puno
+  // (LIGHTRAY_OVERLAPPING_PINETREE_IMAGE), doon MABUBURA/magiging
+  // transparent ang katumbas na pixel ng ray sa offscreen canvas na
+  // ito - LUMALABAS na parang "nakapaloob"/natatakpan ng puno ang ray
+  // (dahil kapag na-composite na ito sa TALAGANG frame, kung ano man
+  // ang naunang naiguhit doon - ang puno mismo - ay makikita na sa
+  // lugar na iyon SA HALIP na madagdagan pa ng liwanag ng ray).
+  surfaceCtx.globalCompositeOperation = "destination-out";
+  surfaceCtx.drawImage(
+    LIGHTRAY_OVERLAPPING_PINETREE_IMAGE,
+    treeLocalX,
+    treeLocalY,
+    treeDestWidth,
+    treeDestHeight,
+  );
+
+  grassmapHouseLightrayMaskedCanvas = surface;
+
+  return grassmapHouseLightrayMaskedCanvas;
+}
+
+// World space na ngayon ang pagguhit nito (hiling ng user: "yung
+// lightray nung bahay is dapat nakapailalim sa tao at sa grass at sa
+// trees") - LUMIPAT na ang TAWAG dito sa PINAKAUNA ng frame (tingnan
+// ang draw.js), bago pa man ang drawGrass()/drawMapObjects, para
+// AWTOMATIKONG natatakpan ito ng kahit anong damo/puno/player na
+// naiguhit PAGKATAPOS nito (normal na draw-order occlusion, hindi na
+// kailangang umasa sa dating "masked na pinetree cutout" trick sa
+// ibaba - naiwan pa rin iyon, pero redundant/hindi na mahalaga
+// ngayon). Dahil dito, DIREKTANG world coordinates na lang ang gamit
+// sa pagguhit (WALA nang manual na camera.x/camera.zoom na
+// conversion - nasa loob na kasi ito ng parehong ctx.scale/
+// ctx.translate na ginagamit ng ibang world-space na pagguhit) -
+// pareho pa rin ang "lighter"/additive blend (para kumakalaban sa
+// dilim sa gabi) at ang pag-fade base sa nightAmount.
+function drawGrassmapHouseLightray() {
+  // Makikita lang ito HABANG NASA LABAS ka (world "grassmap") - hindi
+  // ito lumalabas habang NASA LOOB ka na mismo ng bahay (walang saysay
+  // doon, ang bintana mismo ay nakikita mula sa LABAS lang).
+  if (typeof currentWorld === "undefined" || currentWorld !== "grassmap") {
+    return;
+  }
+
+  // Kailangan munang may naka-ON na Light SA LOOB ng grassmapHouse -
+  // walang Light (o naka-OFF pa lang) doon, walang lightray na lalabas.
+  if (
+    typeof hasLitPlacedLightInWorld !== "function" ||
+    !hasLitPlacedLightInWorld(LIGHTRAY_GRASSMAPHOUSE_INTERIOR_WORLD)
+  ) {
+    return;
+  }
+
+  // NAKA-MASK na bersyon (tingnan ang paliwanag sa itaas) - `null`
+  // habang hindi pa fully-loaded ang alinman sa dalawang larawan
+  // (susubukan na lang ulit sa susunod na frame).
+  const maskedSurface = getGrassmapHouseLightrayMaskedSurface();
+
+  if (!maskedSurface) return;
+
+  // Unti-unting nangingibabaw lang ito habang dumidilim (kaparehong
+  // fade ng drawHouseWindowLights) - halos hindi mapapansin kapag
+  // araw pa, kahit naka-ON na ang Light sa loob (makatuwiran - hindi
+  // kapansin-pansin ang ilaw ng lamp laban sa liwanag ng araw).
+  const nightAmount = typeof getNightAmount === "function" ? getNightAmount() : 0;
+
+  if (nightAmount <= 0.05) return;
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.globalAlpha = nightAmount;
+  ctx.drawImage(
+    maskedSurface,
+    LIGHTRAY_GRASSMAPHOUSE_WORLD_X,
+    LIGHTRAY_GRASSMAPHOUSE_WORLD_Y,
+    maskedSurface.width,
+    maskedSurface.height,
+  );
+  ctx.restore();
+}
 // =========================
 // LUMB (lamp post) SA TOWN KAPAG GABI
 // =========================

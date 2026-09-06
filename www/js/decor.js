@@ -8,8 +8,8 @@
 //     DALAWANG spritesheet: "oakidle.png" (tuloy-tuloy na banayad na
 //     pag-uga, IDLE state - default, hindi kailanman huminto) at
 //     "oak.png" (chop reaction - LUMILITAW LANG sandali, sa sandaling
-//     matapos ang axe/punch swing ng player - hindi agad sa click).
-//     Choppable gamit ang axe/kamao, may collision habang buo pa,
+//     matapos ang axe swing ng player - hindi agad sa click).
+//     Choppable gamit ang axe, may collision habang buo pa,
 //     nagbibigay ng "wood", may sariling harvest store (hiwalay sa
 //     harvestedResources ng resources.js).
 //
@@ -87,7 +87,7 @@ function drawGroundShadow(feetX, feetY, shadowWidth, options) {
 // OAK TREES (choppable)
 // =========================
 
-const OAK_COUNT_PER_WORLD = 1;
+const OAK_COUNT_PER_WORLD = 0;
 const OAK_FRAME_COUNT = 6;
 
 // Gaano kalapad iguguhit ang bawat oak (sa tiles) - mas malaki nang
@@ -159,7 +159,12 @@ function loadHarvestedOakTrees() {
   }
 }
 
-function saveHarvestedOakTrees() {
+// BAGO (hiling ng user: "ayoko na ng auto save") - "force" param,
+// default false - tingnan ang paliwanag sa savePlayerPosition (player.js)
+// para sa buong disenyo nito.
+function saveHarvestedOakTrees(force = false) {
+  if (!force) return;
+
   try {
     localStorage.setItem(OAK_SAVE_KEY, JSON.stringify(harvestedOakTrees));
   } catch (error) {
@@ -177,8 +182,9 @@ function getHarvestedOakForCurrentWorld() {
   return harvestedOakTrees[currentWorld];
 }
 
-// Ginagamit ang parehong hits-threshold ng normal na puno (axe vs kamao)
-// mula sa resources.js - "wood" pa rin talaga ang ani dito.
+// Ginagamit ang parehong hits-threshold ng normal na puno (RESOURCE_
+// REQUIRED_HITS, getRequiredHitsFor) mula sa resources.js - "wood" pa
+// rin talaga ang ani dito.
 function isOakFullyHarvested(harvested, key) {
   return (harvested[key] || 0) >= getRequiredHitsFor("wood");
 }
@@ -291,6 +297,19 @@ function makeOakSpotData(col, row, rng) {
 const OLDMAN_BACKDROP_OAK_COUNT = 2;
 
 function addBackdropOaksNearOldMan() {
+  const world = typeof getWorld === "function" ? getWorld() : null;
+
+  // AYOS (hiling ng user - "erase those fixed oak trees"): dating
+  // TUMATAKBO PA RIN ito kahit "noOaks: true" ang mundo (hal.
+  // grassmap) - iba/hiwalay kasi ang check nito sa generateOakSpots()
+  // sa itaas (na TALAGANG gumagalang sa "noOaks"). Dahil dito, 2 FIXED
+  // (hindi random) na oak pa rin ang laging lumalabas malapit sa
+  // oldman kahit ayaw talaga ng mundong ito ng KAHIT ANONG oak - ito
+  // ang sanhi ng report ng user na "lumalabas pa rin ang mga fixed na
+  // oak tree" sa grassmap. Ngayon, kaparehong "noOaks" check din ang
+  // sinusunod dito.
+  if (!world || world.noOaks) return;
+
   if (!oldManSpotCache || !oakSpotsCache) return;
 
   const occupied = new Set(oakSpotsCache.map((oak) => oak.col + "," + oak.row));
@@ -404,7 +423,7 @@ function hasOakTargetAt(col, row) {
 }
 
 // =========================
-// PAG-CHOP (axe/kamao) - tingnan ang mousedown listener sa resources.js
+// PAG-CHOP (axe) - tingnan ang mousedown listener sa resources.js
 // =========================
 //
 // Kaparehong-pareho ng gawi ng registerHit (resources.js): agad na
@@ -701,6 +720,37 @@ function drawOakAt(spot) {
   );
 }
 
+// AYOS (bug report ng user, may video): "kahit di mag-gamit ng axe is
+// dapat nag-oopacity parin" - ang occlusion bbox ng oak ay dapat
+// TUMUGMA sa TALAGANG naka-render na sprite (bottom-anchored, buong
+// taas, ~70% ng lapad) - HINDI na yung dating maliit/manipis na
+// hand-typed na bbox (0.7 TILE lang ang lapad, at 3 TILE lang ang taas
+// na nakasimula pa sa row*TILE-2*TILE - kaya (a) sobrang kitid kumpara
+// sa 4-tile na canopy, at (b) hindi umaabot sa TUKTOK ng canopy). Ito
+// ang shared na helper - PAREHONG formula ng drawOakAt/drawBackdropOakAt
+// (destWidth = TILE*destWidthTiles, destHeight base sa aspect ng
+// larawan, bottom-anchored sa row*TILE+TILE) - naka-narrow lang ang
+// lapad papuntang gitnang `widthFraction` (default 0.7) para hindi
+// mag-trigger kapag TALAGANG nasa TABI pa lang (hindi pa LIKOD).
+function computeOakOcclusionBbox(spot, image, destWidthTiles, widthFraction) {
+  const destWidth = TILE_SIZE * destWidthTiles;
+
+  const aspect =
+    image && image.complete && image.naturalWidth
+      ? image.naturalHeight / (image.naturalWidth / OAK_FRAME_COUNT)
+      : 1.22; // ligtas na default kung hindi pa naka-load ang larawan
+
+  const destHeight = destWidth * aspect;
+  const bboxWidth = destWidth * widthFraction;
+
+  return {
+    x: spot.col * TILE_SIZE + TILE_SIZE / 2 - bboxWidth / 2,
+    y: spot.row * TILE_SIZE + TILE_SIZE - destHeight,
+    width: bboxWidth,
+    height: destHeight,
+  };
+}
+
 // Isinasabit sa Y-sort na "drawables" ng drawMapObjects (map.js), kaya
 // tamang-tama ang pagkakapatong (z-index) ng bawat oak laban sa player
 // at sa ibang bagay - hindi sila laging nasa harap o laging nasa likod.
@@ -719,14 +769,10 @@ function getOakDrawables() {
       sortY: spot.row * TILE_SIZE + TILE_SIZE,
       order: -1,
       draw: () => drawOakAt(spot),
-      // Manipis na bbox lang (katulad ng puwang ng puno) - para gumana
-      // rin ang see-through occlusion (tingnan ang map.js).
-      bbox: {
-        x: spot.col * TILE_SIZE + TILE_SIZE / 2 - TILE_SIZE * 0.35,
-        y: spot.row * TILE_SIZE - TILE_SIZE * 2,
-        width: TILE_SIZE * 0.7,
-        height: TILE_SIZE * 3,
-      },
+      // See-through occlusion (tingnan ang map.js at ang
+      // computeOakOcclusionBbox sa itaas) - tumutugma na ngayon sa
+      // TALAGANG naka-render na oak (oakImage, OAK_DEST_WIDTH_TILES).
+      bbox: computeOakOcclusionBbox(spot, oakImage, OAK_DEST_WIDTH_TILES, 0.7),
     }));
 }
 
@@ -743,7 +789,7 @@ function getOakDrawables() {
 //   - snowtree1.png (5 min pataas ng snow)
 // May collision pa rin sila (hindi madadaanan), tulad ng ibang puno.
 
-const BACKDROP_OAK_COUNT = 10;
+const BACKDROP_OAK_COUNT = 0;
 
 // Larawan: parehong 6-frame na layout ng oak.png/oakidle.png. Ang snow
 // na bersyon ay animated din (6 frames) - gagamitin bilang kapalit kapag
@@ -1065,12 +1111,16 @@ function getBackdropOakDrawables() {
     sortY: spot.row * TILE_SIZE + TILE_SIZE,
     order: -1,
     draw: () => drawBackdropOakAt(spot),
-    bbox: {
-      x: spot.col * TILE_SIZE + TILE_SIZE / 2 - TILE_SIZE * 0.35,
-      y: spot.row * TILE_SIZE - TILE_SIZE * 2,
-      width: TILE_SIZE * 0.7,
-      height: TILE_SIZE * 3,
-    },
+    // AYOS (parehong bug fix ng getOakDrawables sa itaas) - tumutugma
+    // na ang bbox sa TALAGANG naka-render na backdrop oak
+    // (backdropOakIdleImage, BACKDROP_OAK_DEST_WIDTH_TILES), buong taas
+    // + 70% na lapad (tingnan ang computeOakOcclusionBbox).
+    bbox: computeOakOcclusionBbox(
+      spot,
+      backdropOakIdleImage,
+      BACKDROP_OAK_DEST_WIDTH_TILES,
+      0.7,
+    ),
   }));
 }
 
@@ -1505,7 +1555,137 @@ function canFeetMoveTo(feetX, feetY, boxWidth, boxHeight, options) {
     }
   }
 
+  // Naka-lagay na Light/Lamp (light.js) - bagong hiling ng user, hadlang
+  // din ito para sa oldman/pig, hindi lang sa player (canMoveTo,
+  // collisions.js).
+  if (typeof getPlacedLightCollisionBoxes === "function") {
+    if (
+      getPlacedLightCollisionBoxes().some((lightBox) =>
+        isColliding(box, lightBox),
+      )
+    ) {
+      return false;
+    }
+  }
+
+  // Naka-lagay na Bed (bed.js) - bagong hiling ng user, hadlang din ito
+  // para sa oldman/pig, hindi lang sa player (canMoveTo, collisions.js).
+  if (typeof getPlacedBedCollisionBoxes === "function") {
+    if (
+      getPlacedBedCollisionBoxes().some((bedBox) => isColliding(box, bedBox))
+    ) {
+      return false;
+    }
+  }
+
+  // AYOS (hiling ng user): "alisin mo na yung collisions niya kung san
+  // siya naka drop" - dating hadlang din ito para sa oldman/pig - hindi
+  // na, kaparehong ayos ng canMoveTo (collisions.js) - tingnan doon.
+
   return true;
+}
+
+// =========================
+// PAGGALAW NG NAGLALAKAD NA NPC (oldman/pig) - collision-safe
+// =========================
+//
+// BUG (hiling ng user: "dapat hindi siya makakadaan sa mga collisions
+// kagaya ng character"): dating ISANG malaking hakbang kada frame ang
+// ginagawa ng oldman/pig, tapos ang DESTINASYON lang ng hakbang na iyon
+// ang chine-check sa canFeetMoveTo. 2 butas iyon:
+//
+//   1) TUNNELING - RAW na deltaMs ang ipinapasa ng update.js sa
+//      updateOldManWander/updatePigs (hindi tulad ng player, na
+//      naka-clamp sa MAX_FRAME_DELTA_MS). Kapag nag-lag o naka-
+//      background ang tab, puwedeng umabot sa libong milisegundo ang
+//      deltaMs - isang hakbang na ilang TILE ang layo. Dahil ang
+//      DULO lang ng hakbang ang chine-check, "tumatalon" siya sa
+//      KABILANG GILID ng puno/bahay/bakod - mukhang dumaan siya sa
+//      collision.
+//   2) WALANG SLIDING - kapag barado ang diagonal na hakbang, tumitigil
+//      siya nang tuluyan; hindi siya makausad sa gilid ng harang gaya
+//      ng player (na hiwalay ang X at Y na check - tingnan ang
+//      update.js).
+//
+// Inaayos ito ng moveFeetTowards sa ibaba: hinahati ang galaw ng isang
+// frame sa maliliit na hakbang (FEET_SUBSTEP_MAX_PX), bawat isa ay
+// dumaraan sa canFeetMoveTo, at may axis sliding - eksaktong-eksakto
+// kung paano gumagalaw ang character.
+
+// Pinakamalaking layo ng ISANG substep. Mas maliit ito kaysa sa
+// pinakamaliit na collision box sa laro, kaya imposible nang
+// "makalusot" sa pagitan ng 2 check.
+const FEET_SUBSTEP_MAX_PX = 2;
+
+// Kapareho ng MAX_FRAME_DELTA_MS ng player (update.js) - hindi natin
+// hinahayaang gumalaw nang napakalayo ang isang NPC sa isang frame
+// lang kapag nag-lag/nag-background ang tab.
+const WANDER_MAX_FRAME_DELTA_MS = 100;
+
+function clampWanderDelta(deltaMs) {
+  if (!Number.isFinite(deltaMs) || deltaMs <= 0) return 0;
+
+  return Math.min(deltaMs, WANDER_MAX_FRAME_DELTA_MS);
+}
+
+// Igalaw ang "paanan" (feetX/feetY) papunta sa target nang hanggang
+// `maxDistance` na piksel - hakbang-hakbang, may collision check kada
+// hakbang, at may axis sliding kapag barado ang diagonal.
+// Ibinabalik: { x, y, moved, blocked }.
+function moveFeetTowards(
+  feetX,
+  feetY,
+  targetX,
+  targetY,
+  maxDistance,
+  boxWidth,
+  boxHeight,
+  options,
+) {
+  let x = feetX;
+  let y = feetY;
+  let remaining = Math.max(0, maxDistance);
+  let blocked = false;
+
+  while (remaining > 0.0001) {
+    const dx = targetX - x;
+    const dy = targetY - y;
+    const dist = Math.hypot(dx, dy);
+
+    // Nakarating na.
+    if (dist <= 0.0001) break;
+
+    const stepLength = Math.min(FEET_SUBSTEP_MAX_PX, remaining, dist);
+    const stepX = (dx / dist) * stepLength;
+    const stepY = (dy / dist) * stepLength;
+
+    if (canFeetMoveTo(x + stepX, y + stepY, boxWidth, boxHeight, options)) {
+      x += stepX;
+      y += stepY;
+    } else if (
+      stepX !== 0 &&
+      canFeetMoveTo(x + stepX, y, boxWidth, boxHeight, options)
+    ) {
+      // Barado ang diagonal - dumausdos sa X lang (gaya ng player).
+      x += stepX;
+      blocked = true;
+    } else if (
+      stepY !== 0 &&
+      canFeetMoveTo(x, y + stepY, boxWidth, boxHeight, options)
+    ) {
+      // ...o sa Y lang.
+      y += stepY;
+      blocked = true;
+    } else {
+      // Talagang barado sa lahat ng direksyon - tumigil dito.
+      blocked = true;
+      break;
+    }
+
+    remaining -= stepLength;
+  }
+
+  return { x, y, moved: x !== feetX || y !== feetY, blocked };
 }
 
 // Tinatawag sa loob ng ensureOldManSpot - isang beses lang, kapag
@@ -1514,6 +1694,15 @@ function initOldManWander() {
   oldManWander = {
     col: oldManSpotCache.col,
     row: oldManSpotCache.row,
+    // "Home" - ang gitna ng paglalakad niya (OLDMAN_WANDER_RADIUS_TILES
+    // ang paligid nito). Karaniwan ito ang tindahan niya, PERO kapag
+    // lumitaw siyang "traveler" sa malayong bahagi ng mapa
+    // (reappearOldMan), ang BAGONG puwesto niya ang nagiging home -
+    // kung hindi, tatawid siya sa buong mapa pabalik sa tindahan kada
+    // lakad, na siyang dahilan kung bakit lagi siyang nakabangga/
+    // nakabara sa mga bagay sa daan.
+    homeCol: oldManSpotCache.col,
+    homeRow: oldManSpotCache.row,
     x: oldManSpotCache.col * TILE_SIZE + TILE_SIZE / 2,
     y: oldManSpotCache.row * TILE_SIZE + TILE_SIZE,
     facing: "south",
@@ -1546,11 +1735,21 @@ function pickOldManWalkTarget() {
       (Math.random() * 2 - 1) * OLDMAN_WANDER_RADIUS_TILES,
     );
 
-    // Palaging PALIGID ng TALAGANG tindahan niya (hindi ng
-    // kasalukuyang tayuan) ang batayan - para hindi siya "lumutang"
-    // papalayo nang paunti-unti sa paglipas ng oras.
-    const col = oldManSpotCache.col + dCol;
-    const row = oldManSpotCache.row + dRow;
+    // PALIGID ng "home" niya ang batayan (hindi ng kasalukuyang
+    // tayuan) - para hindi siya "lumutang" papalayo nang paunti-unti sa
+    // paglipas ng oras. Karaniwan ang tindahan ang home, maliban kung
+    // "traveler" siya ngayon (tingnan ang initOldManWander/
+    // reappearOldMan) - kaya laging MAIKLI ang bawat lakad at hindi na
+    // siya tumatawid sa buong mapa.
+    const baseCol = Number.isFinite(oldManWander.homeCol)
+      ? oldManWander.homeCol
+      : oldManSpotCache.col;
+    const baseRow = Number.isFinite(oldManWander.homeRow)
+      ? oldManWander.homeRow
+      : oldManSpotCache.row;
+
+    const col = baseCol + dCol;
+    const row = baseRow + dRow;
 
     if (col === oldManWander.col && row === oldManWander.row) continue;
     if (!isFreeWanderTile(col, row)) continue;
@@ -1593,53 +1792,71 @@ function startOldManWalk() {
         : "north";
 }
 
-function stepOldManWalk(deltaMs) {
-  const dx = oldManWander.targetX - oldManWander.x;
-  const dy = oldManWander.targetY - oldManWander.y;
-  const dist = Math.hypot(dx, dy);
-  const step = (OLDMAN_WALK_SPEED_PX_PER_SEC * deltaMs) / 1000;
+function finishOldManWalk() {
+  oldManWander.moving = false;
+  oldManWander.state = "idle";
+  oldManWander.phaseUntil = performance.now() + OLDMAN_IDLE_DURATION_MS;
+}
 
-  if (dist <= step || dist === 0) {
-    oldManWander.x = oldManWander.targetX;
-    oldManWander.y = oldManWander.targetY;
+function stepOldManWalk(deltaMs) {
+  // NAKA-CLAMP na deltaMs (tingnan ang clampWanderDelta) - kung hindi,
+  // isang lag spike/naka-background na tab ay puwedeng magpalipat sa
+  // kanya ng ilang TILE sa isang frame at tumawid sa kabilang gilid ng
+  // isang puno/bahay.
+  const step =
+    (OLDMAN_WALK_SPEED_PX_PER_SEC * clampWanderDelta(deltaMs)) / 1000;
+
+  if (step <= 0) return;
+
+  // Hakbang-hakbang (may collision check kada isa) at may axis
+  // sliding - kaparehong-pareho ng galaw ng player (update.js:
+  // hiwalay na canMoveTo sa X at sa Y).
+  const result = moveFeetTowards(
+    oldManWander.x,
+    oldManWander.y,
+    oldManWander.targetX,
+    oldManWander.targetY,
+    step,
+    OLDMAN_COLLISION_BOX_WIDTH,
+    OLDMAN_COLLISION_BOX_HEIGHT,
+    { skipOldMan: true },
+  );
+
+  oldManWander.x = result.x;
+  oldManWander.y = result.y;
+
+  const remaining = Math.hypot(
+    oldManWander.targetX - oldManWander.x,
+    oldManWander.targetY - oldManWander.y,
+  );
+
+  // Nakarating na sa destinasyon.
+  if (remaining <= 0.01) {
     oldManWander.col = oldManWander.targetCol;
     oldManWander.row = oldManWander.targetRow;
-    oldManWander.moving = false;
-    oldManWander.state = "idle";
-    oldManWander.phaseUntil = performance.now() + OLDMAN_IDLE_DURATION_MS;
+    finishOldManWalk();
 
     return;
   }
 
-  const nextX = oldManWander.x + (dx / dist) * step;
-  const nextY = oldManWander.y + (dy / dist) * step;
-
-  // May puno/bahay/bato (o anumang collidable) sa dinaraanan niya -
-  // huwag ituloy ang galaw na ito (kaparehong dahilan ng canMoveTo ng
-  // player, tingnan ang collisions.js) - dating dumadaan siya diretso
-  // sa mga ito dahil TILE-based lang ang naunang check
-  // (isFreeWanderTile - sa DESTINASYON lang, hindi sa BUONG daanan).
-  // Sa halip na mag-clip sa gitna ng puno, mag-iidle na lang muna siya
-  // dito, tapos mamimili ng BAGONG destinasyon sa susunod na
-  // pagkakataon.
-  if (
-    !canFeetMoveTo(
-      nextX,
-      nextY,
-      OLDMAN_COLLISION_BOX_WIDTH,
-      OLDMAN_COLLISION_BOX_HEIGHT,
-      { skipOldMan: true },
-    )
-  ) {
-    oldManWander.moving = false;
-    oldManWander.state = "idle";
-    oldManWander.phaseUntil = performance.now() + OLDMAN_IDLE_DURATION_MS;
+  // Talagang barado (hindi na makausad kahit padausdos sa X o sa Y) -
+  // mag-iidle muna dito, tapos mamimili ng BAGONG destinasyon.
+  if (!result.moved) {
+    // Tandaan ang TALAGANG tile na kinatatayuan niya ngayon - kung
+    // hindi, mananatiling luma (ang pinanggalingan) ang col/row niya,
+    // kaya mali ang isOldManTile/susunod na pagpili ng destinasyon.
+    oldManWander.col = Math.floor(oldManWander.x / TILE_SIZE);
+    oldManWander.row = Math.floor((oldManWander.y - 1) / TILE_SIZE);
+    finishOldManWalk();
 
     return;
   }
 
-  oldManWander.x = nextX;
-  oldManWander.y = nextY;
+  // Nadausdos siya sa gilid ng isang harang - patuloy pa rin siyang
+  // naglalakad, pero i-update ang col/row para tumugma sa TALAGANG
+  // kinatatayuan niya.
+  oldManWander.col = Math.floor(oldManWander.x / TILE_SIZE);
+  oldManWander.row = Math.floor((oldManWander.y - 1) / TILE_SIZE);
 }
 
 function vanishOldMan() {
@@ -1677,10 +1894,31 @@ function reappearOldMan() {
     );
   }
 
+  // Huling siguro: kahit "libre" ang tile ayon sa findFreeSpotNear
+  // (tile/objectCells/collisions lang ang tinitingnan noon), baka may
+  // NAKA-LAGAY na bagay o may pig/player doon ngayon - huwag siyang
+  // ilitaw sa loob ng isang collision.
+  if (
+    spot &&
+    !canFeetMoveTo(
+      spot.col * TILE_SIZE + TILE_SIZE / 2,
+      spot.row * TILE_SIZE + TILE_SIZE,
+      OLDMAN_COLLISION_BOX_WIDTH,
+      OLDMAN_COLLISION_BOX_HEIGHT,
+      { skipOldMan: true },
+    )
+  ) {
+    spot = null;
+  }
+
   if (!spot) spot = oldManSpotCache; // fallback: bumalik sa tindahan
 
   oldManWander.col = spot.col;
   oldManWander.row = spot.row;
+  // BAGONG "home" - dito na siya gagala habang nandito siya (hindi na
+  // siya tatawid pabalik sa tindahan sa isang mahabang tuwid na linya).
+  oldManWander.homeCol = spot.col;
+  oldManWander.homeRow = spot.row;
   oldManWander.x = spot.col * TILE_SIZE + TILE_SIZE / 2;
   oldManWander.y = spot.row * TILE_SIZE + TILE_SIZE;
   oldManWander.facing = "south";
@@ -1907,11 +2145,78 @@ const OLDMAN_SHOP_ITEMS = [
     stockMin: 2,
     stockMax: 8,
   },
+  {
+    itemId: "bag",
+    label: "Backpack",
+    fallbackIcon: "🎒",
+    // Hiling ng user: 200 gold ang presyo ng bag (buyPrice). SellPrice
+    // (kapag ibinebenta pabalik) ay kalahati lang, kaparehong ratio ng
+    // ibang item sa itaas.
+    sellPrice: 100,
+    buyPrice: 200,
+    stockMin: 1,
+    stockMax: 3,
+  },
+  {
+    itemId: "bed",
+    label: "Bed",
+    fallbackIcon: "🛏️",
+    // BAGO (hiling ng user): "bed" - dito na lang bibilhin (parang
+    // "bag"), mas mahal dahil mas malaki ang footprint nito (2x3
+    // tiles) - kaparehong 2x ratio ng buyPrice/sellPrice ng ibang item
+    // sa itaas.
+    sellPrice: 150,
+    buyPrice: 300,
+    stockMin: 1,
+    stockMax: 3,
+  },
+  {
+    itemId: "wool",
+    label: "Wool",
+    fallbackIcon: "🧶",
+    // BAGO (hiling ng user: "yung sa bed 123 slots wool at nabibili
+    // dun kay oldman") - crafting material lang, kaparehong presyo-
+    // pattern ng "charcoal"/"meat" sa itaas.
+    sellPrice: 20,
+    buyPrice: 40,
+    stockMin: 3,
+    stockMax: 12,
+  },
+  {
+    itemId: "silk",
+    label: "Silk",
+    fallbackIcon: "🕸️",
+    // BAGO (hiling ng user: "456 slots silk nabibili din kay oldman") -
+    // mas mahal kaysa wool (mas "premium" na materyales) - kaparehong
+    // 2x ratio ng wool sa itaas.
+    sellPrice: 35,
+    buyPrice: 70,
+    stockMin: 2,
+    stockMax: 8,
+  },
 ];
 
-// { itemId: quantity } - random, PAG-ISANG BESES lang bawat session
-// (hindi kada open ng panel, kung hindi ay magbabago ang stock bawat
-// pagkabukas).
+// UNLIMITED ang stock ng LAHAT ng item ni oldman (walang label na
+// "x{stock}", hindi nauubos) - PERO ang GOLD ang hadlang sa pagbili
+// (tingnan ang maxAffordableOldManCount at buyFromOldManQuantity):
+// kung kulang ang gold, hindi matutuloy ang bili.
+// WALANG KATAPUSAN na ngayon ang stock ng LAHAT ng item ni
+// oldman (hindi na random na stockMin/stockMax - naiwan na lang ang
+// mga field na iyon sa OLDMAN_SHOP_ITEMS para hindi na kailangang
+// baguhin ang listahan, pero hindi na ito ginagamit). Isang malaking
+// numero lang (hindi Infinity - hindi maganda ang Infinity bilang
+// HTML input "max" attribute sa quantity popup, tingnan
+// openOldManBuyQtyPopup) ang ginagamit bilang "walang katapusan" -
+// hindi rin ito binabawasan pagkatapos bumili (tingnan
+// buyFromOldManQuantity) kaya TALAGANG hindi ito nauubos kahit gaano
+// katagal.
+const OLDMAN_UNLIMITED_STOCK = 999;
+
+// { itemId: quantity } - hindi na talaga "random" (tingnan sa itaas),
+// pero naiwan pa rin ang mekanismong ito (ensureOldManStock) dahil
+// sinusunod pa rin ito ng ibang bahagi ng code (buyFromOldManQuantity,
+// startOldManBuyDrag, atbp.) - laging OLDMAN_UNLIMITED_STOCK na lang
+// ang nilalagay dito ngayon.
 let oldManStock = null;
 
 function ensureOldManStock() {
@@ -1920,9 +2225,7 @@ function ensureOldManStock() {
   oldManStock = {};
 
   for (const item of OLDMAN_SHOP_ITEMS) {
-    oldManStock[item.itemId] =
-      item.stockMin +
-      Math.floor(Math.random() * (item.stockMax - item.stockMin + 1));
+    oldManStock[item.itemId] = OLDMAN_UNLIMITED_STOCK;
   }
 }
 
@@ -1949,15 +2252,32 @@ function getShopOwnedCount(itemId) {
   return 0;
 }
 
-// Pinakamalaking dami ng isang item na kayang bilhin ngayon - ang STOCK
-// na lang ang hadlang (UNLIMITED BUY - hindi na kailangang tingnan ang
-// GOLD na hawak ng manlalaro, tingnan ang buyFromOldManQuantity sa
-// ibaba kung saan pa rin binabawas ang gold kung meron, pero hindi na
-// ito humahadlang sa mismong pagbili).
+// Pinakamalaking dami na PUWEDENG PILIIN sa popup - ang STOCK lang ang
+// hadlang dito (UNLIMITED, OLDMAN_UNLIMITED_STOCK). HINDI ito
+// hinahadlangan ng gold: lalabas pa rin ang popup at kahit ilan pa ang
+// i-type mo, papayagan - sa CONFIRM na lang mag-e-error kapag kulang
+// ang gold (tingnan ang getOldManBuyCost/buyFromOldManQuantity at ang
+// #oldman-buy-qty-confirm handler sa ibaba).
 function maxAffordableOldManCount(item, stock) {
   if (!item || stock <= 0) return 0;
 
   return stock;
+}
+
+// Kabuuang bayad sa "qty" na piraso ng item.
+function getOldManBuyCost(item, qty) {
+  if (!item) return 0;
+
+  return (item.buyPrice || 0) * Math.max(0, qty);
+}
+
+// Kaya ba ng HAWAK na gold ang buong bayad? Ito ang IISANG panuntunan
+// na sinusunod ng lahat ng buy path (popup confirm at ang 1-click na
+// bili) - kaya sigurado, walang libreng item.
+function canAffordOldManBuy(item, qty) {
+  const gold = typeof goldCollected !== "undefined" ? goldCollected : 0;
+
+  return getOldManBuyCost(item, qty) <= gold;
 }
 
 // "qty" - EKSAKTONG dami na bibilhin (na-clamp na sa caller, kagaya ng
@@ -1976,15 +2296,27 @@ function buyFromOldManQuantity(itemId, qty) {
 
   if (amount <= 0) return;
 
-  // Ibawas ang gold KUNG MERON (hindi na ito humahadlang sa bili sa
-  // itaas - maxAffordableOldManCount - kaya posibleng mas malaki ang
-  // babayaran dito kaysa sa TALAGANG hawak na gold; naka-clamp sa 0
-  // para hindi bumaba pa sa negatibo).
-  if (typeof goldCollected !== "undefined") {
-    goldCollected = Math.max(0, goldCollected - item.buyPrice * amount);
+  // HULING BANTAY: dito talaga tinitingnan kung KAYA ng gold ang buong
+  // bayad. Kung kulang - ERROR, at WALANG mangyayari: walang item na
+  // napupunta sa inventory at hindi nababawasan ang gold (dati:
+  // naka-clamp sa 0 ang gold kaya libre ang bili kapag ubos ka na -
+  // ito ang bug).
+  if (!canAffordOldManBuy(item, amount)) {
+    if (typeof showSettingsToast === "function")
+      showSettingsToast("Kulang ang gold mo!");
+
+    return;
   }
 
-  oldManStock[itemId] = stock - amount;
+  if (typeof goldCollected !== "undefined") {
+    goldCollected -= getOldManBuyCost(item, amount);
+  }
+
+  // AYOS: hindi na binabawasan ang oldManStock dito - walang
+  // katapusan/unlimited na ang stock ni oldman (tingnan
+  // OLDMAN_UNLIMITED_STOCK/ensureOldManStock sa itaas), kaya
+  // permanenteng nananatiling buo ang bilang nito kahit ilang beses pa
+  // bilhin - "bili lang ng bili" (hiling ng user).
 
   if (typeof adjustGlobalItemCount === "function")
     adjustGlobalItemCount(itemId, amount);
@@ -2043,29 +2375,21 @@ document
   });
 
 function buildOldManShopCell(item) {
-  const stock = (oldManStock && oldManStock[item.itemId]) || 0;
-
   const cell = document.createElement("button");
 
   cell.type = "button";
   cell.className = "oldman-shop-cell";
   cell.dataset.tooltip = item.label + " - 🪙" + item.buyPrice;
 
-  // NAKA-DISABLE LANG kapag WALANG STOCK - hindi na dahil sa kulang na
-  // gold (dating parehong dahilan ito, kaya "naka-gray"/hindi
-  // maka-drag ang item kahit pa "normal" itong item na dapat kayang
-  // hilahin papunta sa bag - tingnan ang startOldManBuyDrag/
-  // startOldManBuyFlow sa ibaba, doon na lang lalabas ang "Kulang ang
-  // gold mo!" na mensahe SA SANDALING i-drop mo talaga ito kung hindi
-  // mo pa kaya bayaran).
-  cell.disabled = stock <= 0;
-
+  // AYOS (hiling ng user): "wag na lagyan ng quantity unlimited na
+  // kahit wala ng label" - tinanggal na ang "x{stock}" na badge (dating
+  // "oldman-shop-cell-stock" span) at ang "disabled kapag naubos ang
+  // stock" na gawi - WALANG KATAPUSAN na ngayon ang bawat item ni
+  // oldman (OLDMAN_UNLIMITED_STOCK), kaya laging naka-enable/buyable
+  // ang lahat ng cell dito.
   cell.innerHTML =
     '<span class="oldman-shop-cell-icon">' +
     getShopItemIconHTML(item.itemId, item.fallbackIcon) +
-    "</span>" +
-    '<span class="oldman-shop-cell-stock">x' +
-    stock +
     "</span>";
 
   // BILI - i-DRAG papunta sa bag/hotbar (hindi na click), kagaya ng
@@ -2074,7 +2398,55 @@ function buildOldManShopCell(item) {
     startOldManBuyDrag(item.itemId, event);
   });
 
+  // AYOS: JS na ngayon ang tooltip (hindi na purong CSS ::after) -
+  // tingnan ang paliwanag sa itaas ng "#oldman-shop-tooltip" sa
+  // style.css kung bakit (natatakpan/na-clip dati ng overflow-y:auto
+  // ng #oldman-shop-body).
+  cell.addEventListener("pointerenter", () => {
+    showOldManShopTooltip(cell, cell.dataset.tooltip);
+  });
+  cell.addEventListener("pointerleave", hideOldManShopTooltip);
+
   return cell;
+}
+
+// Iisang tooltip element (index.html, #oldman-shop-tooltip) na
+// LAGING dinadala/pino-position dito papunta sa TALAGANG kinatatayuan
+// ng hovered na cell (getBoundingClientRect - screen coordinates,
+// dahil "position:fixed" ito) - kaya LAGING naka-overlap ito sa ibabaw
+// ng lahat, hindi na na-cclip kahit anong row pa ang ni-hover, hindi
+// tulad ng dating purong-CSS na bersyon.
+function showOldManShopTooltip(cell, text) {
+  const tooltip = document.getElementById("oldman-shop-tooltip");
+
+  if (!tooltip || !text) return;
+
+  tooltip.textContent = text;
+  tooltip.classList.remove("hidden");
+
+  const rect = cell.getBoundingClientRect();
+  const tooltipRect = tooltip.getBoundingClientRect();
+
+  let left = rect.left + rect.width / 2 - tooltipRect.width / 2;
+  // Sa ITAAS ng cell kapag may sapat na espasyo, kung hindi (hal.
+  // unang hanay, walang lugar sa itaas) - sa IBABA na lang ito ilalagay
+  // sa halip - dito lang talaga makikita ang pagkakaiba kumpara sa
+  // dating CSS ::after (na laging sa itaas lang, kahit na-clip pa).
+  let top = rect.top - tooltipRect.height - 6;
+
+  if (top < 4) top = rect.bottom + 6;
+
+  // Huwag palampasin sa gilid ng screen (kaliwa/kanan).
+  left = Math.max(4, Math.min(left, window.innerWidth - tooltipRect.width - 4));
+
+  tooltip.style.left = left + "px";
+  tooltip.style.top = top + "px";
+}
+
+function hideOldManShopTooltip() {
+  const tooltip = document.getElementById("oldman-shop-tooltip");
+
+  if (tooltip) tooltip.classList.add("hidden");
 }
 
 function syncOldManShopPanel() {
@@ -2083,6 +2455,11 @@ function syncOldManShopPanel() {
   if (!panel) return;
 
   panel.classList.toggle("hidden", !oldManShopPanelOpen);
+
+  // Iwasang matirang nakabitin ang tooltip (hal. nag-scroll/nagsara
+  // habang naka-hover pa rin) - ligtas na itong itago tuwing nagre-
+  // rebuild/nagsasara ang panel na ito.
+  if (typeof hideOldManShopTooltip === "function") hideOldManShopTooltip();
 
   if (!oldManShopPanelOpen) return;
 
@@ -2287,11 +2664,10 @@ function startOldManBuyDrag(itemId, event) {
 
   const stock = oldManStock[itemId] || 0;
 
-  // Naubos na ang stock - walang simulang drag (dapat naka-disable na
-  // rin ang mismong cell nito, tingnan ang buildOldManShopCell).
-  // UNLIMITED BUY na ang lahat ng item dito (tingnan ang
-  // maxAffordableOldManCount) - ang STOCK na lang ang tanging hadlang,
-  // hindi na ang GOLD na hawak ng manlalaro.
+  // Naubos na ang stock - walang simulang drag (hindi ito dapat
+  // mangyari, UNLIMITED ang stock ni oldman). HINDI dito tinitingnan
+  // ang gold - laging puwedeng i-drag at laging lalabas ang popup;
+  // sa CONFIRM na lang mag-e-error kapag kulang.
   if (stock <= 0) return;
 
   // Kailangan naka-load na ang hotbar.js (dragState/dragGhostEl)
@@ -2331,10 +2707,7 @@ function startOldManBuyFlow(itemId) {
   const maxCount = maxAffordableOldManCount(item, stock);
 
   if (maxCount <= 0) {
-    // UNLIMITED BUY na (hindi na hadlang ang gold - tingnan ang
-    // maxAffordableOldManCount), kaya dapat hindi na ito talaga
-    // maabot maliban kung naubos lang talaga ang stock sa pagitan ng
-    // pagsisimula ng drag at ng pag-drop - toast pa rin bilang segurado.
+    // UNLIMITED ang stock kaya hindi na ito dapat maabot.
     if (typeof showSettingsToast === "function") {
       showSettingsToast("Ubos na ang stock!");
     }
@@ -2380,8 +2753,13 @@ function openOldManBuyQtyPopup() {
 
   if (input) {
     input.min = 1;
+    // "max" = stock (UNLIMITED) - hindi ito nakadepende sa gold, kaya
+    // kahit ilan ang i-type mo, papayagan ng popup.
     input.max = oldManBuyFlowState.maxCount;
-    input.value = oldManBuyFlowState.maxCount;
+    // Default na 1 (hindi na maxCount) - para hindi maubos agad ang
+    // lahat ng gold sa isang aksidenteng Confirm. Palitan ito pabalik
+    // ng oldManBuyFlowState.maxCount kung mas gusto mo ang dati.
+    input.value = 1;
   }
 
   updateOldManBuyQtyTotal();
@@ -2424,7 +2802,17 @@ function updateOldManBuyQtyTotal() {
   const qty = clampOldManBuyQtyInput();
   const totalEl = document.getElementById("oldman-buy-qty-total");
 
-  if (totalEl) totalEl.textContent = "Babayaran: 🪙" + item.buyPrice * qty;
+  if (!totalEl) return;
+
+  // Live na babala habang binabago ang dami - makikita mo agad kung
+  // kulang ang gold bago mo pa pindutin ang Confirm.
+  const affordable = canAffordOldManBuy(item, qty);
+
+  totalEl.textContent =
+    "Babayaran: 🪙" +
+    getOldManBuyCost(item, qty) +
+    (affordable ? "" : " (kulang ang gold mo)");
+  totalEl.style.color = affordable ? "" : "#ff6b6b";
 }
 
 document
@@ -2471,216 +2859,170 @@ document
 
     const itemId = oldManBuyFlowState.itemId;
     const qty = clampOldManBuyQtyInput();
+    const item = OLDMAN_SHOP_ITEMS.find((entry) => entry.itemId === itemId);
+
+    // KULANG ANG GOLD - ERROR lang, at NANANATILING BUKAS ang popup
+    // para puwede mong ibaba ang dami at subukan ulit (imbes na
+    // isara at simulan ulit ang buong drag).
+    if (!canAffordOldManBuy(item, qty)) {
+      if (typeof showSettingsToast === "function")
+        showSettingsToast("Kulang ang gold mo!");
+
+      return;
+    }
 
     closeOldManBuyQtyPopup();
     buyFromOldManQuantity(itemId, qty);
   });
 
+// AYOS (hiling ng user): "alisin mo na yung mga blackhole erase mo na
+// sa lahat" - TINANGGAL na ang buong "umiikot na blackhole" ground
+// decal na dati'y dinadraw sa gate patungo/galing "town"<->"grassmap"
+// (dating drawTownPathGatePatch/drawNewmapReturnGatePatch dito, tinawag
+// mula sa draw.js) - kasama na ang asset (blackhole.png) at lahat ng
+// TOWN_GATE_BLACKHOLE_*/TOWN_PATH_GATE_*/NEWMAP_RETURN_GATE_* na
+// konstante. Ang mismong PAG-TETELEPORT sa pagitan ng "town" at
+// "grassmap" ay HINDI naapektuhan - hiwalay/independent ang area/
+// coordinates niyan (DOORS, worlds.js) sa visual na ito.
+
 // =========================
-// "GATE" PATUNGONG "TOWN" (umiikot na BLACKHOLE, sa TAAS-GITNA (top-
-// center) ng newmap - tingnan ang DOORS sa worlds.js para sa aktwal
-// na paglipat ng mundo)
+// GRASSMAP - INDIVIDUAL NA MGA PUNO (hand-placed, hindi random)
 // =========================
 //
-// KASAYSAYAN NG POSISYON/ITSURA: (1) 2 puno, halos itaas mismo ng
-// buong mapa - MASYADONG LAYO. (2) madilim na patse, malapit sa BAHAY
-// - hindi pa rin nakita. (3) DIKIT sa spawn point - natatakpan ng 500
-// damong tuft (AYOS na). (4) katabi ng MALING bahay - VERIFIED gamit
-// ang screenshot, ibang bahay pala. BAGONG BERSYON: sariling asset na
-// ngayon ang gamit (blackhole-sheet.png, in-upload mismo ng user) sa
-// halip na basta itim na patse - mas malinaw/mas magandang tingnan,
-// at BUMALIK na sa "TAAS NG MAPA, sa GITNA" (top-center) - literal
-// ang ibig sabihin ngayon: `col = mapData.width / 2`, HINDI na basta
-// tantiya/estimate mula sa isang screenshot.
-// (Muling nasa LABAS/"newmap" ang gate ngayon, sa TAAS-GITNA - dating
-// inilipat ito sa loob ng bahay, pero binalik sa labas ayon sa hiling
-// ng user. Tingnan sa ibaba ang TOWN_GATE_TOP_ROW/
-// getTownGateBlackholeCenter.)
-
-// Sukat (destination, world pixels) ng umiikot na blackhole - parisukat
-// (parehong width/height), naka-center sa (col,row) sa itaas.
+// Ang grassmap.tmj ay may sarili nang guhit na puno sa larawan
+// (grassmap.png - ang "reference" na sinabi ng user) - pero SA HALIP
+// na gawin itong Tiled tile-layer/"overlap instance" (tinanggal na ito
+// sa tmj mismo - "inalis ko yung overlay", hiling ng user), ginagawa
+// nating INDIVIDUAL na JS drawable ang BAWAT puno, KAPAREHONG-KAPAREHO
+// ng OAK TREES sa itaas: sariling sortY (Y-sort laban sa player) at
+// sariling bbox (see-through occlusion, tingnan ang shouldOccludeForPlayer
+// sa map.js) - kaya nag-iisa/independent ang pagkalabo ng BAWAT puno
+// ("by each yung opacity nung puno, parang ginawa sa oaktree").
 //
-// PINALIKI (hiling ng user) - dating 96 (6 tiles, sobrang laki) -
-// ngayon TILE_SIZE lang (1 tile), kaparehong-pareho ng sukat ng
-// naka-lagay na CRAFTER/STOVE (drawWidth = TILE_SIZE - tingnan ang
-// drawPlacedStoves sa stove.js). Tandaan: kapag binago mo ito, i-update
-// din ang "area" ng dalawang DOORS entry (houseInside->town at ang
-// comment sa itaas nila, worlds.js) - dapat kaparehong-pareho pa rin
-// ng getTownGatePatchBox() sa ibaba.
-const TOWN_GATE_BLACKHOLE_SIZE = 50;
-// Animation - 6-frame horizontal strip (blackhole-sheet.png, VERIFIED
-// sa Python/Pillow: 1045x177px, 6 magkakasunod na frame).
-const TOWN_GATE_BLACKHOLE_FRAME_COUNT = 6;
-const TOWN_GATE_BLACKHOLE_FRAME_MS = 120;
+// Larawan na ginagamit: grassmap-trees-overlay.png - EKSAKTONG kopya ng
+// kulay ng grassmap.png (walang ibang binago) sa mga pixel na TALAGANG
+// bahagi ng puno lang (nakuha sa pamamagitan ng pag-diff laban sa
+// grassmap-no-trees.png, ang background na larawan ng "Tile Layer 1")
+// - TRANSPARENT sa lahat ng iba pa. Dahil dito, ligtas itong i-crop
+// gamit ang simpleng PARISUKAT/RECTANGULAR na hangganan kahit hindi
+// eksaktong kasing-hugis ng tunay na puno (walang lalabas na
+// nakikitang seam/kahon, dahil transparent naman ang paligid nito).
+const grassmapTreesImage = new Image();
+grassmapTreesImage.src = "./assets/map/grassmap-trees-overlay.png";
 
-const townGateBlackholeImage = new Image();
-townGateBlackholeImage.src = "./assets/objects/blackhole.png";
+// Bawat entry ay ISANG "puno" (o grupo ng magkadikit/magkapatong na
+// puno sa larawan na hindi na mahihiwalay nang malinis dahil
+// nagtatagpo ang canopy nila - hal. yung mga magkadikit na puno sa
+// likod ng bahay na may IISA na lang natitirang NAKIKITANG puno/trunk
+// sa hanay na iyon, ang iba ay nakatago sa likod):
+//   src        - (sx,sy,sw,sh) eksaktong crop region sa
+//                grassmap-trees-overlay.png.
+//   baseY      - world-Y kung saan "nakatapak sa lupa" ang puno (ilalim
+//                ng NAKIKITANG trunk) - dito ikinukumpara ang Y-sort
+//                laban sa paanan ng player (kaparehong konsepto ng
+//                spot.row*TILE_SIZE+TILE_SIZE sa OAK).
+//   trunkBox   - MANIPIS na collision (hindi madadaanan) - sa TALAGANG
+//                puno/trunk LANG, hindi sa buong canopy - para may
+//                lugar pa ring madaanan SA ILALIM ng nakausling sanga
+//                (hiling: "trees overlap the character when beneath
+//                the tree").
+//   occludeBox - MAS MATANGKAD na bbox (mula ibabaw ng canopy hanggang
+//                sa trunk base, pero MANIPIS pa rin ang lapad) - ITO
+//                ang GINAGAMIT PARA SA OPACITY FADE (see-through) laban
+//                sa player: kapag LIKOD na ng puno ang player (mas
+//                mababa pa sa screen ang paanan niya kaysa dito) AT
+//                nag-o-overlap ang katawan niya rito, lumalabo ang
+//                puno - kaya nakikita/"naka-overlap" ang character sa
+//                puno. Kapag NASA HARAP naman ng puno ang player (mas
+//                mataas pa sa screen ang base niya), normal na
+//                iginuguhit ang puno PAGKATAPOS ng player - kaya ang
+//                puno ang "naka-overlap"/tumatakip sa character - pareho
+//                lang sa OAK (isa lang talaga ang logic, Y-sort lang
+//                ang batayan).
+const GRASSMAP_TREE_SPOTS = [
+  // Kaliwang dalawang puno (harap, malapit sa landas/bato).
+  {
+    src: { sx: 119, sy: 336, sw: 47, sh: 181 },
+    baseY: 514,
+    trunkBox: { x: 139, y: 474, width: 23, height: 41 },
+    occludeBox: { x: 138.5, y: 336, width: 23, height: 181 },
+  },
+  {
+    src: { sx: 166, sy: 336, sw: 39, sh: 181 },
+    baseY: 466,
+    trunkBox: { x: 171, y: 426, width: 23, height: 41 },
+    occludeBox: { x: 170.5, y: 336, width: 23, height: 181 },
+  },
+  // Kanang grupo ng puno (likod ng bahay) - hinati sa 3 "hanay" base sa
+  // 3 natitirang NAKIKITANG puno sa larawan (ang iba pang puno rito ay
+  // nakatago/magkapatong sa likod ng mga ito, kaya sama-samang bahagi
+  // na lang sila ng pinakamalapit na hanay - hangga't hindi pa
+  // nagbibigay ng bagong tunay na tileset/sprite per-puno, ito ang
+  // pinakamalapit na tamang paghahati batay mismo sa nakikita sa
+  // larawan).
+  {
+    src: { sx: 205, sy: 294, sw: 168, sh: 118 },
+    baseY: 412,
+    trunkBox: { x: 347, y: 389, width: 23, height: 24 },
+    occludeBox: { x: 346.5, y: 294, width: 23, height: 118 },
+  },
+  {
+    src: { sx: 373, sy: 294, sw: 32, sh: 118 },
+    baseY: 412,
+    trunkBox: { x: 379, y: 378, width: 19, height: 35 },
+    occludeBox: { x: 378.5, y: 294, width: 19, height: 118 },
+  },
+  {
+    src: { sx: 405, sy: 294, sw: 46, sh: 118 },
+    baseY: 412,
+    trunkBox: { x: 411, y: 389, width: 23, height: 24 },
+    occludeBox: { x: 410.5, y: 294, width: 23, height: 118 },
+  },
+];
 
-// Ang mundo kung saan lumalabas ang gate na ito - "newmap" (labas),
-// BUMALIK NA MULA SA LOOB NG BAHAY (houseInside) - hiling ng user.
-const TOWN_GATE_WORLD = "newmap";
+// Kaparehong gawi ng ensureOakSpots(): isang beses lang kada world
+// (idinadagdag ang collision ng bawat trunk) - tinatawag ito KADA FRAME
+// mula update.js, pero mura lang ang paulit-ulit na check
+// (currentWorld comparison), kaya hindi ito problema sa performance.
+let grassmapTreesValidatedFor = null;
 
-// Anong ROW (tile row, mula sa itaas) ang gitna ng gate - malapit sa
-// itaas ng mapa pero may konting buffer (hindi mismo row 0) para
-// hindi tila "nakadikit sa dulo/edge" ang itsura. Ang COLUMN naman ay
-// laging kinukwenta base sa GITNA MISMO ng lapad ng kasalukuyang
-// naka-load na mapa (mapData.width, map.js) - kaya kahit magbago pa
-// ang lapad ng newmap sa hinaharap, sasabay pa rin ang gate.
-const TOWN_GATE_TOP_ROW = 1;
+function ensureGrassmapTrees() {
+  const world = typeof getWorld === "function" ? getWorld() : null;
 
-// Gitna (world pixels) ng blackhole - GITNA-TAAS (top-center) ng
-// buong newmap. Kinukuha ang lapad mula sa "mapData" (map.js, ang
-// kasalukuyang naka-load na .tmj) sa halip na hardcoded na numero,
-// kaya laging TALAGANG nasa gitna kahit anong lapad pa ng mapa.
-function getTownGateBlackholeCenter() {
-  const tileWidth =
-    typeof mapData !== "undefined" && mapData ? mapData.tilewidth : TILE_SIZE;
-  const mapWidthTiles =
-    typeof mapData !== "undefined" && mapData ? mapData.width : 70;
+  if (!world || !world.grassmapTrees) return;
+  if (grassmapTreesValidatedFor === currentWorld) return;
 
-  return {
-    x: (mapWidthTiles / 2) * tileWidth,
-    y: TOWN_GATE_TOP_ROW * TILE_SIZE + TILE_SIZE / 2,
-  };
+  grassmapTreesValidatedFor = currentWorld;
+
+  for (const spot of GRASSMAP_TREE_SPOTS) {
+    collisions.push({ ...spot.trunkBox });
+  }
 }
 
-function getTownGatePatchBox() {
-  const center = getTownGateBlackholeCenter();
-  const half = TOWN_GATE_BLACKHOLE_SIZE / 2;
+function drawGrassmapTreeAt(spot) {
+  if (!grassmapTreesImage.complete || grassmapTreesImage.naturalWidth === 0) {
+    return;
+  }
 
-  return {
-    x: Math.round(center.x - half),
-    y: Math.round(center.y - half),
-    width: TOWN_GATE_BLACKHOLE_SIZE,
-    height: TOWN_GATE_BLACKHOLE_SIZE,
-  };
+  const { sx, sy, sw, sh } = spot.src;
+
+  // 1:1 na crop-and-place (walang scale) - eksaktong kopya ng
+  // pinagmulang pixel sa EKSAKTONG parehong world coordinates.
+  ctx.drawImage(grassmapTreesImage, sx, sy, sw, sh, sx, sy, sw, sh);
 }
 
-// Iginuguhit ito bilang GROUND DECAL (kaparehong lugar/timing ng
-// drawDugTiles/drawFootprints sa draw.js) - SA IBABAW ng normal na
-// lupa/damo, PERO SA ILALIM ng player/puno/bagay (walang Y-sort dito,
-// laging "flat" sa lupa) - kaya makikita pa ring "nakatapak"/nakadaan
-// ang player sa ibabaw nito, gaya ng dating madilim na patse.
-//
-// Umiikot (animated, 6-frame strip) - kaparehong pattern ng
-// getStoveAnimFrameIndex (stove.js).
-function drawTownGatePatch() {
-  if (currentWorld !== TOWN_GATE_WORLD) return;
-  if (typeof TILE_SIZE === "undefined" || typeof ctx === "undefined") return;
+// Isinasabit sa Y-sort na "drawables" ng drawMapObjects (map.js) -
+// kaparehong-pareho ng getOakDrawables sa itaas, pero FIXED na posisyon
+// (hindi random) dahil hand-drawn/static na larawan ang grassmap.tmj.
+function getGrassmapTreeDrawables() {
+  const world = typeof getWorld === "function" ? getWorld() : null;
 
-  const img = townGateBlackholeImage;
+  if (!world || !world.grassmapTrees) return [];
 
-  if (!img.complete || img.naturalWidth === 0) return;
-
-  const frameWidth = img.naturalWidth / TOWN_GATE_BLACKHOLE_FRAME_COUNT;
-  const frameHeight = img.naturalHeight;
-
-  const frameIndex =
-    Math.floor(performance.now() / TOWN_GATE_BLACKHOLE_FRAME_MS) %
-    TOWN_GATE_BLACKHOLE_FRAME_COUNT;
-
-  const box = getTownGatePatchBox();
-
-  ctx.save();
-  ctx.drawImage(
-    img,
-    frameIndex * frameWidth,
-    0,
-    frameWidth,
-    frameHeight,
-    box.x,
-    box.y,
-    box.width,
-    box.height,
-  );
-  ctx.restore();
+  return GRASSMAP_TREE_SPOTS.map((spot) => ({
+    sortY: spot.baseY,
+    order: -1,
+    draw: () => drawGrassmapTreeAt(spot),
+    bbox: spot.occludeBox,
+  }));
 }
-
-// =========================
-// COMPASS ARROW - tuturo palagi papunta sa blackhole gate, saan ka man
-// naroroon (SCREEN SPACE, hindi apektado ng camera zoom/pan) - hiling
-// ng user pagkatapos ng ILANG BESES na hindi mahanap ang gate kahit
-// naibigay na ang eksaktong direksyon sa text (item 44-49, CLAUDE.md).
-// Sa halip na basta sabihin/tantiyahin ang direksyon, may PALAGING
-// NAKIKITANG arrow na ito na TUNAY na tumuturo (base sa TALAGANG
-// posisyon ng player laban sa gate) - imposibleng maligaw.
-// =========================
-
-// Gaano kalapit (world pixels) bago ituring na "kitang-kita na" ang
-// gate mismo (kaya itinatago na ang compass, hindi na kailangan
-// ipakita kapag nasa loob na ng screen) - konting margin bukod sa
-// TALAGANG viewport, para hindi biglaang mawala ang arrow sa sandaling
-// sumilip lang ang gate sa gilid ng screen.
-// const TOWN_GATE_COMPASS_VIEWPORT_MARGIN = 32;
-
-// function drawTownGateCompass() {
-//   if (currentWorld !== TOWN_GATE_WORLD) return;
-//   if (!mapReady) return;
-//   if (typeof getTownGateBlackholeCenter !== "function") return;
-//   if (typeof camera === "undefined" || typeof canvas === "undefined") return;
-
-//   const gate = getTownGateBlackholeCenter();
-
-//   const viewWidth = canvas.width / camera.zoom;
-//   const viewHeight = canvas.height / camera.zoom;
-//   const margin = TOWN_GATE_COMPASS_VIEWPORT_MARGIN;
-
-//   const gateVisible =
-//     gate.x >= camera.x - margin &&
-//     gate.x <= camera.x + viewWidth + margin &&
-//     gate.y >= camera.y - margin &&
-//     gate.y <= camera.y + viewHeight + margin;
-
-//   // Nasa loob na ng screen ang gate mismo - kitang-kita na, hindi na
-//   // kailangan ng arrow.
-//   if (gateVisible) return;
-
-//   const playerCenterX = player.x + player.width / 2;
-//   const playerCenterY = player.y + player.height / 2;
-
-//   const dx = gate.x - playerCenterX;
-//   const dy = gate.y - playerCenterY;
-//   const angle = Math.atan2(dy, dx);
-//   const distanceTiles = Math.round(Math.hypot(dx, dy) / TILE_SIZE);
-
-//   const centerX = canvas.width / 2;
-//   const centerY = canvas.height / 2;
-//   const radius = Math.min(canvas.width, canvas.height) / 2 - 56;
-
-//   const arrowX = centerX + Math.cos(angle) * radius;
-//   const arrowY = centerY + Math.sin(angle) * radius;
-
-//   ctx.save();
-//   ctx.translate(arrowX, arrowY);
-//   ctx.rotate(angle);
-
-//   ctx.fillStyle = "rgba(190, 130, 255, 0.95)";
-//   ctx.strokeStyle = "rgba(30, 10, 45, 0.9)";
-//   ctx.lineWidth = 2;
-//   ctx.beginPath();
-//   ctx.moveTo(16, 0);
-//   ctx.lineTo(-9, -10);
-//   ctx.lineTo(-9, 10);
-//   ctx.closePath();
-//   ctx.fill();
-//   ctx.stroke();
-
-//   ctx.restore();
-
-//   // Distansya (tiles) - hiwalay sa pag-ikot ng arrow, para laging
-//   // patayo/nababasa ang teksto.
-//   const label = distanceTiles + " tiles";
-//   const labelX = arrowX - Math.cos(angle) * 20;
-//   const labelY = arrowY - Math.sin(angle) * 20;
-
-//   ctx.save();
-//   ctx.font = "600 12px system-ui, sans-serif";
-//   ctx.textAlign = "center";
-//   ctx.textBaseline = "middle";
-//   ctx.lineWidth = 3;
-//   ctx.strokeStyle = "rgba(0, 0, 0, 0.85)";
-//   ctx.strokeText(label, labelX, labelY);
-//   ctx.fillStyle = "white";
-//   ctx.fillText(label, labelX, labelY);
-//   ctx.restore();
-// }

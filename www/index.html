@@ -5,11 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tralala Game</title>
 
-    <link rel="stylesheet" href="./style.css?v=1787501152023" />
+    <link rel="stylesheet" href="./style.css?v=1800000000022" />
   </head>
 
   <body>
     <canvas id="gameCanvas"></canvas>
+
+    <!-- AYOS (hiling ng user: "gusto ko lang may loading play load
+         settings exit bago mag start") - BAGONG main menu, ipinapakita
+         BAGO pa man ang unang loadWorld() (tingnan ang
+         beginInitialWorldLoad, map.js, at js/main-menu.js). Dalawang
+         estado: (1) "loading" habang hinihintay ang mga kailangang
+         async na resource (hal. GRASSMAP_RESOURCES_LOADED, worlds.js)
+         bago ipakita ang mga button, (2) "content" - Play/Load/
+         Settings/Exit. Pinakamataas na z-index sa BUONG laro (tingnan
+         style.css) dahil dapat ito ang UNANG makikita, sa ibabaw ng
+         LAHAT (kasama pa ang world-loading-overlay). -->
+    <div id="main-menu-overlay">
+      <div id="main-menu-loading">
+        <div id="main-menu-loading-spinner"></div>
+        <div id="main-menu-loading-label">Naglo-load...</div>
+      </div>
+
+      <div id="main-menu-content" class="hidden">
+        <div id="main-menu-title">Tralala</div>
+
+        <div id="main-menu-buttons">
+          <button type="button" id="main-menu-play">▶️ Play</button>
+          <button type="button" id="main-menu-load">📂 Load</button>
+          <button type="button" id="main-menu-settings">⚙️ Settings</button>
+          <button type="button" id="main-menu-exit">🚪 Exit</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Loading overlay - lumalabas habang naglilipat ng mundo
          (loadWorld, map.js) - MIN_LOADING_MS din ang bahalang
@@ -37,6 +65,16 @@
         <span class="player-hud-icon" title="Stamina">⚡</span>
         <div class="player-hud-bar">
           <div class="player-hud-bar-fill" id="player-hud-fill-stamina"></div>
+        </div>
+      </div>
+
+      <!-- BAGO (hiling ng user): "FOOD" duration/hunger - sa ILALIM ng
+           Stamina. Tingnan ang syncPlayerHud/updateFoodHunger sa
+           hotbar.js. -->
+      <div class="player-hud-row" id="player-hud-row-food">
+        <span class="player-hud-icon" title="Food">🍗</span>
+        <div class="player-hud-bar">
+          <div class="player-hud-bar-fill" id="player-hud-fill-food"></div>
         </div>
       </div>
 
@@ -70,7 +108,12 @@
           id="hotbar-slot-bag"
           title="Bag (B)"
         >
-          <span class="hotbar-icon">🎒</span>
+          <span class="hotbar-icon"
+            ><img
+              src="./assets/items/bag.png"
+              alt=""
+              class="tool-radial-icon-img"
+          /></span>
         </button>
       </div>
     </div>
@@ -99,7 +142,11 @@
         id="tool-radial-pickaxe"
         title="Pickaxe - kailangan munang i-craft (wala pang crafting recipe)"
       >
-        <img src="./assets/items/pickaxe.png" alt="" class="tool-radial-icon-img" />
+        <img
+          src="./assets/items/pickaxe.png"
+          alt=""
+          class="tool-radial-icon-img"
+        />
       </button>
       <button
         type="button"
@@ -107,7 +154,11 @@
         id="tool-radial-rake"
         title="Rake - kailangan munang i-craft (wala pang crafting recipe)"
       >
-        <img src="./assets/items/rake.png" alt="" class="tool-radial-icon-img" />
+        <img
+          src="./assets/items/rake.png"
+          alt=""
+          class="tool-radial-icon-img"
+        />
       </button>
       <button
         type="button"
@@ -117,13 +168,24 @@
       >
         <img src="./assets/items/axe.png" alt="" class="tool-radial-icon-img" />
       </button>
+      <!-- BAGO (hiling ng user): "alisin mo na yung hand sa radial
+           tools ipalit mo dun yung cutter" - pinalitan na ang dating
+           "kamao"/arrow (walang aktwal na function) sa "left" na
+           posisyon ng cutter (pang-putol ng damo, tingnan ang
+           grass.js/resources.js) - bahagi na rin ito ngayon ng 4
+           cardinal-direction na "aim+release" na gesture (tool-radial.js),
+           at kailangan munang i-craft (tool-radial-locked). -->
       <button
         type="button"
-        class="tool-radial-option tool-radial-left"
-        id="tool-radial-arrow"
-        title="Kamao - parang cursor lang, puwedeng kasabay ng ibang kasangkapan"
+        class="tool-radial-option tool-radial-left tool-radial-locked"
+        id="tool-radial-cutter"
+        title="Cutter - kailangan munang i-craft (wala pang crafting recipe)"
       >
-        <img src="./assets/items/punch.png" alt="" class="tool-radial-icon-img" />
+        <img
+          src="./assets/items/cutter.png"
+          alt=""
+          class="tool-radial-icon-img"
+        />
       </button>
     </div>
 
@@ -175,13 +237,27 @@
             <div id="equip-slot-ring-right" class="equip-slot" title="Ring">
               💍
             </div>
-            <div
-              id="equip-slot-gauntlet-left"
-              class="equip-slot"
-              title="Gauntlet"
-            >
-              🧤
-            </div>
+            <!-- AYOS (hiling ng user): "alisin mo na yung gauntlet icon
+                 dun sa mismong left center ng profile, palit mo yung
+                 bag" - dating "equip-slot-gauntlet-left" (may 🧤
+                 placeholder, pinapalitan LANG ng bag icon kapag naka-
+                 "Use"/naka-suot) - ngayon, DEDIKADONG "bag" na ang
+                 slot na ito.
+
+                 AYOS (bug: "yung bag sa profile mukhang naka-equip na
+                 agad kahit hindi pa na-Use") - dating naka-HARDCODE
+                 dito ang <img src="/www/assets/items/bag.png"> (isang
+                 pink/red na bag na LAGING lumalabas pagka-load, kaya
+                 mukhang naka-suot na agad kahit hindi pa; at MALI pa
+                 ang path - absolute "/www/..." imbes na relative
+                 "./..."). TINANGGAL na ito - BLANGKO na ang slot dito
+                 sa HTML; ang laman nito ay BUONG kontrolado na ngayon
+                 ng syncEquipmentPanel() (hotbar.js): 🎒 placeholder
+                 kapag WALANG naka-suot, at ang MISMONG bag.png (tamang
+                 relative path) kapag naka-"Use" (bagEquipped). Dito rin
+                 dapat mapunta ang bag kapag binili kay Oldman (decor.js)
+                 at ginamit. -->
+            <div id="equip-slot-bag" class="equip-slot" title="Bag"></div>
             <div
               id="equip-slot-gauntlet-right"
               class="equip-slot"
@@ -221,6 +297,15 @@
               <span class="stat-icon">⚡</span>
               <div class="stat-bar">
                 <div class="stat-bar-fill" id="stat-fill-stamina"></div>
+              </div>
+            </div>
+            <!-- BAGO (hiling ng user): "FOOD" duration/hunger - sa
+                 ILALIM ng Stamina. Tingnan ang syncEquipmentStats/
+                 updateFoodHunger sa hotbar.js. -->
+            <div class="stat-row" id="stat-row-food">
+              <span class="stat-icon">🍗</span>
+              <div class="stat-bar">
+                <div class="stat-bar-fill" id="stat-fill-food"></div>
               </div>
             </div>
             <div class="stat-row" id="stat-row-exp">
@@ -407,6 +492,19 @@
       </div>
     </div>
 
+    <!-- AYOS (hiling ng user): "yung label ng mga items kay oldman is
+         dapat naka overlap kasi kapag naka hover ako sa items di
+         nakikita natatakpan" - dating PURONG CSS (::after) ang tooltip,
+         pero natatakpan/na-cclip ito ng overflow-y:auto ng
+         #oldman-shop-body lalo na sa mga item sa UNANG hanay (walang
+         sapat na espasyo sa ITAAS ng cell papasok sa scrollable area).
+         Ito na ang BAGONG tooltip - IISA lang, dinadala/pino-position
+         ng JS (tingnan ang showOldManShopTooltip, decor.js) papunta sa
+         document.body mismo (position:fixed) - kaya LAGING nasa IBABAW
+         ito ng LAHAT (kahit anong row), hindi na na-clip/natatakpan ng
+         kahit anong scrollable na magulang. -->
+    <div id="oldman-shop-tooltip" class="hidden"></div>
+
     <!-- Quantity popup: lumalabas kapag nag-drop ng item na may HIGIT
          SA 1 piraso papunta sa #oldman-shop-panel - tingnan ang
          startOldManSellFlow/confirmOldManSell sa decor.js. -->
@@ -494,6 +592,15 @@
           <div id="calendar-text">
             <div id="calendar-date">Jan 1, 2000</div>
             <div id="calendar-time">06:00</div>
+            <!-- PANSAMANTALA (para sa paglalagay ng puno/bato/damo sa
+           grassmap): live na col/row ng player, para hindi na
+           kailangang mag-inspect/console - tingnan ang
+           syncDebugCoordsHud (hotbar.js). Tanggalin na lang itong buong
+           div (at ang tawag sa syncDebugCoordsHud sa update.js) kapag
+           tapos na sa paglalagay. -->
+            <div class="player-hud-row" id="player-hud-row-debug-coords">
+              <span id="player-hud-debug-coords">Col: 0, Row: 0</span>
+            </div>
           </div>
           <span id="calendar-weather-icon" class="hidden"></span>
         </div>
@@ -515,6 +622,18 @@
           </button>
         </div>
       </div>
+    </div>
+
+    <!-- BAGO (hiling ng user): "minimap sa top right, baba ng weather
+         section, circle na navigation ng character tapos minimap ng
+         mapa" - bilog na overview ng KASALUKUYANG mundo (pader/bundok/
+         puno/bato bilang maliliwanag na hugis, at ang player bilang
+         isang tatsulok na nakaturo sa direksyon niya). Iginuguhit ng
+         drawMinimap() (minimap.js), sariling canvas (HIWALAY sa
+         pangunahing #gameCanvas). Tingnan ang #minimap sa style.css
+         para sa fixed na posisyon (ilalim ng #top-right-bar). -->
+    <div id="minimap">
+      <canvas id="minimap-canvas" width="150" height="150"></canvas>
     </div>
 
     <!-- Settings sub-panel (Fullscreen toggle, reset ng save data) -
@@ -540,6 +659,49 @@
          nawawala mag-isa. Tingnan ang showSettingsToast sa
          settings-menu.js. -->
     <div id="settings-toast" class="hidden"></div>
+
+    <!-- BAGO (hiling ng user: "may list ng save dun sa load mag popup
+         yung list") - popup na nagpapakita ng LAHAT ng naka-save na
+         laro (maraming save slot na, hindi lang isa) - lumalabas kapag
+         pinindot ang "Load" sa settings dropdown sa itaas. Tingnan ang
+         openLoadSlotsPopup/renderLoadSlotsList sa settings-menu.js.
+
+         BAGO (hiling ng user: "wag mo ilagay sa settings section yung
+         import dapat nasa taas ng load top right") - "Import" button
+         ngayon ay NASA HEADER mismo ng popup na ito (kaliwa ng ✕ sa
+         itaas-kanan), sa halip na sa Settings panel - tingnan ang
+         hidden file input (#load-slots-import-file-input) sa ibaba. -->
+    <div id="load-slots-overlay" class="hidden">
+      <div id="load-slots-panel">
+        <div id="load-slots-header">
+          <span id="load-slots-label">I-load ang laro</span>
+
+          <div id="load-slots-header-actions">
+            <button
+              type="button"
+              id="load-slots-import"
+              title="I-import ang save mula sa file"
+            >
+              📥 I-import
+            </button>
+            <input
+              type="file"
+              id="load-slots-import-file-input"
+              accept="application/json,.json"
+              style="display: none"
+            />
+            <button type="button" id="load-slots-close" title="Isara">✕</button>
+          </div>
+        </div>
+
+        <div id="load-slots-list"></div>
+
+        <div id="load-slots-empty" class="hidden">
+          Wala ka pang naka-save na laro. Pindutin ang "Save" sa menu para
+          gumawa ng una mong save.
+        </div>
+      </div>
+    </div>
 
     <!-- Fade overlay (buong itim na screen) - habang "natutulog" sa
          kama (bed.js). Tingnan ang fadeScreenThenBack sa bed.js. -->
@@ -568,21 +730,32 @@
          TINANGGAL na (Enter/Exit -> auto-door na ngayon, worlds.js;
          Bag -> hotbar's own bag slot pa rin; Menu -> back-button na
          ang bahalang magbukas nito, tingnan ang mobile-controls.js).
-         Natitira: Tools (pinaliit, inibaba) at Run (katabi ng Tools,
-         parehong nasa itaas ng Punch), at Punch bilang PINAKAMALAKING
-         button, gamit ang totoong assets/items/punch.png. -->
+         Natitira: Tools at Run - ang Punch button ay TINANGGAL na rin
+         (hiling ng user: "erase the punch function") - direktang
+         pag-tap sa mundo/canvas (real touch, synthetic mousedown) na
+         lang ang paraan para mag-interact sa mobile. -->
     <div id="mobile-skill-cluster">
-      <button type="button" id="mobile-btn-run" class="mobile-skill-btn mobile-skill-run" title="Run (Shift)">🏃</button>
-      <button type="button" id="mobile-btn-tools" class="mobile-skill-btn mobile-skill-tools" title="Tools (V)">
-        <img src="./assets/items/pickaxe.png" alt="Tools" />
+      <button
+        type="button"
+        id="mobile-btn-run"
+        class="mobile-skill-btn mobile-skill-run"
+        title="Run (Shift)"
+      >
+        🏃
       </button>
-      <button type="button" id="mobile-btn-punch" class="mobile-skill-btn mobile-skill-punch" title="Punch">
-        <img src="./assets/items/punch.png" alt="Punch" />
+      <button
+        type="button"
+        id="mobile-btn-tools"
+        class="mobile-skill-btn mobile-skill-tools"
+        title="Tools (V)"
+      >
+        <img src="./assets/items/pickaxe.png" alt="Tools" />
       </button>
     </div>
 
     <script src="./js/canvas.js?v=1787160000000"></script>
-    <script src="./js/assets.js?v=1787160000000"></script>
+    <script src="./js/assets.js?v=1790600000000"></script>
+    <script src="./js/sprite-crop.js?v=1790600000000"></script>
     <script src="./js/audio.js?v=1787369862288"></script>
     <!-- gametime.js: ang "game clock" (epoch + sleep offset) - walang
          dependency, kaya puwede itong maaga (basta pagkatapos ng
@@ -590,55 +763,69 @@
          decor.js/resources.js/snow.js (getGameNow()) at ng bed.js
          (advanceGameTime()). -->
     <script src="./js/gametime.js?v=1787160000000"></script>
-    <script src="./js/player.js?v=1787499284504"></script>
+    <script src="./js/player.js?v=1790600000000"></script>
     <script src="./js/camera.js?v=1787160000000"></script>
     <script src="./js/input.js?v=1787160000000"></script>
-    <script src="./js/collisions.js?v=1787239415311"></script>
+    <script src="./js/collisions.js?v=1793600000001"></script>
     <!-- worlds.js ay dapat mauna sa map.js - dun nakalista ang mga mapa
          at pintuan, at ginagamit agad ito ng map.js pagka-load. -->
-    <script src="./js/worlds.js?v=1787499284504"></script>
-    <script src="./js/footprints.js?v=1787160000000"></script>
-    <script src="./js/map.js?v=1787499284504"></script>
+    <script src="./js/worlds.js?v=1793300000000"></script>
+    <script src="./js/footprints.js?v=1788105286987"></script>
+    <script src="./js/map.js?v=1800000000020"></script>
     <!-- dig.js: paghukay ng niyebe gamit ang mouse. Pagkatapos ng
          map.js dahil ginagamit nito ang drawTile at flattenTileLayers. -->
-    <script src="./js/dig.js?v=1787281481550"></script>
+    <script src="./js/dig.js?v=1800000000004"></script>
     <!-- resources.js: random na puno/bato (axe/pickaxe). Ginagamit nito
          ang getObjectCells/isTileInReach (dig.js), kaya kailangang mauna
          iyon. Dapat ito MAUNA sa hotbar.js - agad tinatawag ng hotbar.js
          ang syncHotbarUI() sa sarili nitong script (hindi lang sa
          keydown/click), kaya kailangang existing na ang axeEquipped
          (idineklara dito) bago pa man tumakbo ang hotbar.js. -->
-    <script src="./js/resources.js?v=1787377872638"></script>
+    <script src="./js/resources.js?v=1800000000017"></script>
     <!-- decor.js: purong palamuti - random na oak trees at ang oldman
          NPC malapit sa bahay (may sarili na siyang random na
          paglalakad/pagkawala-pagbalik ngayon). May click/interaction
          (tindahan) pero hiwalay itong tinatawag mula sa dig.js, kaya
          puwede pa ring sumunod nang basta-basta pagkatapos ng
          resources.js. -->
-    <script src="./js/decor.js?v=1787407000000"></script>
+    <script src="./js/decor.js?v=1800000000014"></script>
     <!-- pig.js: mga baboy na gumagala sa mapa (random na paglalakad,
          pagkawala/pagbalik, "health"/clickable, namamatay-nabubuhay-
          muli). Umaasa sa isFreeWanderTile/randomBetween (decor.js) at
          sa mismong canvas mousedown pattern ng resources.js - kaya
          DAPAT SUMUNOD ito agad pagkatapos ng decor.js. -->
     <script src="./js/pig.js?v=1787242410868"></script>
-    <script src="./js/grass.js?v=1787376753690"></script>
-    <!-- bed.js: ang kama sa loob ng bahay (houseInside) - i-click para
+    <script src="./js/grass.js?v=1800000000015"></script>
+    <!-- bed.js: BAGO (hiling ng user) - hindi na "libre"/laging naroroon
+         sa bawat bahay - kaparehong-pareho na ito ngayon sa Crafter/
+         Stove/Light (hold.js, placement.js): binibili kay Oldman
+         (decor.js), i-Hold, i-click ang tile SA LOOB NG BAHAY para
+         ilagay (2x3 tiles), i-click ulit ang naka-lagay na ito para
          matulog hanggang 6am (gabi lang puwede). Kailangan ng TILE_SIZE
          (assets.js, nasa itaas na) - ang getCalendarState()/getGameNow()
          nito ay function-scoped lang (dig.js mousedown handler ang
          tumatawag dito), kaya OK lang kahit MAUNA pa ito sa
          calendar.js/gametime.js sa pagkaka-declare, basta na-load na
          ang lahat bago pa man i-click ng manlalaro ang kama. -->
-    <script src="./js/bed.js?v=1787160000000"></script>
+    <script src="./js/bed.js?v=1788600000000"></script>
     <!-- ground-items.js: mga item na nakalapag sa lupa (galing sa ani o
          inihagis) - ginagamit nito ang CARROT_ICON_IMAGE (dig.js). -->
-    <script src="./js/ground-items.js?v=1787241991756"></script>
+    <script src="./js/ground-items.js?v=1793300000003"></script>
+    <script src="./js/floating-text.js?v=1793100000000"></script>
+    <!-- placement.js: SHARED na footprint/occupancy/preview system para
+         sa Crafter/Stove/Light (placeCrafterInWorld/placeStoveInWorld/
+         placeLightInWorld) - ginagamit nito ang TILE_SIZE (assets.js),
+         mapData/mapReady (map.js), collisions/isColliding (collisions.js),
+         DOORS (worlds.js), at getObjectCells (dig.js) - kailangang
+         mauna ang mga iyon. Ginagamit lang ito ng craft.js/stove.js/
+         light.js/dig.js/draw.js sa PAGTAKBO (runtime), kaya OK lang
+         kahit saan pa ito ilagay bago sa mga iyon. -->
+    <script src="./js/placement.js?v=1788950000000"></script>
     <!-- hotbar.js: ang UI sa ibaba ng screen - ginagamit nito ang mga
          estado/function ng dig.js/resources.js/ground-items.js
          (pickaxeEquipped, equipPickaxe, axeEquipped,
          dropItemFromSlotIntoWorld, atbp). -->
-    <script src="./js/hotbar.js?v=1787369862288"></script>
+    <script src="./js/hotbar.js?v=1799999999001"></script>
     <!-- craft.js: crafting panel (2x2 basic / 3x3 advanced, parang
          Minecraft) at ang "Crafter" (crafting table) na puwedeng
          ilagay sa mundo - ginagamit nito ang BAG_ITEMS/getItemIconHTML/
@@ -647,31 +834,45 @@
          ang getPlacedCrafterAt sa PAGTAKBO (runtime, sa loob ng mousedown
          listener), hindi sa pag-parse, kaya OK lang kahit MAUNA pa ang
          dig.js sa script order. -->
-    <script src="./js/craft.js?v=1787369862288"></script>
+    <script src="./js/craft.js?v=1800000000001"></script>
     <!-- stove.js: cooking/smelting station (parang "Crafter" pero may
          sariling smelting UI) - ginagamit nito ang BAG_ITEMS/
          getItemIconHTML/renderBagGridInto (hotbar.js), kaya kailangang
          mauna ang mga iyon. Ginagamit lang ng dig.js ang
          getPlacedStoveAt/isStoveSlotSelected sa PAGTAKBO, kaya OK
          lang kahit MAUNA pa ang dig.js sa script order. -->
-    <script src="./js/stove.js?v=1787369862288"></script>
+    <script src="./js/stove.js?v=1799999999999"></script>
+    <!-- light.js: ang "Light" - 1-tile na ilaw na inilalagay sa loob ng
+         bahay (may ON/OFF toggle) - kaparehong-pareho ng gawi ng
+         Crafter/Stove, ginagamit nito ang BAG_ITEMS/pinnedSlots
+         (hotbar.js) at isFootprintPlaceable (placement.js), kaya
+         kailangang mauna ang mga iyon. -->
+    <script src="./js/light.js?v=1789300000000"></script>
+
+    <script src="./js/hold.js?v=1788700000000"></script>
     <!-- inventory-save.js: nag-lo-load/nagsa-save ng buong inventory/
          hotbar/crafting/placed-structures papunta sa localStorage -
          kailangang HULI ito sa lahat ng script na nagdedeklara ng mga
          variable na ito (hotbar.js/dig.js/resources.js/craft.js/
          stove.js), kaya dito na ilagay pagkatapos ng stove.js. -->
-    <script src="./js/inventory-save.js?v=1787240931571"></script>
+    <script src="./js/inventory-save.js?v=1799999999999"></script>
     <!-- settings-menu.js: ang burger-icon na menu sa itaas-kanan (I-save/
          I-load/Settings/Lumabas) - dapat SUMUNOD sa inventory-save.js
          (at sa dig/resources/player/decor) dahil tinatawag nito ang
          save function ng bawat isa (saveInventoryState/savePlayerPosition/
          saveDugTiles/saveHarvestedResources/saveHarvestedOakTrees). -->
-    <script src="./js/settings-menu.js?v=1787499284504"></script>
+    <script src="./js/settings-menu.js?v=1800000000021"></script>
+    <!-- main-menu.js: BAGONG "Loading -> Play/Load/Settings/Exit" na
+         screen bago mag-umpisa ang laro (#main-menu-overlay,
+         beginInitialWorldLoad sa map.js) - kailangang MAUNA ang
+         settings-menu.js (openLoadSlotsPopup/openSettingsPanel/
+         exitGame) at map.js (beginInitialWorldLoad). -->
+    <script src="./js/main-menu.js?v=1800000000018"></script>
     <!-- tool-radial.js: ang roulette-style na menu sa gitna ng screen
          habang naka-hold ang "V", kapalit ng dating pickaxe/kamay/axe
          na hiwalay na slots. -->
     <script src="./js/tool-radial.js?v=1787160000000"></script>
-    <script src="./js/atmosphere.js?v=1787468947701"></script>
+    <script src="./js/atmosphere.js?v=1789400000000"></script>
     <!-- calendar.js: petsa/buwan/oras at ang schedule ng snow/ulan - dapat
          mauna sa snow.js/rain.js dahil ginagamit nila ang calendar state.
          Ginagamit din ito ng resources.js sa itaas (seededRandom) pero
@@ -685,8 +886,9 @@
     <script src="./js/fireflies.js?v=1787160000000"></script>
     <!-- calendar-ui.js: ang UI sa itaas-kanan (petsa/oras/araw-gabi). -->
     <script src="./js/calendar-ui.js?v=1787160000000"></script>
-    <script src="./js/update.js?v=1787499284504"></script>
-    <script src="./js/draw.js?v=1787499284504"></script>
+    <script src="./js/update.js?v=1800000000005"></script>
+    <script src="./js/minimap.js?v=1800000000011"></script>
+    <script src="./js/draw.js?v=1800000000016"></script>
     <script src="./js/main.js?v=1787160000000"></script>
     <script src="./js/mobile-controls.js?v=1787500805555"></script>
   </body>

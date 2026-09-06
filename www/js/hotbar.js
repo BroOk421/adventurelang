@@ -53,7 +53,8 @@
 })();
 
 function syncHotbarUI() {
-  if (typeof ensureDefaultBagPositions === "function") ensureDefaultBagPositions();
+  if (typeof ensureDefaultBagPositions === "function")
+    ensureDefaultBagPositions();
 
   syncPinnedSlots();
   syncBagPanel();
@@ -105,20 +106,51 @@ function syncHotbarUI() {
 // (selectedInventorySlot) mismo, hindi na "nag-o-occupy" ng right hand -
 // tingnan ang isCarrotSlotSelected sa dig.js.
 const EQUIP_RIGHT_HAND_ICON_BY_TOOL = [
-  { equipped: () => pickaxeEquipped, iconHTML: () => '<img src="./assets/items/pickaxe.png" alt="" class="hotbar-slot-item-img">', unequip: () => clearAllToolEquips() },
-  { equipped: () => rakeEquipped, iconHTML: () => '<img src="./assets/items/rake.png" alt="" class="hotbar-slot-item-img">', unequip: () => clearAllToolEquips() },
-  { equipped: () => axeEquipped, iconHTML: () => '<img src="./assets/items/axe.png" alt="" class="hotbar-slot-item-img">', unequip: () => clearAllToolEquips() },
+  {
+    equipped: () => pickaxeEquipped,
+    iconHTML: () =>
+      '<img src="./assets/items/pickaxe.png" alt="" class="hotbar-slot-item-img">',
+    unequip: () => clearAllToolEquips(),
+  },
+  {
+    equipped: () => rakeEquipped,
+    iconHTML: () =>
+      '<img src="./assets/items/rake.png" alt="" class="hotbar-slot-item-img">',
+    unequip: () => clearAllToolEquips(),
+  },
+  {
+    equipped: () => axeEquipped,
+    iconHTML: () =>
+      '<img src="./assets/items/axe.png" alt="" class="hotbar-slot-item-img">',
+    unequip: () => clearAllToolEquips(),
+  },
+  // BAGO (hiling ng user): "cutter" - pang-putol ng damo, tingnan ang
+  // grass.js/resources.js - pareho ng ibang "right hand" na tool sa
+  // itaas.
+  {
+    equipped: () => typeof cutterEquipped !== "undefined" && cutterEquipped,
+    iconHTML: () =>
+      '<img src="./assets/items/cutter.png" alt="" class="hotbar-slot-item-img">',
+    unequip: () => clearAllToolEquips(),
+  },
   // Arrow - hindi kasama sa clearAllToolEquips (tingnan ang dig.js),
   // kaya dito lang natin ito talagang tine-toggle off kapag ito lang
   // mismo ang lumalabas (walang ibang totoong tool na kasabay).
-  { equipped: () => arrowEquipped, iconHTML: () => '<img src="./assets/items/punch.png" alt="" class="hotbar-slot-item-img">', unequip: () => equipArrow() },
+  {
+    equipped: () => arrowEquipped,
+    iconHTML: () =>
+      '<img src="./assets/items/punch.png" alt="" class="hotbar-slot-item-img">',
+    unequip: () => equipArrow(),
+  },
 ];
 
 // Tinatawag kapag ni-drag PALABAS ang right hand pabalik sa bag/trash -
 // i-unequip kung ano man ang kasalukuyang lumalabas dito (tingnan ang
 // "unequip" ng bawat entry sa itaas).
 function unequipRightHandTool() {
-  const activeTool = EQUIP_RIGHT_HAND_ICON_BY_TOOL.find((entry) => entry.equipped());
+  const activeTool = EQUIP_RIGHT_HAND_ICON_BY_TOOL.find((entry) =>
+    entry.equipped(),
+  );
 
   if (activeTool) activeTool.unequip();
 }
@@ -135,18 +167,58 @@ function setEquipSlotContent(id, iconHTML) {
 function syncEquipmentPanel() {
   if (!document.getElementById("equipment-panel")) return;
 
-  const activeTool = EQUIP_RIGHT_HAND_ICON_BY_TOOL.find((entry) => entry.equipped());
+  const activeTool = EQUIP_RIGHT_HAND_ICON_BY_TOOL.find((entry) =>
+    entry.equipped(),
+  );
 
   setEquipSlotContent(
     "equip-slot-righthand",
     activeTool ? activeTool.iconHTML() : "",
   );
 
+  // AYOS (bug: "yung bag sa profile hindi nag-uupdate/hindi lumalabas
+  // kapag na-Use habang may naka-equip na torch") - VERIFIED sa
+  // recording: may naka-equip na torch (nasa left hand) sa buong video.
+  // Dating NASA IBABA pa (pagkatapos ng torch na bahagi) ang pag-update
+  // ng bag slot - PERO kapag naka-equip ang torch, may `return` (sa
+  // ibaba) na tumatakbo MUNA bago pa man marating ang bag na bahagi,
+  // kaya HINDI KAILANMAN NAA-UPDATE ang bag slot habang may torch -
+  // "stuck" ito sa kung ano man ang huling laman nito (o sa dating
+  // naka-hardcode na larawan sa index.html). AYOS: INILIPAT dito sa
+  // TAAS (bago pa ang anumang maagang `return`) ang buong pag-update ng
+  // bag slot, para LAGI itong tama, may torch man o wala.
+  updateBagEquipSlot();
+
   const leftHandEl = document.getElementById("equip-slot-lefthand");
 
   if (torchEquipped) {
-    setEquipSlotContent("equip-slot-lefthand", '<img src="./assets/items/torch.png" alt="" class="hotbar-slot-item-img">');
+    setEquipSlotContent(
+      "equip-slot-lefthand",
+      '<img src="./assets/items/torch.png" alt="" class="hotbar-slot-item-img">',
+    );
     leftHandEl?.classList.add("torch-burning");
+
+    // AYOS (hiling ng user): "kapag na hold and drop ko sa left hand
+    // is kung ilan yung nasa inventory halimbawa 3 is dapat 3 din
+    // nandun" - maliit na badge (parehong itsura ng bag/hotbar-badge)
+    // na nagpapakita ng NATITIRANG bilang ng torch (torchesCollected -
+    // kasama pa rin ang KASALUKUYANG nasusunog, dahil hindi pa ito
+    // TALAGANG "nagagamit"/nababawas hangga't hindi pa TALAGANG
+    // nauubos ang buong 3 minuto nito - tingnan ang updateTorchBurn,
+    // resources.js). setEquipSlotContent (itaas) ang nag-iinnerHTML="",
+    // kaya DITO PA LANG (pagkatapos noon) idinadagdag ang badge.
+    if (leftHandEl) {
+      let badge = leftHandEl.querySelector(".hotbar-badge");
+
+      if (!badge) {
+        badge = document.createElement("span");
+        badge.className = "hotbar-badge";
+        leftHandEl.appendChild(badge);
+      }
+
+      badge.textContent = torchesCollected > 99 ? "99+" : torchesCollected;
+    }
+
     updateTorchBurnVisual();
     return;
   }
@@ -157,6 +229,39 @@ function syncEquipmentPanel() {
   // kasalukuyang naka-highlight/naka-select na item sa hotbar (dating
   // gawi nito) - kung wala namang torch, laging blangko na lang ito.
   setEquipSlotContent("equip-slot-lefthand", "");
+}
+
+// Buong pag-update ng #equip-slot-bag (profile bag slot) - HIWALAY na
+// function ngayon (dating naka-inline sa dulo ng syncEquipmentPanel)
+// para matawag ito nang MAAGA doon, BAGO pa ang maagang `return` na
+// dulot ng torch (tingnan ang paliwanag sa itaas).
+//
+// AYOS (hiling ng user): "alisin mo na yung gauntlet icon dun sa
+// mismong left center ng profile, palit mo yung bag para kapag nag
+// use ako ng bag na bili kay oldman is dun mapunta" - DEDIKADO na ang
+// slot na ito sa bag (id="equip-slot-bag", index.html): 🎒 placeholder
+// kapag WALANG naka-suot, at ang MISMONG bag.png kapag naka-"Use"/
+// naka-suot (bagEquipped) - kahit saan pa nanggaling ang bag (na-craft,
+// o binili kay Oldman/decor.js - PAREHONG dumadaan sa iisang
+// "bagEquipped" flag/useBagEquip()). Left-click dito habang naka-suot
+// ay nag-uunequip (tingnan ang pointerdown listener sa ibaba).
+function updateBagEquipSlot() {
+  const bagSlotEl = document.getElementById("equip-slot-bag");
+
+  if (!bagSlotEl) return;
+
+  const bagIsEquipped = typeof bagEquipped !== "undefined" && bagEquipped;
+
+  if (bagIsEquipped) {
+    bagSlotEl.innerHTML =
+      '<img src="./assets/items/bag.png" alt="" class="hotbar-slot-item-img">';
+    bagSlotEl.title = "Bag - i-click para tanggalin";
+  } else {
+    bagSlotEl.innerHTML = "🎒";
+    bagSlotEl.title = "Bag";
+  }
+
+  bagSlotEl.classList.toggle("equip-slot-filled", bagIsEquipped);
 }
 
 // Tinatawag KADA FRAME mula sa update() (update.js) - mas magaan kaysa
@@ -170,7 +275,10 @@ function updateTorchBurnVisual() {
 
   if (!el) return;
 
-  const progress = Math.max(0, Math.min(1, torchRemainingMs / TORCH_LIFESPAN_MS));
+  const progress = Math.max(
+    0,
+    Math.min(1, torchRemainingMs / TORCH_LIFESPAN_MS),
+  );
 
   el.style.setProperty("--torch-progress", progress);
 }
@@ -220,8 +328,84 @@ function gainExp(amount) {
     PLAYER_STATS.stamina.current = PLAYER_STATS.stamina.max;
 
     if (typeof showSettingsToast === "function") {
-      showSettingsToast("Level Up! Ngayon ay Level " + PLAYER_STATS.level + " ka na. 🎉");
+      showSettingsToast(
+        "Level Up! Ngayon ay Level " + PLAYER_STATS.level + " ka na. 🎉",
+      );
     }
+  }
+
+  syncEquipmentStats();
+}
+
+// =========================
+// FOOD / HUNGER (BAGONG HILING ng user)
+// =========================
+//
+// "gusto ko i add mo sa baba ng stamina yung foods duration naman na
+// need niya kumain once na nagugutom na yung character siguro from
+// 1-100 yung duration kada random 2-3 mins is nababawasan yung food
+// duration ng random -4 to 5" - PLAYER_STATS.food (0-100, tingnan sa
+// itaas). Kada RANDOM na 2-3 minuto (tunay na oras, hindi apektado ng
+// speedScale - kaparehong konsepto ng TORCH_LIFESPAN_MS), bumabawas ito
+// ng RANDOM na 4-5 - PAULIT-ULIT (bagong random interval kada tick).
+// "sa min is yung nababawasan kapag naubos na yung foods, tsaka lang
+// mababawasan ang health" - kapag TALAGANG naubos na (food.current <=
+// 0), sa HALIP na food, ang HEALTH na ang binabawasan sa BAWAT susunod
+// na tick (walang eksaktong bilang na sinabi ang user para dito - ginamit
+// ang STARVATION_HEALTH_LOSS_MIN/MAX bilang makatwirang default,
+// proporsyonal sa bagong 500 max health).
+const FOOD_DECAY_MIN_MS = 1 * 60 * 1000;
+const FOOD_DECAY_MAX_MS = 2 * 60 * 1000;
+const FOOD_DECAY_MIN_AMOUNT = 4;
+const FOOD_DECAY_MAX_AMOUNT = 5;
+
+const STARVATION_HEALTH_LOSS_MIN = 10;
+const STARVATION_HEALTH_LOSS_MAX = 20;
+
+function randomBetween(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+// BAGO (hiling ng user): "kada tapos ng pag-pickaxe or axe sa pag putol
+// ng puno is nababawasan yung foods duration ng -3... sa grass naman
+// kada 3 na pag grass is -3 sa foods duration" - IISANG shared na
+// helper na ito, ginagamit ng puno/bato (registerHit, resources.js) at
+// ng damo/cutter (grass.js, kada ika-3 pagputol) - basta bawasan ang
+// food (hindi hihina sa negative), tapos i-sync ang UI.
+function decreaseFoodDuration(amount) {
+  PLAYER_STATS.food.current = Math.max(0, PLAYER_STATS.food.current - amount);
+
+  if (typeof syncEquipmentStats === "function") syncEquipmentStats();
+}
+
+let nextFoodTickAt =
+  Date.now() + randomBetween(FOOD_DECAY_MIN_MS, FOOD_DECAY_MAX_MS);
+
+// Tinatawag kada frame mula sa update() (update.js) - tunay na oras
+// (Date.now()-based, hindi deltaMs/speedScale) ang batayan, kaya hindi
+// ito apektado ng zoom/fps, kaparehong klase ng updateTorchBurn.
+function updateFoodHunger() {
+  if (Date.now() < nextFoodTickAt) return;
+
+  nextFoodTickAt =
+    Date.now() + randomBetween(FOOD_DECAY_MIN_MS, FOOD_DECAY_MAX_MS);
+
+  if (PLAYER_STATS.food.current > 0) {
+    const amount = Math.round(
+      randomBetween(FOOD_DECAY_MIN_AMOUNT, FOOD_DECAY_MAX_AMOUNT),
+    );
+
+    PLAYER_STATS.food.current = Math.max(0, PLAYER_STATS.food.current - amount);
+  } else {
+    // Nagugutom na - ang HEALTH na ang binabawasan.
+    const amount = Math.round(
+      randomBetween(STARVATION_HEALTH_LOSS_MIN, STARVATION_HEALTH_LOSS_MAX),
+    );
+
+    PLAYER_STATS.health.current = Math.max(
+      0,
+      PLAYER_STATS.health.current - amount,
+    );
   }
 
   syncEquipmentStats();
@@ -230,8 +414,14 @@ function gainExp(amount) {
 const PLAYER_STATS = {
   name: "Farmer",
   level: 1,
-  health: { current: 100, max: 100 },
+  // BAGO (hiling ng user): 500/500 na ang max health (dating 100/100).
+  health: { current: 500, max: 500 },
   stamina: { current: 100, max: 100 },
+  // BAGO (hiling ng user): "FOOD" duration/hunger - 1-100 (nagsisimula
+  // sa buo/100, hindi pa gutom). Tingnan ang updateFoodHunger sa ibaba
+  // para sa gawi ng pagbaba nito (random na 4-5 kada random na 2-3
+  // minuto), at eatItem para sa pagdaragdag (kumakain).
+  food: { current: 100, max: 100 },
   exp: { current: 0, max: 100 },
   // Base bare-hand damage - meron pa ring dmg kahit walang naka-equip
   // na sword (walang totoong weapon system pa, placeholder na number
@@ -258,9 +448,22 @@ function syncEquipmentStats() {
 
   if (!document.getElementById("equipment-stats")) return;
 
-  setStatBarFill("stat-fill-health", PLAYER_STATS.health.current / PLAYER_STATS.health.max);
-  setStatBarFill("stat-fill-stamina", PLAYER_STATS.stamina.current / PLAYER_STATS.stamina.max);
-  setStatBarFill("stat-fill-exp", PLAYER_STATS.exp.current / PLAYER_STATS.exp.max);
+  setStatBarFill(
+    "stat-fill-health",
+    PLAYER_STATS.health.current / PLAYER_STATS.health.max,
+  );
+  setStatBarFill(
+    "stat-fill-stamina",
+    PLAYER_STATS.stamina.current / PLAYER_STATS.stamina.max,
+  );
+  setStatBarFill(
+    "stat-fill-food",
+    PLAYER_STATS.food.current / PLAYER_STATS.food.max,
+  );
+  setStatBarFill(
+    "stat-fill-exp",
+    PLAYER_STATS.exp.current / PLAYER_STATS.exp.max,
+  );
 
   const atkEl = document.getElementById("stat-value-atk");
   const defEl = document.getElementById("stat-value-def");
@@ -299,9 +502,35 @@ function syncPlayerHud() {
     PLAYER_STATS.stamina.current / PLAYER_STATS.stamina.max,
   );
   setStatBarFill(
+    "player-hud-fill-food",
+    PLAYER_STATS.food.current / PLAYER_STATS.food.max,
+  );
+  setStatBarFill(
     "player-hud-fill-exp",
     PLAYER_STATS.exp.current / PLAYER_STATS.exp.max,
   );
+}
+
+// PANSAMANTALA (tingnan ang paliwanag sa index.html,
+// #player-hud-row-debug-coords) - live na col/row ng player, para sa
+// paghahanap ng eksaktong lugar ng puno/bato/damo (fixedTrees/
+// fixedStones sa resources.js, fixedGrassTufts sa grass.js). Tinatawag
+// ito KADA FRAME (update.js), hindi lang paminsan-minsan tulad ng
+// syncPlayerHud, dahil kailangang live/real-time ito habang lumalakad
+// ang player. Tanggalin na lang ang buong function na ito (at ang
+// tawag dito sa update.js) kapag tapos na sa paglalagay.
+function syncDebugCoordsHud() {
+  const el = document.getElementById("player-hud-debug-coords");
+
+  if (!el) return;
+  if (typeof player === "undefined" || typeof TILE_SIZE === "undefined") {
+    return;
+  }
+
+  const col = Math.floor((player.x + player.width / 2) / TILE_SIZE);
+  const row = Math.floor((player.y + player.height / 2) / TILE_SIZE);
+
+  el.textContent = "Col: " + col + ", Row: " + row;
 }
 
 function setHotbarSlotActive(id, active) {
@@ -327,7 +556,50 @@ function setHotbarSlotActive(id, active) {
 // bilang binhi para sa pagtatanim.
 
 const BAG_GRID_COLUMNS = 8;
-const BAG_GRID_ROWS = 15;
+
+// BAGO (hiling ng user): "kapag walang bag is nasa 2 rows lang yung bag
+// pero kapag naka equipt na mag fully max na yung bag" - limitado
+// muna sa 2 hanay (16 slot) ang bag hangga't HINDI pa naka-"Use"/
+// naka-suot ang backpack (bagEquipped, tingnan sa ibaba) - sa
+// sandaling isuot ito, lumalaki papuntang FULL capacity
+// (BAG_GRID_ROWS_MAX, 15 hanay = 120 slot). Ang mismong DATA ng mga
+// item (itemDefaultBagPosition/bagSplitStacks) ay HINDI naaapektuhan
+// nito - kahit anong posisyon (0-119) pa ang nakatalaga sa isang item,
+// nananatili itong naka-imbak doon; "nagtatago" lang ang mga cell na
+// LAMPAS sa kasalukuyang aktibong bilang ng hanay (hindi ginuguhit sa
+// grid) hangga't hindi pa naka-suot ang bag - muling lalabas ang lahat
+// sa sandaling isuot ito.
+const BAG_GRID_ROWS_NO_BAG = 2;
+const BAG_GRID_ROWS_MAX = 15;
+
+function getActiveBagGridRows() {
+  return typeof bagEquipped !== "undefined" && bagEquipped
+    ? BAG_GRID_ROWS_MAX
+    : BAG_GRID_ROWS_NO_BAG;
+}
+
+// =========================
+// BACKPACK ("bag") - bilhin sa oldman (200 gold), tingnan decor.js
+// OLDMAN_SHOP_ITEMS
+// =========================
+//
+// Bilang ng bag na hawak (bag/inventory count) - "countable" na item,
+// kaparehong pattern ng craftersCollected/stovesCollected sa itaas.
+let bagCollected = 0;
+
+// Naka-"suot"/naka-gamit ba ngayon ang bag? Toggle lang ito (tingnan
+// ang "Use" sa showBagActionMenu sa ibaba) - kapag totoo, ipinapakita
+// ng player.js ang idle sprite na may bag (sprites.bagIdle, assets.js)
+// sa halip na ang normal na idle. HINDI ito bumabawas sa bagCollected -
+// parang "nakasuot" lang, hindi "nagamit/naubos".
+let bagEquipped = false;
+
+// Mga bag na naka-lagay/naka-drop sa MUNDO (hindi pa "floating"/
+// lootable - kaparehong-pareho ng konsepto ng placedCrafters sa
+// craft.js: PERMANENTENG bagay muna ito sa lupa hangga't hindi pa
+// "Break" ang piniling aksyon - tingnan ang showBagActionMenu).
+let placedBags = []; // { world, col, row, id }
+let placedBagIdCounter = 0;
 
 const BAG_ITEMS = [
   {
@@ -403,6 +675,17 @@ const BAG_ITEMS = [
     // sa mundo, may sarili itong smelting UI - tingnan ang stove.js.
     getCount: () => stovesCollected,
   },
+  {
+    id: "light",
+    label: "Light",
+    icon: "./assets/items/lamp.png",
+    // Kaparehong-pareho ng gawi ng "crafter"/"stove" (i-highlight ang
+    // slot tapos i-click ang isang tile SA LOOB NG BAHAY para ilagay
+    // bilang permanenteng "Light" - may ON/OFF toggle) - tingnan ang
+    // light.js.
+    getCount: () =>
+      typeof lightsCollected !== "undefined" ? lightsCollected : 0,
+  },
   // Pickaxe/Rake/Axe - "boolean" na kasangkapan (walang tunay na
   // "bilang" - 0 kung hindi pa na-craft). DALAWANG yugto ngayon
   // (dating isang "Unlocked" flag lang): (1) "InInventory" - bago pa
@@ -433,6 +716,17 @@ const BAG_ITEMS = [
     getCount: () => (axeInInventory ? 1 : 0),
   },
   {
+    id: "cutter",
+    label: "Cutter",
+    icon: "./assets/items/cutter.png",
+    // Tingnan ang cutterInInventory (resources.js) - hindi na aktibong
+    // gamit (laging 0), naiwan lang para may label/icon ang guide
+    // (renderCraftGuide) - diretso nang "Unlocked" ang cutter
+    // (collectCraftOutput, craft.js), kaparehong-pareho ng pickaxe/
+    // rake/axe sa itaas.
+    getCount: () => (cutterInInventory ? 1 : 0),
+  },
+  {
     id: "sword",
     label: "Sword",
     icon: "./assets/items/sword.png",
@@ -440,7 +734,371 @@ const BAG_ITEMS = [
     // pickaxeUnlocked/rakeUnlocked/axeUnlocked sa itaas.
     getCount: () => (swordUnlocked ? 1 : 0),
   },
+  {
+    id: "bag",
+    label: "Backpack",
+    icon: "./assets/items/bag.png",
+    // Bilhin sa oldman (200 gold, decor.js OLDMAN_SHOP_ITEMS) -
+    // right-click sa loob ng bag para lumabas ang "Use"/"Drop" na
+    // menu (tingnan ang showBagActionMenu sa ibaba).
+    getCount: () => bagCollected,
+  },
+  {
+    id: "bed",
+    label: "Bed",
+    icon: "./assets/items/bed.png",
+    // BAGO (hiling ng user): kaparehong-pareho na ngayon ito sa
+    // "crafter"/"stove" (Hold -> preview sa tile -> i-click ilagay,
+    // 2x3 na footprint, may collision) - bibilhin kay Oldman
+    // (OLDMAN_SHOP_ITEMS, decor.js), hindi na "libre" sa bawat bahay -
+    // tingnan ang bed.js. AYOS (hiling ng user): puwede na rin itong
+    // ma-craft sa Crafter ngayon (wool/silk/wood - tingnan ang
+    // CRAFT_SHAPED_RECIPES sa craft.js) - PAREHONG paraan (bili o
+    // craft) ay parehong dumadaan sa iisang bedsCollected counter.
+    getCount: () => (typeof bedsCollected !== "undefined" ? bedsCollected : 0),
+  },
+  {
+    id: "wool",
+    label: "Wool",
+    icon: "./assets/items/wool.png",
+    // BAGO (hiling ng user: "yung sa bed 123 slots wool ... nabibili
+    // dun kay oldman") - crafting material para sa "bed" - bilhin kay
+    // Oldman (OLDMAN_SHOP_ITEMS, decor.js), tingnan ang woolCollected
+    // (craft.js).
+    getCount: () => (typeof woolCollected !== "undefined" ? woolCollected : 0),
+  },
+  {
+    id: "silk",
+    label: "Silk",
+    icon: "./assets/items/silk.png",
+    // BAGO (hiling ng user: "456 slots silk nabibili din kay oldman") -
+    // crafting material para sa "bed", kaparehong-pareho ng gawi ng
+    // wool sa itaas - bilhin kay Oldman, tingnan ang silkCollected
+    // (craft.js).
+    getCount: () => (typeof silkCollected !== "undefined" ? silkCollected : 0),
+  },
+  {
+    id: "iron",
+    label: "Iron",
+    icon: "./assets/items/iron.png",
+    // BAGO (hiling ng user: "sa refrigerator naman is dapat iron...
+    // siguro sa bato pero dapat gagawa ng cave map para dun magkaroon
+    // ng iron") - crafting material para sa "refrigerator" - HINDI (sa
+    // ngayon) nabibili kay Oldman/nakukuha sa paghukay - PAGMIMINA sa
+    // isang HINAHARAP na "cave" na mundo ang plano (susunod na hiling
+    // ng user, hindi pa ginawa) - tingnan ang ironCollected (craft.js).
+    getCount: () => (typeof ironCollected !== "undefined" ? ironCollected : 0),
+  },
+  {
+    id: "refrigerator",
+    label: "Refrigerator",
+    icon: "./assets/items/refrigerator.png",
+    // BAGO (hiling ng user: "add ka pala bed sa crafter tyaka
+    // refrigerator") - bagong craftable na item (8 iron sa paligid,
+    // bakante ang gitna - tingnan ang CRAFT_SHAPED_RECIPES sa
+    // craft.js) - simpleng "countable" na stock lang sa ngayon
+    // (kaparehong-pareho ng gawi ng "bag" - walang world-placement pa,
+    // puwedeng idagdag balang araw kung hihilingin).
+    getCount: () =>
+      typeof refrigeratorCollected !== "undefined" ? refrigeratorCollected : 0,
+  },
 ];
+
+// =========================
+// BAG ACTION MENU ("Use"/"Drop" sa inventory, "Use"/"Break" sa lupa)
+// =========================
+//
+// Munting floating menu (2 buton) na lumalabas malapit sa cursor -
+// ginagamit ng DALAWANG lugar: (1) right-click sa "bag" sa loob ng
+// inventory (tingnan ang pointerdown listener sa ibaba, "Use"/"Drop"),
+// at (2) right-click sa isang NAKA-LAGAY na bag sa MUNDO (tingnan ang
+// dig.js contextmenu listener, "Use"/"Break"). Isang beses lang bukas
+// kada oras - awtomatikong nagsasara kapag nag-click sa labas nito o
+// may bagong binuksan.
+let bagActionMenuEl = null;
+
+function closeBagActionMenu() {
+  if (bagActionMenuEl) {
+    bagActionMenuEl.remove();
+    bagActionMenuEl = null;
+  }
+}
+
+function showBagActionMenu(x, y, actions) {
+  closeBagActionMenu();
+
+  const menu = document.createElement("div");
+
+  menu.className = "bag-action-menu";
+  // Bahagyang i-clamp papasok sa screen, para hindi lumagpas sa gilid
+  // kapag right-click sa sulok.
+  menu.style.left = Math.min(x, window.innerWidth - 130) + "px";
+  menu.style.top = Math.min(y, window.innerHeight - 80) + "px";
+
+  for (const action of actions) {
+    const btn = document.createElement("button");
+
+    btn.type = "button";
+    btn.className = "bag-action-menu-btn";
+    btn.textContent = action.label;
+
+    btn.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      closeBagActionMenu();
+      action.onClick();
+    });
+
+    menu.appendChild(btn);
+  }
+
+  document.body.appendChild(menu);
+  bagActionMenuEl = menu;
+}
+
+// Isara kapag nag-click kahit saan sa LABAS ng menu mismo.
+document.addEventListener("pointerdown", (event) => {
+  if (bagActionMenuEl && !bagActionMenuEl.contains(event.target)) {
+    closeBagActionMenu();
+  }
+});
+
+// =========================
+// "USE" ANG BAG - suotin/gamitin (bagEquipped, tingnan player.js)
+// =========================
+//
+// AYOS (hiling ng user: "kapag ni-uuse ko yung bag hindi napupunta dun
+// sa bag slot, nasa inventory pa rin"): dating TOGGLE ito
+// (bagEquipped = !bagEquipped) - kung SAKALING naka-save na sa
+// browser ang bagEquipped=true mula sa isang NAUNANG pagkaka-equip
+// (localStorage, tingnan ang inventory-save.js), ang PAG-CLICK ng
+// "Use" (akala ng manlalaro ay UNANG PAGKAKATAON niya itong i-e-equip)
+// ay MAG-U-UNEQUIP sa HALIP (dahil true na ito, naging false) - kaya
+// "walang epekto"/"babalik lang sa inventory" ang nakikita, imbes na
+// lumipat sa bag slot. Ngayon, DEFINITIVE na ang "Use" - LAGING
+// nag-eequip (true), kahit ano pa ang naunang estado - walang
+// pagkakataong "toggle papuntang false" ito. Ang PAG-UNEQUIP ay
+// hiwalay/malinaw na aksyon na (i-click ang equip-slot-bag mismo
+// habang naka-suot, o "Drop" - tingnan ang mga pointerdown listener
+// sa ibaba).
+function useBagEquip() {
+  bagEquipped = true;
+
+  // AYOS (hiling ng user: "di nawawala sa inventory e kapag naka used
+  // na") - VERIFIED sa script na test: kapag naka-imbak ang bag bilang
+  // isang SPLIT STACK (bagSplitStacks - nangyayari kapag NA-DRAG mo ito
+  // papunta sa ibang slot, o pagkatapos mag-Sort, o mula sa ilang lumang
+  // save state), ang resolveBagCellAt() ay UNANG-UNANG ibinabalik ang
+  // split entry na iyon nang DIRETSO - walang tinitingnan kung naka-
+  // equip ba (kaiba sa "master"/dynamic na sistema, na may ganoong
+  // guard) - kaya NANANATILING nakikita sa inventory ang bag KAHIT
+  // naka-suot na. AYOS: kapag nag-Use (nag-equip), i-DISSOLVE muna ang
+  // LAHAT ng split stack ng "bag" pabalik sa generic na pool (delete
+  // bilang split; buo pa rin ang bagCollected, hindi ito bumababa) -
+  // kaya PAREHONG-PAREHONG "dynamic" na ang trato dito: nagtatago habang
+  // naka-suot, at muling lumalabas (via getBagDynamicPositions) sa unang
+  // bakanteng slot pagka-Unuse.
+  dissolveBagSplitStacks();
+
+  if (typeof syncHotbarUI === "function") syncHotbarUI();
+}
+
+// Tinatanggal ang LAHAT ng split-stack na "bag" (bagSplitStacks) -
+// hindi ito bumabawas sa bagCollected (na siyang totoong bilang ng bag
+// na hawak), inaalis lang ang PAGKAKA-PAKO nito sa isang partikular na
+// slot, para pumasok ito sa generic/dynamic na sistema (tingnan ang
+// useBagEquip sa itaas para sa dahilan).
+function dissolveBagSplitStacks() {
+  for (const key in bagSplitStacks) {
+    const stack = bagSplitStacks[key];
+
+    if (stack && stack.itemId === "bag") {
+      delete bagSplitStacks[key];
+    }
+  }
+}
+
+// Hiwalay/malinaw na "Unequip" - laging nagse-set sa false (kaparehong
+// dahilan ng pagiging "definitive" ng useBagEquip sa itaas). Tingnan
+// ang "BAG SA INVENTORY - DYNAMIC NA POSISYON" sa ibaba (malapit sa
+// getBagDynamicPositions) para sa BAGONG paraan (mula sa scratch) kung
+// paano nirereresolba KUNG SAAN lalabas ang bag sa inventory pagbalik
+// nito dito - hindi na ito umaasa sa PERMANENTENG posisyon.
+function unequipBag() {
+  bagEquipped = false;
+
+  if (typeof syncHotbarUI === "function") syncHotbarUI();
+}
+
+// =========================
+// "DROP" ANG BAG - ilagay sa lupa (PERMANENTENG bagay muna, hindi pa
+// "floating"/lootable - kaparehong konsepto ng placeCrafterInWorld sa
+// craft.js) - SA HARAP ng player, base sa KASALUKUYANG hinaharap na
+// direksyon niya (angle/facing) - tingnan ang getPlayerFacingTile.
+// =========================
+function placeBagInWorld(col, row) {
+  if (bagCollected <= 0) return;
+
+  let tile = col !== undefined && row !== undefined ? { col, row } : null;
+
+  if (!tile) {
+    tile =
+      typeof getPlayerFacingTile === "function" ? getPlayerFacingTile() : null;
+  }
+
+  if (!tile) return;
+
+  placedBags.push({
+    world: currentWorld,
+    col: tile.col,
+    row: tile.row,
+    id: placedBagIdCounter++,
+  });
+
+  if (typeof adjustGlobalItemCount === "function")
+    adjustGlobalItemCount("bag", -1);
+  if (typeof consumeItemFromWherever === "function")
+    consumeItemFromWherever("bag", 1);
+
+  // AYOS: kung SAKALING naka-suot ito habang ino-"Drop" (hal. mula sa
+  // bagong right-click menu ng equip-slot-bag mismo), tanggalin din
+  // ang "naka-suot" na estado - wala na ring nakaturing na bag sa
+  // inventory/katawan.
+  if (typeof bagEquipped !== "undefined" && bagEquipped) {
+    bagEquipped = false;
+  }
+
+  if (typeof playPutSfx === "function") playPutSfx();
+
+  if (typeof syncHotbarUI === "function") syncHotbarUI();
+}
+
+// Kapag nag-right-click sa BAG sa loob ng inventory (tingnan ang
+// pointerdown listener sa ibaba) - lumalabas ang "Use"/"Drop" na menu.
+function dropBagFromInventory() {
+  placeBagInWorld();
+}
+
+// May naka-lagay bang bag sa eksaktong cell na ito (kasalukuyang
+// mundo)? Tingnan ang paggamit nito sa dig.js (contextmenu listener).
+function getPlacedBagAt(col, row) {
+  return (
+    placedBags.find(
+      (bag) => bag.world === currentWorld && bag.col === col && bag.row === row,
+    ) || null
+  );
+}
+
+// "Use" sa isang NAKA-LAGAY na bag sa mundo - dinadampot ULIT PABALIK
+// sa inventory AT sinusuot/ginagamit agad (bagEquipped = true) - iisang
+// hakbang na lang, sa halip na dalawang hiwalay na aksyon.
+function usePlacedBag(bag) {
+  const index = placedBags.indexOf(bag);
+
+  if (index === -1) return;
+
+  placedBags.splice(index, 1);
+
+  if (typeof adjustGlobalItemCount === "function")
+    adjustGlobalItemCount("bag", 1);
+  if (typeof routeCollectedItemIncrease === "function")
+    routeCollectedItemIncrease("bag", 1);
+
+  bagEquipped = true;
+
+  if (typeof playPutSfx === "function") playPutSfx();
+  if (typeof syncHotbarUI === "function") syncHotbarUI();
+}
+
+// "Break" sa isang NAKA-LAGAY na bag sa mundo - kaparehong-pareho ng
+// breakPlacedCrafter (craft.js): TINATANGGAL ito bilang PERMANENTENG
+// bagay, at sa HALIP ay lumalabas bilang ORDINARYONG FLOATING/lootable
+// na ground item (spawnGroundItem, ground-items.js) - "kapag na-break,
+// LUMULUTANG na" (hiling ng user) - kailangan pang lapitan (1 tile,
+// tingnan GROUND_ITEM_MAGNET_RADIUS) bago talaga mapunta sa bag.
+function breakPlacedBag(bag) {
+  const index = placedBags.indexOf(bag);
+
+  if (index === -1) return;
+
+  placedBags.splice(index, 1);
+
+  if (typeof spawnGroundItem === "function") {
+    spawnGroundItem(bag.col, bag.row, "bag", 1);
+  }
+
+  if (typeof spawnDigEffect === "function") spawnDigEffect(bag.col, bag.row);
+}
+
+// =========================
+// COLLISION NG NAKA-LAGAY NA BAG
+// =========================
+//
+// AYOS (hiling ng user, BINAWI): dating totoong hadlang (kaparehong
+// pattern ng Crafter/Stove) ang naka-lagay/naka-drop na Bag sa mundo -
+// "alisin mo na yung collisions niya kung san siya naka drop" - HINDI
+// na ito hadlang ngayon (tingnan ang canMoveTo, collisions.js at
+// canFeetMoveTo, decor.js - hindi na tinatawag ang function na ito sa
+// alinman sa dalawa) - madadaanan/matatapakan na lang ito, kaparehong
+// gawi ng ordinaryong ground item. NAIWAN pa rin ang FUNCTION na ito
+// (hindi tinanggal) sakaling may ibang gustong gumamit muli nito sa
+// hinaharap - pero WALANG TUMATAWAG dito ngayon kahit saan.
+const BAG_COLLISION_SIZE = TILE_SIZE * 0.7;
+
+function getPlacedBagCollisionBoxes() {
+  if (placedBags.length === 0) return [];
+
+  const inset = (TILE_SIZE - BAG_COLLISION_SIZE) / 2;
+
+  return placedBags
+    .filter((bag) => bag.world === currentWorld)
+    .map((bag) => ({
+      x: bag.col * TILE_SIZE + inset,
+      y: bag.row * TILE_SIZE + inset,
+      width: BAG_COLLISION_SIZE,
+      height: BAG_COLLISION_SIZE,
+    }));
+}
+
+// Iginuguhit sa PAREHONG layer/oras ng drawGroundItems/drawPlacedCrafters
+// (draw.js) - world space, gamit ang bag icon (BAG_ITEMS.icon).
+function drawPlacedBags() {
+  if (placedBags.length === 0) return;
+
+  const here = placedBags.filter((bag) => bag.world === currentWorld);
+
+  if (here.length === 0) return;
+
+  const iconPath = "./assets/items/bag.png";
+
+  if (!drawPlacedBags.iconImg) {
+    drawPlacedBags.iconImg = new Image();
+    drawPlacedBags.iconImg.src = iconPath;
+  }
+
+  const img = drawPlacedBags.iconImg;
+
+  ctx.save();
+
+  for (const bag of here) {
+    const centerX = bag.col * TILE_SIZE + TILE_SIZE / 2;
+    const centerY = bag.row * TILE_SIZE + TILE_SIZE / 2;
+
+    if (img.complete && img.naturalWidth > 0) {
+      const w = TILE_SIZE * 0.75;
+      const h = (w / img.naturalWidth) * img.naturalHeight;
+
+      ctx.drawImage(img, centerX - w / 2, centerY - h / 2, w, h);
+    } else {
+      ctx.font = TILE_SIZE * 0.75 + "px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("🎒", centerX, centerY);
+    }
+  }
+
+  ctx.restore();
+}
 
 // =========================
 // PAGKAIN NG FOOD MULA SA HOTBAR SLOT (Alt + 1-9)
@@ -475,12 +1133,48 @@ let lastEatAt = 0;
 // dig.js).
 const EDIBLE_ITEMS = {
   carrot: {
+    label: "Carrot",
+    description: "Sariwang gulay - nagpapawi ng gutom.",
     healAmount: 10,
+    // BAGO (hiling ng user): "once na i use ko mag add ng +3 kada
+    // isang carrots" - idinaragdag sa PLAYER_STATS.food (tingnan ang
+    // eatItem sa ibaba).
+    foodAmount: 3,
     consume: () => {
       carrotsCollected--;
     },
   },
 };
+
+// AYOS (hiling ng user): "ganto yung label description niya kapag na
+// hover sa inventory o hotbar is name, description, health +100, food
+// +3 tapos yung sell gold niya" - buong multi-line na text (gamit ang
+// "\n", parehong convention ng ".title" attribute sa buong file na ito)
+// na ipinapakita kada i-hover ang isang food item, saan man (bag master
+// cell, bag split-stack, o naka-pin na hotbar slot) - null kung hindi
+// naman ito EDIBLE_ITEMS. Ang "Sell" ay hinahanap mula sa OLDMAN_SHOP_ITEMS
+// (decor.js, may sarili nang sellPrice - iisang pinagmumulan lang, hindi
+// dinu-duplicate dito).
+function getFoodTooltipText(itemId) {
+  const edible = EDIBLE_ITEMS[itemId];
+
+  if (!edible) return null;
+
+  const lines = [edible.label || itemId];
+
+  if (edible.description) lines.push(edible.description);
+  if (edible.healAmount) lines.push("Health +" + edible.healAmount);
+  if (edible.foodAmount) lines.push("Food +" + edible.foodAmount);
+
+  const shopEntry =
+    typeof OLDMAN_SHOP_ITEMS !== "undefined"
+      ? OLDMAN_SHOP_ITEMS.find((entry) => entry.itemId === itemId)
+      : null;
+
+  if (shopEntry) lines.push("Sell: " + shopEntry.sellPrice + " gold");
+
+  return lines.join("\n");
+}
 
 // May makakain bang food sa slot na ito ngayon (may item AT may stock)?
 // Ginagamit ito para malaman kung dapat i-intercept ng pagkain ang
@@ -520,6 +1214,29 @@ function eatItem(itemId) {
     PLAYER_STATS.health.max,
     PLAYER_STATS.health.current + edible.healAmount,
   );
+
+  // AYOS (hiling ng user): "once na i use ko mag add ng +3 kada isang
+  // carrots" - idinaragdag din sa FOOD stat (naka-cap sa max, 100).
+  if (edible.foodAmount) {
+    PLAYER_STATS.food.current = Math.min(
+      PLAYER_STATS.food.max,
+      PLAYER_STATS.food.current + edible.foodAmount,
+    );
+  }
+
+  // AYOS (hiling ng user): "yung sa foods kapag kumain may lilitaw na
+  // label na may stroke... lilitaw yung +health nya" - floating text
+  // (floating-text.js) sa itaas ng ulo ng player, kulay pink/red
+  // (health-themed) - hindi "merge" (bagong label bawat kagat, hindi
+  // tulad ng "+1+2+3" na pattern ng pagdampot ng item - tingnan ang
+  // collectGroundItem, ground-items.js).
+  if (edible.healAmount && typeof spawnFloatingText === "function") {
+    const pos = getPlayerHeadPosition();
+
+    spawnFloatingText(pos.x, pos.y, "+" + edible.healAmount, {
+      color: "#ff6b81",
+    });
+  }
 
   syncEquipmentStats();
   syncHotbarUI();
@@ -600,8 +1317,18 @@ let selectedBagItemId = null;
 // "lumilipat" lang ito papuntang equip slot, babalik lang sa bag
 // pagka-unequip nito (tingnan ang syncEquipmentPanel para sa aktwal na
 // display sa equip slot).
+// AYOS (hiling ng user): "tapos mawawala sa inventory" - dating "torch"
+// LANG ang dumadaan dito (nawawala rin sa bag/hotbar kapag naka-equip)
+// - HINDI pa kasama ang "bag" (bagEquipped) kahit na naka-suot na ito
+// (nagpapakita na ng bag icon sa equip-slot-bag) - kaya
+// "duplicate"/nananatiling nakikita pa rin ito sa loob ng inventory
+// KAHIT naka-suot na, tila dalawang bag na (isa sa katawan/gauntlet
+// slot, isa pa sa bag panel).
 function isItemEquippedToHand(itemId) {
-  return itemId === "torch" && torchEquipped;
+  return (
+    (itemId === "torch" && torchEquipped) ||
+    (itemId === "bag" && typeof bagEquipped !== "undefined" && bagEquipped)
+  );
 }
 
 // I-click ang "sort" na icon sa footer ng bag (tingnan ang #bag-sort sa
@@ -628,7 +1355,18 @@ function sortBagItems() {
   // Ibuhos din ang natitira sa MASTER/unassigned pool ng bawat item type -
   // kasama ito ngayon sa buong pagsa-sort simula sa position 0, hindi
   // lang ang mga split-stack.
+  //
+  // AYOS (hiling ng user: "nag sort ako lumalabas yung bag sa inventory
+  // kahit naka used na") - kapag naka-suot ang bag (bagEquipped), HINDI
+  // ito dapat kasama sa pagsa-sort - kung isasama, muli itong maisusulat
+  // bilang split stack sa grid (bagSplitStacks, sa ibaba), kaya "lumalabas
+  // ulit sa inventory" kahit naka-suot. LAKTAWAN ito dito - manatili ito
+  // sa pool (buo pa rin ang bagCollected), nakatago sa grid habang naka-
+  // suot, kaya walang lalabas dito pagka-Sort.
   for (const item of BAG_ITEMS) {
+    if (item.id === "bag" && typeof bagEquipped !== "undefined" && bagEquipped)
+      continue;
+
     const unassigned = getBagUnassignedCount(item.id);
 
     if (unassigned > 0) totalsByItem[item.id] = unassigned;
@@ -639,7 +1377,20 @@ function sortBagItems() {
 
     if (!stack) continue;
 
-    totalsByItem[stack.itemId] = (totalsByItem[stack.itemId] || 0) + stack.count;
+    // Parehong dahilan sa itaas - kung naka-suot ang bag, huwag isama
+    // (at burahin na lang ang lumang split entry nito, kung meron man -
+    // dahil dapat WALA itong slot habang naka-suot).
+    if (
+      stack.itemId === "bag" &&
+      typeof bagEquipped !== "undefined" &&
+      bagEquipped
+    ) {
+      delete bagSplitStacks[key];
+      continue;
+    }
+
+    totalsByItem[stack.itemId] =
+      (totalsByItem[stack.itemId] || 0) + stack.count;
     delete bagSplitStacks[key];
   }
 
@@ -729,10 +1480,14 @@ let pinnedSlotCounts = {};
 // muling i-reindex) kapag naubos.
 let bagSplitStacks = {};
 
-// Pinakamataas na bilang na puwedeng ma-MERGE papunta sa isang eksaktong
-// EXPLICIT na stack (hotbar slot o bag split-stack) - hindi ito nag-aapekto
-// sa "master" na TOTAL sa bag (puwede pa ring lumagpas doon, "99+" na
-// lang ang ipinapakita, gaya ng dati).
+// Pinakamataas na bilang bawat SLOT ng bag/hotbar - kasama na rito ang
+// "master" na cell ng isang item type (hotbar slot at bag split-stack,
+// gaya ng dati). AYOS (hiling ng user): "max 99 item lang each slots,
+// kapag lumagpas na mag appear sa katabing slot" - dating puwede pang
+// lumagpas ang MASTER cell dito (hilaw na numero, walang tunay na cap),
+// ngayon kada 99 na sobra ay awtomatikong "kumakalat" sa susunod na
+// bakanteng slot bilang bagong "overflow" cell ng parehong item -
+// tingnan ang computeMasterOverflowSlots/resolveBagCellAt sa ibaba.
 const MAX_EXPLICIT_STACK = 99;
 
 // Alin sa mga naka-fill na slot ang "napili" (gold highlight) - ISANG
@@ -846,7 +1601,8 @@ let floatingGhostEl = null;
 // bilang dito (undefined sa pinnedSlotCounts), ang TOTAL na stock minus
 // ang eksplisitong nakalaan na sa IBANG slot ng parehong item.
 function getPinnedSlotEffectiveCount(slotIndex, itemId) {
-  if (pinnedSlotCounts[slotIndex] !== undefined) return pinnedSlotCounts[slotIndex];
+  if (pinnedSlotCounts[slotIndex] !== undefined)
+    return pinnedSlotCounts[slotIndex];
 
   const item = BAG_ITEMS.find((entry) => entry.id === itemId);
 
@@ -918,7 +1674,9 @@ function getBagUnassignedCount(itemId) {
   // master) - hindi na ito bahagi ng "natitira" sa master pool habang
   // hawak (kung hindi, magda-duplicate ang bilang).
   const floating =
-    floatingPickup && floatingPickup.itemId === itemId ? floatingPickup.count : 0;
+    floatingPickup && floatingPickup.itemId === itemId
+      ? floatingPickup.count
+      : 0;
 
   // Ang getCount() ng ibang item (hal. "crafter"/"charcoal"/"stove") ay
   // umaasa sa isang `let` variable na idineklara sa IBANG script file
@@ -962,7 +1720,31 @@ let itemDefaultBagPosition = {};
 // posisyon (walang split stack roon AT walang ibang item na dati nang
 // naitalaga doon).
 function ensureDefaultBagPositions() {
+  // AYOS (hiling ng user: "gawin mo na lang from scratch muna yung sa
+  // bag slot sa profile") - BINAGO MULA SA SIMULA ang buong paraan ng
+  // pag-DISPLAY ng "bag" sa loob ng inventory grid: hindi na ito
+  // dumadaan dito (walang PERMANENTENG itemDefaultBagPosition["bag"]
+  // na naitatalaga) - tingnan ang getBagDynamicPositions() sa ibaba
+  // (malapit sa computeMasterOverflowSlots) para sa bagong paraan,
+  // kung saan LAGING kinukumputo NANG SARIWA (hindi naka-imbak) kung
+  // saang slot dapat lumabas ang bag, batay sa KASALUKUYANG estado ng
+  // grid - laging sa PINAKAUNANG totoong bakanteng slot ito lalabas,
+  // hindi kailanman "natitirik" sa isang lumang posisyon. (VERIFIED sa
+  // recording + script na test - ang DATING permanenteng-posisyon na
+  // sistema, kahit may naunang ayos na, ay puwede pa ring "matirik" sa
+  // isang lumang posisyon kapag na-block ito ng ibang item HABANG
+  // naka-display pa ang bag doon, hindi lang sa oras ng equip/unequip.)
+  //
+  // Kaya dito, LINIS na lang muna ang anumang LUMANG naka-imbak na
+  // "bag" key (mula sa mas lumang save data, bago pa itong ayos) -
+  // kung hindi ito lilinisin, puwede pa ring MAGDOBLE ang bag (isang
+  // lumang "hard" na posisyon MULA SA SAVE DATA, isa pang bago mula sa
+  // dynamic na sistema).
+  delete itemDefaultBagPosition["bag"];
+
   for (const item of BAG_ITEMS) {
+    if (item.id === "bag") continue; // dynamic na ang bag, tingnan sa itaas
+
     if (getBagUnassignedCount(item.id) <= 0) continue;
 
     const assignedPosition = itemDefaultBagPosition[item.id];
@@ -982,7 +1764,8 @@ function ensureDefaultBagPositions() {
     // MAY assigned na posisyon PERO NA-BLOCK na ito ngayon ng ibang split
     // stack, hindi na dapat i-skip - kailangan pang humanap ng BAGONG
     // TALAGANG-bakanteng posisyon sa halip.
-    if (assignedPosition !== undefined && !bagSplitStacks[assignedPosition]) continue;
+    if (assignedPosition !== undefined && !bagSplitStacks[assignedPosition])
+      continue;
 
     const takenPositions = new Set(Object.values(itemDefaultBagPosition));
     let position = 0;
@@ -993,6 +1776,153 @@ function ensureDefaultBagPositions() {
   }
 }
 
+// =========================
+// BAG SA INVENTORY - DYNAMIC NA POSISYON (BAGO, mula sa scratch)
+// =========================
+//
+// AYOS (hiling ng user: "gawin mo na lang from scratch muna yung sa
+// bag slot sa profile...alisin mo muna...gawin mo na yung slot pang
+// bag") - dating dumadaan ang "bag" sa PAREHONG sistema ng LAHAT ng
+// ibang item (itemDefaultBagPosition, itaas) - isang beses lang
+// naitatalaga ang posisyon nito, PERMANENTE na ito kahit pa mag-iba
+// ang estado ng grid (equip/unequip) o ma-block/ma-unblock ang
+// posisyong iyon ng ibang item - kaya paulit-ulit itong "natitirik" sa
+// isang lumang posisyon (kahit bakante na ang mas unang slot) tuwing
+// may humaharang dito kahit pansamantara lang. VERIFIED ito gamit ang
+// script na test (buy -> use -> unuse, tapos block sa pinakaunang slot
+// -> unuse ulit) - nananatili ang bug kahit may naunang ayos na sa
+// unequipBag() lang, dahil puwede palang mangyari ang "pagkatirik"
+// KAHIT HINDI pa naka-equip.
+//
+// AYOS: WALANG PERMANENTENG posisyon ang "bag" - HINDI na ito
+// dumadaan sa itemDefaultBagPosition (tingnan ang "continue" para
+// dito sa ensureDefaultBagPositions sa itaas). Sa halip, LAGING
+// kinukumputo NANG SARIWA (hindi naka-imbak kahit saan) ang eksaktong
+// posisyon nito sa BAWAT PAGTAWAG dito - laging ang PINAKAUNANG
+// totoong bakanteng slot (walang splitstack roon AT walang ibang item
+// na naka-permanenteng-posisyon doon), simula sa position 0. Kapag
+// naka-equip (bagEquipped) o walang natitirang bag (getBagUnassignedCount
+// <= 0), WALANG ibinabalik na posisyon (blangko ang resulta) - dahil
+// wala namang dapat ipakita sa grid.
+//
+// Bawat isang MAX_EXPLICIT_STACK (99) na labis, kumakalat din ito sa
+// SUSUNOD na bakanteng slot (kaparehong-pareho ng ginagawa ng
+// computeMasterOverflowSlots sa ibaba para sa ibang item), kaya kahit
+// daan-daang bag ang hawak, hindi ito "nagsasarado" sa isang cell.
+//
+// "isOverflow: true" LAGI para sa LAHAT ng bag cell dito (kahit yung
+// "una") - sadya itong ginawang ganito: dahil WALANG PERMANENTENG
+// posisyon ang bag, hindi na kailangang "protektahan"/i-relocate pa
+// ito kapag hinarangan ng ibang item (tingnan ang "kung cell.isOverflow,
+// WALANG dapat gawing relocation" sa relocateMasterIfBlocking sa
+// ibaba) - kusa na lang itong "lilipat" papuntang susunod na bakanteng
+// slot sa SUSUNOD na render, dahil sariwang kinukumputo ito palagi.
+function getBagDynamicPositions() {
+  if (typeof bagEquipped !== "undefined" && bagEquipped) return [];
+
+  let remaining =
+    typeof getBagUnassignedCount === "function"
+      ? getBagUnassignedCount("bag")
+      : 0;
+
+  if (remaining <= 0) return [];
+
+  const takenPositions = new Set(Object.values(itemDefaultBagPosition));
+  const result = [];
+  let position = 0;
+
+  while (remaining > 0) {
+    while (bagSplitStacks[position] || takenPositions.has(position)) {
+      position++;
+    }
+
+    const amount = Math.min(remaining, MAX_EXPLICIT_STACK);
+
+    result.push({ position, count: amount });
+    takenPositions.add(position);
+    remaining -= amount;
+    position++;
+  }
+
+  return result;
+}
+
+// Mabilisang tingin: ano (kung meron man) ang laman ng bag sa
+// isang partikular na POSISYON, ayon sa getBagDynamicPositions() sa
+// itaas - ginagamit ito ng resolveBagCellAt (ibaba).
+function resolveBagDynamicCellAt(position) {
+  const positions = getBagDynamicPositions();
+  const entry = positions.find((slot) => slot.position === position);
+
+  if (!entry) return null;
+
+  const bagItem = BAG_ITEMS.find((bagEntry) => bagEntry.id === "bag");
+
+  if (!bagItem) return null;
+
+  return {
+    type: "master",
+    item: bagItem,
+    displayCount: entry.count,
+    isOverflow: true,
+  };
+}
+
+// AYOS (hiling ng user): "yung items mismo sa inventory, max 99 item
+// lang each slots, kapag lumagpas na mag appear sa katabing slot" -
+// dating ang "master" na cell ng isang item type (itemDefaultBagPosition)
+// ay basta na lang IPINAPAKITA ang BUONG getBagUnassignedCount nito sa
+// IISANG cell (walang cap - puwedeng lumabas na "150" o kung ano pa),
+// kaya "sarado"/mukhang isang malaking bunton na lang ito sa isang
+// slot. Ngayon, kada 99 (MAX_EXPLICIT_STACK) na LUMALAGPAS pa sa unang
+// (master) cell, awtomatikong LUMALABAS ito sa SUSUNOD na TALAGANG
+// bakanteng slot bilang "overflow" na cell (parehong itsura/gawi ng
+// "master" - kinukuha rin mula sa MISMONG unassigned pool, hindi
+// hiwalay na storage) - paulit-ulit hanggang maubos ang labis (kaya
+// "kumakalat" sa mga katabing slot ang isang item kapag sobra-sobra na
+// ang bilang nito). Ang FUNCTION na ito ang nagko-compute ng buong
+// mapa (position -> {itemId, count}) ng lahat ng ganitong "overflow"
+// na cell - TINATAWAG ITO NANG BUO (fresh) sa bawat resolveBagCellAt,
+// dahil magaan lang naman ito (~15 item type, ilang beses na loop) at
+// nag-iiba ang resulta kada pagbabago ng estado ng bag - walang
+// kailangang i-cache/i-invalidate nang manu-mano.
+function computeMasterOverflowSlots() {
+  if (typeof ensureDefaultBagPositions === "function")
+    ensureDefaultBagPositions();
+
+  const overflow = {};
+  const taken = new Set(Object.values(itemDefaultBagPosition));
+  let nextFree = 0;
+
+  const findNextFree = () => {
+    while (bagSplitStacks[nextFree] || taken.has(nextFree)) nextFree++;
+    return nextFree;
+  };
+
+  for (const item of BAG_ITEMS) {
+    const basePosition = itemDefaultBagPosition[item.id];
+
+    if (basePosition === undefined) continue; // wala pang stock kailanman
+    if (bagSplitStacks[basePosition]) continue; // na-block na ang base cell nito, hiwalay nang isyu
+
+    let remaining = getBagUnassignedCount(item.id) - MAX_EXPLICIT_STACK;
+
+    while (remaining > 0) {
+      const position = findNextFree();
+
+      taken.add(position);
+
+      const amount = Math.min(remaining, MAX_EXPLICIT_STACK);
+
+      overflow[position] = { itemId: item.id, count: amount };
+      remaining -= amount;
+      nextFree = position + 1;
+    }
+  }
+
+  return overflow;
+}
+
 // Alin ang laman ng isang partikular na POSISYON sa bag GRID (0-based) -
 // "master" (default na posisyon ng isang item type, tingnan ang
 // itemDefaultBagPosition sa itaas - LIBRE pa rin ito, kung may ibang
@@ -1001,10 +1931,42 @@ function ensureDefaultBagPositions() {
 // saan, kasama na ang mga default na posisyon). Ginagamit ito kapwa ng
 // syncBagPanel (pag-render) AT ng move/peel logic sa ibaba (batay sa
 // cursor position).
+//
+// Ang "master" na resulta ay may kasamang "displayCount" ngayon (ang
+// bilang na TALAGANG dapat ipakita sa cell na ito - 99 pinakamataas
+// bawat isa) AT "isOverflow" (true kung ito ay isa sa mga "kumalat" na
+// overflow cell, hindi ang MISMONG itemDefaultBagPosition nito) - ang
+// PAG-KUHA (pickup)/gawi ng interaksyon ay PAREHONG "master" (mula sa
+// generic na unassigned pool, hindi tied sa isang partikular na
+// posisyon) - tingnan ang resolveTargetSourceAt/buildBagItemSlot.
 function resolveBagCellAt(position) {
   const stack = bagSplitStacks[position];
 
   if (stack) return { type: "split", index: position, stack };
+
+  // BAGO (mula sa scratch) - tingnan ang getBagDynamicPositions/
+  // resolveBagDynamicCellAt sa itaas: WALANG PERMANENTENG posisyon
+  // ang "bag" - dito muna ito sinusuri (bago pa man ang generic
+  // itemDefaultBagPosition/overflow na sistema sa ibaba, na PARA NA
+  // LANG sa ibang item type simula ngayon).
+  const bagDynamicCell = resolveBagDynamicCellAt(position);
+
+  if (bagDynamicCell) return bagDynamicCell;
+
+  const overflowEntry = computeMasterOverflowSlots()[position];
+
+  if (overflowEntry) {
+    const item = BAG_ITEMS.find((entry) => entry.id === overflowEntry.itemId);
+
+    if (item) {
+      return {
+        type: "master",
+        item,
+        displayCount: overflowEntry.count,
+        isOverflow: true,
+      };
+    }
+  }
 
   const itemId = Object.keys(itemDefaultBagPosition).find(
     (id) => itemDefaultBagPosition[id] === position,
@@ -1013,8 +1975,20 @@ function resolveBagCellAt(position) {
   if (itemId) {
     const item = BAG_ITEMS.find((entry) => entry.id === itemId);
 
-    if (item && getBagUnassignedCount(item.id) > 0 && !isItemEquippedToHand(item.id)) {
-      return { type: "master", item };
+    if (
+      item &&
+      getBagUnassignedCount(item.id) > 0 &&
+      !isItemEquippedToHand(item.id)
+    ) {
+      return {
+        type: "master",
+        item,
+        displayCount: Math.min(
+          getBagUnassignedCount(item.id),
+          MAX_EXPLICIT_STACK,
+        ),
+        isOverflow: false,
+      };
     }
   }
 
@@ -1031,10 +2005,20 @@ function resolveBagCellAt(position) {
 // (may natitira pang unassigned na bilang), inililipat muna ang default
 // na posisyon niyon sa TALAGANG bakanteng lugar, para hindi ito
 // mawala/matabunan.
+//
+// AYOS (hiling ng user, bagong "overflow" na cell): kung ang na-block
+// na cell ay isang OVERFLOW na cell lang (isOverflow: true, hindi ang
+// MISMONG itemDefaultBagPosition ng item na iyon), WALANG dapat
+// gawing "relocation" dito - ang overflow ay purong KOMPYUTADO/live
+// lang sa bawat render (computeMasterOverflowSlots), kaya kusa na lang
+// itong "lilipat" sa ibang libreng posisyon sa SUSUNOD na render kapag
+// na-block na ito ng bagong split stack - hindi kailangang galawin ang
+// itemDefaultBagPosition (na hindi naman TALAGANG nasa posisyong ito).
 function relocateMasterIfBlocking(position, incomingItemId) {
   const cell = resolveBagCellAt(position);
 
   if (cell.type !== "master") return;
+  if (cell.isOverflow) return;
   if (cell.item.id === incomingItemId) return; // parehong item lang - okay lang dito
 
   const takenPositions = new Set(Object.values(itemDefaultBagPosition));
@@ -1062,9 +2046,20 @@ function adjustGlobalItemCount(itemId, delta) {
   else if (itemId === "gold") goldCollected += delta;
   else if (itemId === "torch") torchesCollected += delta;
   else if (itemId === "crafter") craftersCollected += delta;
+  else if (itemId === "light") lightsCollected += delta;
   else if (itemId === "charcoal") charcoalCollected += delta;
   else if (itemId === "cookedmeat") cookedmeat += delta;
   else if (itemId === "stove") stovesCollected += delta;
+  else if (itemId === "bag") bagCollected += delta;
+  else if (itemId === "bed") bedsCollected += delta;
+  // BAGO (hiling ng user: "add ka pala bed sa crafter tyaka
+  // refrigerator") - bagong crafting material/item, ginagamit ito ng
+  // pagbili/pagbenta kay Oldman (wool/silk) at ng crafting/pag-drop
+  // (refrigerator/iron).
+  else if (itemId === "wool") woolCollected += delta;
+  else if (itemId === "silk") silkCollected += delta;
+  else if (itemId === "iron") ironCollected += delta;
+  else if (itemId === "refrigerator") refrigeratorCollected += delta;
   else if (itemId === "pickaxe" && delta < 0) pickaxeInInventory = false;
   else if (itemId === "rake" && delta < 0) rakeInInventory = false;
   else if (itemId === "axe" && delta < 0) axeInInventory = false;
@@ -1090,7 +2085,8 @@ function routeCollectedItemIncrease(itemId, count) {
   if (!itemId || count <= 0) return;
 
   for (const key in pinnedSlots) {
-    if (pinnedSlots[key] !== itemId || pinnedSlotCounts[key] === undefined) continue;
+    if (pinnedSlots[key] !== itemId || pinnedSlotCounts[key] === undefined)
+      continue;
 
     const slotIndex = Number(key);
     const room = Math.max(0, MAX_EXPLICIT_STACK - pinnedSlotCounts[slotIndex]);
@@ -1126,11 +2122,15 @@ function consumeItemFromWherever(itemId, count) {
   if (!itemId || count <= 0) return;
 
   for (const key in pinnedSlots) {
-    if (pinnedSlots[key] !== itemId || pinnedSlotCounts[key] === undefined) continue;
+    if (pinnedSlots[key] !== itemId || pinnedSlotCounts[key] === undefined)
+      continue;
 
     const slotIndex = Number(key);
 
-    pinnedSlotCounts[slotIndex] = Math.max(0, pinnedSlotCounts[slotIndex] - count);
+    pinnedSlotCounts[slotIndex] = Math.max(
+      0,
+      pinnedSlotCounts[slotIndex] - count,
+    );
 
     if (pinnedSlotCounts[slotIndex] <= 0) {
       delete pinnedSlots[slotIndex];
@@ -1163,8 +2163,7 @@ function updateFloatingGhostContent() {
   const badge = document.createElement("span");
 
   badge.className = "hotbar-badge";
-  badge.textContent =
-    floatingPickup.count > 99 ? "99+" : floatingPickup.count;
+  badge.textContent = floatingPickup.count > 99 ? "99+" : floatingPickup.count;
   floatingGhostEl.appendChild(badge);
 }
 
@@ -1268,7 +2267,11 @@ function moveFloatingToSlot(slotIndex, amount) {
 // nag-oobersayt nito - hiwalay na callback para magamit ito kapwa ng
 // hotbar slot (pinnedSlots/pinnedSlotCounts) at bag split-stack
 // (bagSplitStacks).
-function trySwapFloatingWithOccupiedSlot(getTargetItemId, getTargetCount, setTargetContent) {
+function trySwapFloatingWithOccupiedSlot(
+  getTargetItemId,
+  getTargetCount,
+  setTargetContent,
+) {
   if (!floatingPickup) return 0;
 
   const displacedItemId = getTargetItemId();
@@ -1277,7 +2280,11 @@ function trySwapFloatingWithOccupiedSlot(getTargetItemId, getTargetCount, setTar
   const movedCount = floatingPickup.count;
 
   setTargetContent(movedItemId, movedCount);
-  placeDisplacedItemAtSource(floatingPickup.source, displacedItemId, displacedCount);
+  placeDisplacedItemAtSource(
+    floatingPickup.source,
+    displacedItemId,
+    displacedCount,
+  );
   clearFloatingPickupState();
 
   return movedCount;
@@ -1325,7 +2332,11 @@ function pinCraftItemToSlot(slotIndex, itemId, amount) {
   // parehong item, huwag nang gumawa ng bagong slot dito, sa halip ay
   // manatili na lang ito sa bag stock (nadagdagan na ito ng
   // collectCraftOutput/consumeOneOfCraftItem BAGO tawagin ito).
-  if (!existing && typeof canDuplicateItemInSlot === "function" && !canDuplicateItemInSlot(itemId)) {
+  if (
+    !existing &&
+    typeof canDuplicateItemInSlot === "function" &&
+    !canDuplicateItemInSlot(itemId)
+  ) {
     return 0;
   }
 
@@ -1424,7 +2435,8 @@ function settleFloatBackToSource() {
   const { source, count } = floatingPickup;
 
   if (source.type === "slot") moveFloatingToSlot(source.slot, count);
-  else if (source.type === "bagSplit") moveFloatingToBagSplitIndex(source.index, count);
+  else if (source.type === "bagSplit")
+    moveFloatingToBagSplitIndex(source.index, count);
   else moveFloatingToBagMaster(count);
 
   if (floatingPickup) moveFloatingToBagMaster(floatingPickup.count);
@@ -1467,15 +2479,21 @@ function resolveTargetSourceAt(x, y) {
   if (slotIndex) {
     const itemId = pinnedSlots[slotIndex];
 
-    return itemId ? { source: { type: "slot", slot: slotIndex }, itemId } : null;
+    return itemId
+      ? { source: { type: "slot", slot: slotIndex }, itemId }
+      : null;
   }
 
   if (bagPosition !== null) {
     const cell = resolveBagCellAt(bagPosition);
 
-    if (cell.type === "master") return { source: { type: "bag" }, itemId: cell.item.id };
+    if (cell.type === "master")
+      return { source: { type: "bag" }, itemId: cell.item.id };
     if (cell.type === "split") {
-      return { source: { type: "bagSplit", index: cell.index }, itemId: cell.stack.itemId };
+      return {
+        source: { type: "bagSplit", index: cell.index },
+        itemId: cell.stack.itemId,
+      };
     }
   }
 
@@ -1494,7 +2512,11 @@ function sameSource(a, b) {
 // STANDALONE na "right-click = cut 1" (walang kailangang i-hold ang
 // left button - tingnan ang paliwanag sa itaas).
 function cutOneIntoFloat(source, itemId) {
-  if (floatingPickup && (floatingPickup.itemId !== itemId || !sameSource(floatingPickup.source, source))) {
+  if (
+    floatingPickup &&
+    (floatingPickup.itemId !== itemId ||
+      !sameSource(floatingPickup.source, source))
+  ) {
     return false;
   }
 
@@ -1551,7 +2573,10 @@ document.addEventListener("pointerdown", (event) => {
   if (dragState && dragState.activated && floatingPickup) {
     event.preventDefault();
 
-    const { slotIndex, bagPosition } = getDropTargetsAt(event.clientX, event.clientY);
+    const { slotIndex, bagPosition } = getDropTargetsAt(
+      event.clientX,
+      event.clientY,
+    );
 
     if (slotIndex) moveFloatingToSlot(slotIndex, 1);
     else if (bagPosition !== null) moveFloatingToBagPosition(bagPosition, 1);
@@ -1565,9 +2590,93 @@ document.addEventListener("pointerdown", (event) => {
 
   if (dragState) return; // may nangyayaring click/hold pa (di pa na-activate)
 
+  // AYOS (hiling ng user): "nandun na rin yung rightclick yung unuse/
+  // drop mapupunta sa inventory" - RIGHT-CLICK sa MISMONG equip slot ng
+  // bag (profile) habang naka-suot - "Unuse"/"Drop" na popup, kaparehong
+  // itsura ng "Use"/"Drop" sa ibaba (bag sa inventory). SINADYANG
+  // nilagay ito DITO (document-level, HINDI direktang element listener)
+  // - kasunod ng "outside click closer" (itaas ng file) sa PAGKAKASUNOD-
+  // SUNOD ng pagkaka-REGISTER, para hindi agad "isara" ang sarili
+  // niyang menu sa parehong event cycle (tingnan ang mas detalyadong
+  // paliwanag kung saan dating nakalagay ito, malapit sa useBagEquip).
+  if (
+    typeof bagEquipped !== "undefined" &&
+    bagEquipped &&
+    event.target.closest &&
+    event.target.closest("#equip-slot-bag")
+  ) {
+    event.preventDefault();
+
+    showBagActionMenu(event.clientX, event.clientY, [
+      { label: "Unuse", onClick: () => unequipBag() },
+      { label: "Drop", onClick: () => placeBagInWorld() },
+    ]);
+
+    return;
+  }
+
   const target = resolveTargetSourceAt(event.clientX, event.clientY);
 
   if (!target) return;
+
+  // BAGONG SPECIAL CASE: "bag" - sa halip na "cut 1 into float" (gawi ng
+  // LAHAT ng ibang item), lumalabas ang "Use"/"Drop" na menu (hiling ng
+  // user). Hindi ito humahantong sa cutOneIntoFloat.
+  if (target.itemId === "bag" && !floatingPickup) {
+    event.preventDefault();
+
+    showBagActionMenu(event.clientX, event.clientY, [
+      { label: "Use", onClick: () => useBagEquip() },
+      { label: "Drop", onClick: () => dropBagFromInventory() },
+    ]);
+
+    return;
+  }
+  // BAGONG SPECIAL CASE (hiling ng user): "Hold"/"Throw" - para sa mga
+  // "droppable sa ground" na item (Crafter/Stove/Light - tingnan ang
+  // HOLDABLE_ITEM_IDS, hold.js) - kaparehong-pareho ng gawi ng "bag" sa
+  // itaas (sariling popup menu, hindi humahantong sa cutOneIntoFloat).
+  // Kung ITO na mismo ang kasalukuyang HAWAK (heldItemId), "Unhold" ang
+  // lumalabas sa halip na "Hold".
+  if (
+    typeof HOLDABLE_ITEM_IDS !== "undefined" &&
+    HOLDABLE_ITEM_IDS.includes(target.itemId) &&
+    !floatingPickup
+  ) {
+    event.preventDefault();
+
+    const alreadyHeld =
+      typeof heldItemId !== "undefined" && heldItemId === target.itemId;
+
+    showBagActionMenu(event.clientX, event.clientY, [
+      alreadyHeld
+        ? { label: "Unhold", onClick: () => unholdItem() }
+        : { label: "Hold", onClick: () => holdItem(target.itemId) },
+      { label: "Throw", onClick: () => throwItem(target.itemId) },
+    ]);
+
+    return;
+  }
+
+  // BAGONG SPECIAL CASE (hiling ng user): "food" (EDIBLE_ITEMS - carrot,
+  // atbp.) - lumalabas ang "Use" na menu (isang buton lang) sa halip na
+  // "cut 1 into float" (dating/generic na gawi) - kaparehong-pareho ng
+  // gawi ng "bag"/HOLDABLE sa itaas. Gumagana ito KAHIT SAAN nakikita
+  // ang food (bag master cell, bag split-stack, O naka-pin na hotbar
+  // slot) dahil generic na ang resolveTargetSourceAt sa parehong source.
+  if (
+    typeof EDIBLE_ITEMS !== "undefined" &&
+    EDIBLE_ITEMS[target.itemId] &&
+    !floatingPickup
+  ) {
+    event.preventDefault();
+
+    showBagActionMenu(event.clientX, event.clientY, [
+      { label: "Use", onClick: () => eatItem(target.itemId) },
+    ]);
+
+    return;
+  }
 
   if (cutOneIntoFloat(target.source, target.itemId)) event.preventDefault();
 });
@@ -1575,16 +2684,13 @@ document.addEventListener("pointerdown", (event) => {
 // Pigilan ang OS/browser context menu habang may lumulutang O naka-hawak
 // (ang right-click dito ay para sa "cut/bawas", hindi para sa menu).
 document.addEventListener("contextmenu", (event) => {
-  if (floatingPickup || (dragState && dragState.activated)) event.preventDefault();
+  if (floatingPickup || (dragState && dragState.activated))
+    event.preventDefault();
 });
 
 function getItemIconHTML(item) {
   if (item.icon) {
-    return (
-      '<img src="' +
-      item.icon +
-      '" alt="" class="hotbar-slot-item-img">'
-    );
+    return '<img src="' + item.icon + '" alt="" class="hotbar-slot-item-img">';
   }
   if (item.iconEmoji) {
     return '<span class="hotbar-icon">' + item.iconEmoji + "</span>";
@@ -1607,8 +2713,10 @@ function startPointerAction(source, slotIndexOrItemId, event) {
   if (floatingPickup && (!dragState || !dragState.activated)) {
     event.preventDefault();
 
-    if (source === "slot") moveFloatingToSlot(slotIndexOrItemId, floatingPickup.count);
-    else if (source === "bagSplit") moveFloatingToBagSplitIndex(slotIndexOrItemId, floatingPickup.count);
+    if (source === "slot")
+      moveFloatingToSlot(slotIndexOrItemId, floatingPickup.count);
+    else if (source === "bagSplit")
+      moveFloatingToBagSplitIndex(slotIndexOrItemId, floatingPickup.count);
     else moveFloatingToBagMaster(floatingPickup.count);
 
     if (floatingPickup) settleFloatBackToSource(); // hindi kumasya lahat - ibalik ang natira
@@ -1765,13 +2873,19 @@ function getDropTargetsAt(x, y) {
   const trashEl = el.closest && el.closest("#bag-trash");
   const leftHandEl = el.closest && el.closest("#equip-slot-lefthand");
   const rightHandEl = el.closest && el.closest("#equip-slot-righthand");
+  // AYOS (hiling ng user): "kapag na drag ko yung bag papuntang bag
+  // slot sa profile" - pangalawang paraan (bukod sa right-click "Use")
+  // para i-equip ang bag - i-drag/i-drop diretso sa #equip-slot-bag.
+  const bagSlotEl = el.closest && el.closest("#equip-slot-bag");
   // "#bag-panel" o "#stove-panel" - PAREHONG bag data ang ipinapakita
   // nila (tingnan ang renderBagGridInto/#stove-panel-grid sa
   // stove.js), kaya PAREHONG "overBag" ang dalawa.
   const bagEl = el.closest && el.closest("#bag-panel, #stove-panel");
   const bagCellEl =
     el.closest &&
-    el.closest("#bag-panel-grid > [data-bag-position], #stove-panel-grid > [data-bag-position]");
+    el.closest(
+      "#bag-panel-grid > [data-bag-position], #stove-panel-grid > [data-bag-position]",
+    );
   const craftInputEl = el.closest && el.closest(".craft-input-slot");
   const craftOutputEl = el.closest && el.closest("#craft-output-slot");
   const smeltInputEl = el.closest && el.closest(".smelt-input-slot");
@@ -1786,13 +2900,16 @@ function getDropTargetsAt(x, y) {
     overTrash: !!trashEl,
     overLeftHand: !!leftHandEl,
     overRightHand: !!rightHandEl,
+    overBagSlot: !!bagSlotEl,
     overBag: !!bagEl,
     overCanvas: el.id === "gameCanvas",
     // Posisyon (0-based) ng bag grid cell na kasalukuyang tinuturo.
     bagPosition: bagCellEl ? Number(bagCellEl.dataset.bagPosition) : null,
     // Posisyon (0-based) ng craft input cell na kasalukuyang tinuturo,
     // kung meron (tingnan ang craft.js).
-    craftInputSlot: craftInputEl ? Number(craftInputEl.dataset.craftSlot) : null,
+    craftInputSlot: craftInputEl
+      ? Number(craftInputEl.dataset.craftSlot)
+      : null,
     overCraftOutput: !!craftOutputEl,
     // "ingredient" o "fuel" - alin sa dalawang smelt input slot ng
     // #stove-panel ang kasalukuyang tinuturo (tingnan ang stove.js).
@@ -1844,7 +2961,8 @@ document.addEventListener("pointermove", (event) => {
     dragState.activated = true;
   }
 
-  if (usesFloatEconomy(dragState.source)) moveFloatingGhost(event.clientX, event.clientY);
+  if (usesFloatEconomy(dragState.source))
+    moveFloatingGhost(event.clientX, event.clientY);
   else moveDragGhost(event.clientX, event.clientY);
 
   clearDropHighlights();
@@ -1853,6 +2971,7 @@ document.addEventListener("pointermove", (event) => {
     slotIndex,
     overTrash,
     overLeftHand,
+    overBagSlot,
     overBag,
     bagPosition,
     craftInputSlot,
@@ -1867,30 +2986,31 @@ document.addEventListener("pointermove", (event) => {
   } else if (overTrash) {
     document.getElementById("bag-trash")?.classList.add("drop-target");
   } else if (overLeftHand && dragState.itemId === "torch") {
-    document.getElementById("equip-slot-lefthand")?.classList.add("drop-target");
-  } else if (
-    craftInputSlot !== null &&
-    usesFloatEconomy(dragState.source)
-  ) {
+    document
+      .getElementById("equip-slot-lefthand")
+      ?.classList.add("drop-target");
+  } else if (overBagSlot && dragState.itemId === "bag") {
+    document.getElementById("equip-slot-bag")?.classList.add("drop-target");
+  } else if (craftInputSlot !== null && usesFloatEconomy(dragState.source)) {
     document
       .querySelector(`.craft-input-slot[data-craft-slot="${craftInputSlot}"]`)
       ?.classList.add("drop-target");
   } else if (overCraftOutput && dragState.source === "craft-output") {
     document.getElementById("craft-output-slot")?.classList.add("drop-target");
-  } else if (
-    smeltInputSlot &&
-    usesFloatEconomy(dragState.source)
-  ) {
+  } else if (smeltInputSlot && usesFloatEconomy(dragState.source)) {
     document
       .querySelector(`.smelt-input-slot[data-smelt-slot="${smeltInputSlot}"]`)
       ?.classList.add("drop-target");
   } else if (
     overSmeltOutput &&
-    (dragState.source === "smelt-ingredient" || dragState.source === "smelt-fuel")
+    (dragState.source === "smelt-ingredient" ||
+      dragState.source === "smelt-fuel")
   ) {
     document.getElementById("stove-output-slot")?.classList.add("drop-target");
   } else if (slotIndex) {
-    document.getElementById("hotbar-slot-" + slotIndex)?.classList.add("drop-target");
+    document
+      .getElementById("hotbar-slot-" + slotIndex)
+      ?.classList.add("drop-target");
   } else if (
     bagPosition !== null &&
     (usesFloatEconomy(dragState.source) ||
@@ -1962,6 +3082,7 @@ document.addEventListener("pointerup", (event) => {
     slotIndex,
     overTrash,
     overLeftHand,
+    overBagSlot,
     overBag,
     overCanvas,
     bagPosition,
@@ -2013,19 +3134,45 @@ document.addEventListener("pointerup", (event) => {
       // saan (hindi rin nabawasan ang stock - boolean lang ang equip).
       if (!torchEquipped) equipTorch();
       clearFloatingPickupState();
+    } else if (overBagSlot && floatingPickup.itemId === "bag") {
+      // AYOS (hiling ng user): "kapag na drag ko yung bag papuntang bag
+      // slot sa profile, once na drop ko dun sa slot is automatic mag
+      // equip" - PAREHONG dahilan/gawi ng torch sa left hand sa itaas -
+      // "ginamit" na ito (bagEquipped = true), hindi na ibinabalik/
+      // nabawasan ang stock (boolean/toggle lang din ang "suot ba" -
+      // tingnan ang useBagEquip, itaas).
+      if (!bagEquipped) useBagEquip();
+      clearFloatingPickupState();
     } else if (craftInputSlot !== null) {
-      // Isang piraso lang kada craft cell (tingnan ang craft.js) - ang
-      // NATITIRA sa hawak ay ibinabalik pabalik sa pinagmulan.
+      // AYOS (hiling ng user): "yung slots sa crafter is di nalalagyan
+      // ng 99 woods... kung yung woods ay more than one pwede siya
+      // madrag" - BUONG HAWAK (floatingPickup.count) na ang ipinapasa
+      // ngayon (dating 1 lang, laging natitira ang sobra) - kung KASYA
+      // (base sa MAX_CRAFT_STACK ng cell at sa TALAGANG stock),
+      // BUONG stack ang naiilagay sa ISANG paglagay/drag lang. Ang
+      // AKTWAL na naibawas sa hawak ay base sa TALAGANG naiLAGAY
+      // (placedAmount, ibinalik ng placeCraftIngredient) - hindi na
+      // basta 1 - ang NATITIRA lang (kung meron, hal. puno na ang
+      // cell bago pa naubos ang buong hawak) ang ibinabalik pabalik sa
+      // pinagmulan.
       if (typeof placeCraftIngredient === "function") {
-        placeCraftIngredient(craftInputSlot, floatingPickup.itemId);
-        floatingPickup.count--;
+        const placedAmount = placeCraftIngredient(
+          craftInputSlot,
+          floatingPickup.itemId,
+          floatingPickup.count,
+        );
+
+        floatingPickup.count -= placedAmount;
 
         if (floatingPickup.count <= 0) clearFloatingPickupState();
         else settleFloatBackToSource();
       } else {
         settleFloatBackToSource();
       }
-    } else if (smeltInputSlot === "fuel" && !SMELT_FUEL_ITEMS.has(floatingPickup.itemId)) {
+    } else if (
+      smeltInputSlot === "fuel" &&
+      !SMELT_FUEL_ITEMS.has(floatingPickup.itemId)
+    ) {
       // "Strictly" wood/charcoal LANG ang tinatanggap ng fuel slot
       // (tingnan ang SMELT_FUEL_ITEMS sa stove.js) - basta ibalik sa
       // pinagmulan kung ibang item ito.
@@ -2036,7 +3183,11 @@ document.addEventListener("pointerup", (event) => {
       // NATITIRA lang (kung meron - hal. tumangging tumanggap dahil
       // ibang item type na ang laman) ang ibinabalik sa pinagmulan.
       if (typeof placeSmeltItem === "function") {
-        const placed = placeSmeltItem(smeltInputSlot, floatingPickup.itemId, floatingPickup.count);
+        const placed = placeSmeltItem(
+          smeltInputSlot,
+          floatingPickup.itemId,
+          floatingPickup.count,
+        );
 
         floatingPickup.count -= placed;
 
@@ -2114,6 +3265,12 @@ document.addEventListener("pointerup", (event) => {
       dropItemFromSlotIntoWorld(dragState.itemId, droppedAmount);
     }
 
+    // AYOS: dahil hindi na "pre-consumed" ang mga input cell (tingnan
+    // ang updateCraftOutputFromInputs sa craft.js), kailangang i-refresh
+    // ang preview ng output - baka nasira na ang pattern.
+    if (typeof updateCraftOutputFromInputs === "function")
+      updateCraftOutputFromInputs();
+
     if (typeof syncCraftPanel === "function") syncCraftPanel();
 
     syncHotbarUI();
@@ -2174,7 +3331,8 @@ document.addEventListener("pointerup", (event) => {
     // dapat sa BAG, hotbar slot, o sa mundo (canvas) lang talagang
     // "makuha" ito.
   } else if (
-    (dragState.source === "smelt-ingredient" || dragState.source === "smelt-fuel") &&
+    (dragState.source === "smelt-ingredient" ||
+      dragState.source === "smelt-fuel") &&
     overCanvas
   ) {
     // Kaparehong-pareho ng gawi ng craft-input - itinapon sa MUNDO
@@ -2182,7 +3340,9 @@ document.addEventListener("pointerup", (event) => {
     // BUONG STACK (hindi lang 1) ang natatanggal/nahuhulog ngayon -
     // tingnan ang removeSmeltItem (stove.js).
     const removed =
-      typeof removeSmeltItem === "function" ? removeSmeltItem(dragState.smeltSlotType, false) : null;
+      typeof removeSmeltItem === "function"
+        ? removeSmeltItem(dragState.smeltSlotType, false)
+        : null;
 
     if (removed && typeof dropItemFromSlotIntoWorld === "function") {
       dropItemFromSlotIntoWorld(removed.itemId, removed.count);
@@ -2205,7 +3365,8 @@ document.addEventListener("pointerup", (event) => {
 
     syncHotbarUI();
   } else if (
-    (dragState.source === "smelt-ingredient" || dragState.source === "smelt-fuel") &&
+    (dragState.source === "smelt-ingredient" ||
+      dragState.source === "smelt-fuel") &&
     (overBag || slotIndex || bagPosition !== null)
   ) {
     // BUONG STACK (hindi lang 1) ang inaalis/naibabalik sa bag/hotbar
@@ -2214,7 +3375,9 @@ document.addEventListener("pointerup", (event) => {
     // lang direktang i-pin ang buong natanggal na count kung may
     // partikular na target na slotIndex.
     const removed =
-      typeof removeSmeltItem === "function" ? removeSmeltItem(dragState.smeltSlotType, true) : null;
+      typeof removeSmeltItem === "function"
+        ? removeSmeltItem(dragState.smeltSlotType, true)
+        : null;
 
     if (removed && slotIndex && typeof pinCraftItemToSlot === "function") {
       pinCraftItemToSlot(slotIndex, removed.itemId, removed.count);
@@ -2261,9 +3424,9 @@ document.addEventListener("pointerup", (event) => {
 // mismong hotbar slot. Right hand: puwedeng i-drag palabas ang
 // kasalukuyang naka-equip na working tool - i-unequip lang ito.
 
-document.getElementById("equip-slot-lefthand")?.addEventListener(
-  "pointerdown",
-  (event) => {
+document
+  .getElementById("equip-slot-lefthand")
+  ?.addEventListener("pointerdown", (event) => {
     if (!torchEquipped) return;
 
     dragState = {
@@ -2286,13 +3449,14 @@ document.getElementById("equip-slot-lefthand")?.addEventListener(
     moveDragGhost(event.clientX, event.clientY);
 
     event.preventDefault();
-  },
-);
+  });
 
-document.getElementById("equip-slot-righthand")?.addEventListener(
-  "pointerdown",
-  (event) => {
-    const activeTool = EQUIP_RIGHT_HAND_ICON_BY_TOOL.find((entry) => entry.equipped());
+document
+  .getElementById("equip-slot-righthand")
+  ?.addEventListener("pointerdown", (event) => {
+    const activeTool = EQUIP_RIGHT_HAND_ICON_BY_TOOL.find((entry) =>
+      entry.equipped(),
+    );
 
     if (!activeTool) return;
 
@@ -2312,20 +3476,59 @@ document.getElementById("equip-slot-righthand")?.addEventListener(
     moveDragGhost(event.clientX, event.clientY);
 
     event.preventDefault();
-  },
-);
+  });
 
 // Double-click - dagdag na paraan (bukod sa pag-drag pabalik sa bag)
 // para talagang i-DEQUIP ang laman ng left/right hand.
-document.getElementById("equip-slot-lefthand")?.addEventListener("dblclick", () => {
-  if (torchEquipped) equipTorch();
-  syncHotbarUI();
-});
+document
+  .getElementById("equip-slot-lefthand")
+  ?.addEventListener("dblclick", () => {
+    if (torchEquipped) equipTorch();
+    syncHotbarUI();
+  });
 
-document.getElementById("equip-slot-righthand")?.addEventListener("dblclick", () => {
-  unequipRightHandTool();
-  syncHotbarUI();
-});
+document
+  .getElementById("equip-slot-righthand")
+  ?.addEventListener("dblclick", () => {
+    unequipRightHandTool();
+    syncHotbarUI();
+  });
+
+// BAGO (hiling ng user): "kapag left click sa bag is unuse yung label" -
+// ang #equip-slot-bag (dating "gauntlet-left") ay nagiging bag icon
+// kapag naka-suot (tingnan ang syncEquipmentPanel sa itaas) - LEFT-
+// CLICK dito habang nakikita ang bag ay nag-uunequip (bumabalik sa
+// dating 🎒 placeholder). Walang epekto ang click na ito kapag hindi
+// naman naka-suot ang bag.
+// AYOS (hiling ng user): "nandun na rin yung rightclick yung unuse/
+// drop mapupunta sa inventory" - kaparehong-pareho ng "Use"/"Drop" na
+// popup sa loob ng bag/inventory (itaas) - ngayon RIGHT-CLICK (hindi
+// na left-click) ang nagpapalabas ng popup ("Unuse"/"Drop") DITO SA
+// MISMONG equip slot habang naka-suot ang bag. "Unuse" = unequipBag()
+// (babalik sa inventory, buo pa rin ang bagCollected). "Drop" =
+// placeBagInWorld() (lalabas sa mundo, mababawasan ang stock).
+//
+// AYOS (bug fix): dating NAKA-ATTACH ito nang DIREKTA sa element mismo
+// (#equip-slot-bag.addEventListener) - PERO may HIWALAY na document-
+// level na "isara kapag may pointerdown SA LABAS ng menu" (itaas,
+// bagActionMenuEl). Dahil sa PAGKAKASUNOD-SUNOD ng DOM bubbling (target
+// element muna, saka pa lang document sa dulo), ang element-specific
+// listener na ito (nagbubukas ng menu) ay UNANG tumatakbo, TAPOS
+// bumubula papunta sa document - kung saan AGAD itong isinasara ng
+// "outside click" checker (dahil ang menu, na bagong-bago pa lang
+// nagawa, ay HINDI naman "nasa loob" ng element na ito - hiwalay na
+// child ito ng <body>) - PAREHONG event cycle pa lang, "nabubukas"
+// tapos "agad nasasara" - kaya parang WALANG NANGYAYARI sa paningin.
+// Inilipat na ito papunta sa PAREHONG document-level na pointerdown
+// listener (sa ibaba, kasabay ng "bag" sa inventory) - doon, dahil
+// PAREHONG naka-DOCUMENT level ang menu-opener AT ang outside-closer,
+// ang PAGKAKASUNOD-SUNOD ng PAGKAKA-REGISTER (hindi ng DOM bubbling)
+// ang bahalang sumunod - naka-ayos na ito (outside-closer muna
+// nakalagay sa itaas ng file, bago pa man ang menu-opener) kaya walang
+// self-close na problema.
+document
+  .getElementById("equip-slot-bag")
+  ?.addEventListener("contextmenu", (event) => event.preventDefault());
 
 // Permanenteng pagtanggal ng isang item (tingnan ang "#bag-trash" sa
 // itaas) - hindi tulad ng pagtapon sa canvas (dropItemFromSlotIntoWorld),
@@ -2468,12 +3671,12 @@ function syncPinnedSlots() {
         "active",
         i === selectedInventorySlot || (itemId === "torch" && torchEquipped),
       );
-      slot.title =
-        itemId === "carrot"
-          ? item.label + " - binhi ng carrots"
-          : itemId === "torch"
-            ? item.label + " - i-double click para i-equip"
-            : item.label;
+      slot.title = EDIBLE_ITEMS[itemId]
+        ? getFoodTooltipText(itemId) +
+          "\n\nbinhi ng carrots, o right-click para gamitin (Use)"
+        : itemId === "torch"
+          ? item.label + " - i-double click para i-equip"
+          : item.label;
       slot.innerHTML = "";
 
       if (item.icon) {
@@ -2538,6 +3741,23 @@ function toggleBagPanel() {
   bagPanelOpen = !bagPanelOpen;
   syncBagPanel();
 
+  // AYOS (hiling ng user): kasabay/"nakadikit" sa #bag-panel ang
+  // craft dock (basic 2x2) AT ang crafter-dock (advanced 3x3) - kaya
+  // kapag ISINARA ang bag panel dito (hal. pagpindot ng 'B'/'b' key),
+  // TALAGANG "nasasara" na rin ang crafting panel kahit hindi mismo
+  // ang close button nito ang pinindot - dapat din itong dumaan sa
+  // closeCraftPanel (craft.js) para maibalik/ma-refund ang anumang
+  // naiwang laman sa mga pattern slot (kaparehong-pareho ng
+  // pinagbatayan na fix sa craft.js - tingnan doon).
+  if (
+    !bagPanelOpen &&
+    typeof craftPanelOpen !== "undefined" &&
+    craftPanelOpen &&
+    typeof closeCraftPanel === "function"
+  ) {
+    closeCraftPanel();
+  }
+
   // Ang crafting panel ay kasalukuyang nakikita LANG habang bukas din
   // ang bag (tingnan ang syncCraftPanel) - kailangan itong i-refresh
   // din dito, hindi lang sa syncHotbarUI, dahil ang bag toggle button
@@ -2580,12 +3800,27 @@ function renderBagGridInto(gridEl) {
   // placeholder - tingnan ang resolveBagCellAt.
   gridEl.innerHTML = "";
 
-  for (let i = 0; i < BAG_GRID_COLUMNS * BAG_GRID_ROWS; i++) {
+  // AYOS (hiling ng user): "kapag wala pang bag dapat kung ano na yung
+  // max slots nandun na pero naka disabled lang" - dating "nagtatago"
+  // (hindi ginuguhit) ang mga cell LAMPAS sa kasalukuyang aktibong
+  // bilang ng hanay (getActiveBagGridRows) hangga't hindi pa naka-suot
+  // ang bag. Ngayon, LAGING BUONG 120 slot (BAG_GRID_ROWS_MAX) ang
+  // ginuguhit - ang mga cell na LAMPAS sa aktibong hanay na lang ang
+  // may dagdag na klase na "bag-slot-locked" (tingnan ang style.css):
+  // makikita pa rin ang mga ito (naka-gray/disabled), pero hindi na
+  // magagamit (walang pointer events - elementFromPoint mismo, tingnan
+  // ang getDropTargetsAt, ay awtomatiko nang lalampas dito papuntang
+  // kung ano man ang nasa likod, kaya hindi rin dito puwedeng mag-drop).
+  const activeRows = getActiveBagGridRows();
+
+  for (let i = 0; i < BAG_GRID_COLUMNS * BAG_GRID_ROWS_MAX; i++) {
     const cellInfo = resolveBagCellAt(i);
     let cell;
 
-    if (cellInfo.type === "master") cell = buildBagItemSlot(cellInfo.item);
-    else if (cellInfo.type === "split") cell = buildBagSplitStackSlot(cellInfo.index, cellInfo.stack);
+    if (cellInfo.type === "master")
+      cell = buildBagItemSlot(cellInfo.item, cellInfo.displayCount);
+    else if (cellInfo.type === "split")
+      cell = buildBagSplitStackSlot(cellInfo.index, cellInfo.stack);
     else cell = buildEmptyBagSlot(i);
 
     // Posisyon nito sa grid (0-based) - ginagamit para malaman kung
@@ -2593,19 +3828,32 @@ function renderBagGridInto(gridEl) {
     // naka-drag (tingnan ang getDropTargetsAt/pointerup sa itaas).
     cell.dataset.bagPosition = String(i);
 
+    const row = Math.floor(i / BAG_GRID_COLUMNS);
+
+    if (row >= activeRows) {
+      cell.classList.add("bag-slot-locked");
+      cell.title = "Bumili muna ng Backpack sa oldman para magamit ito";
+    }
+
     gridEl.appendChild(cell);
   }
 }
 
-function buildBagItemSlot(item) {
+// AYOS (hiling ng user): tumatanggap na ngayon ng "displayCount" (mula
+// sa resolveBagCellAt - 99 pinakamataas, kahit sa MISMONG master cell
+// o sa isa sa mga "overflow" na cell nito) - hindi na basta ang BUONG
+// getBagUnassignedCount(item.id) (dating gawi, puwedeng lumagpas sa 99
+// at magpakita ng malaking hilaw na numero sa iisang cell lang).
+function buildBagItemSlot(item, displayCount) {
   const slot = document.createElement("div");
 
   slot.className = "bag-item bag-item-plantable";
   slot.title = EDIBLE_ITEMS[item.id]
-    ? item.label +
-      " - i-click para i-highlight, i-drag papunta sa right hand para itanim bilang binhi, o i-double click para kainin"
+    ? getFoodTooltipText(item.id) +
+      "\n\ni-click para i-highlight, i-drag papunta sa right hand para itanim bilang binhi, o right-click para gamitin (Use)"
     : DOUBLE_CLICK_EQUIPABLE_ITEMS.has(item.id)
-      ? item.label + " - i-click/i-drag papunta sa hotbar, o i-double click para i-equip"
+      ? item.label +
+        " - i-click/i-drag papunta sa hotbar, o i-double click para i-equip"
       : item.label + " - i-click o i-drag papunta sa hotbar";
 
   // Ang "active"/gold highlight dito ay PURONG sumusunod na lang sa
@@ -2656,10 +3904,15 @@ function buildBagItemSlot(item) {
   const count = document.createElement("span");
 
   count.className = "bag-item-count";
-  // Ang natitira lang sa MASTER pool (bukod sa eksplisitong nakalaan
-  // na sa hotbar/bag split-stacks - tingnan ang getBagUnassignedCount),
-  // hindi ang buong TOTAL na stock.
-  count.textContent = getBagUnassignedCount(item.id);
+  // AYOS (hiling ng user): "max 99 item lang each slots" - ang
+  // displayCount na ibinigay ng resolveBagCellAt ang ipinapakita dito
+  // (naka-cap na sa 99 - kung mas marami pa, doon na ito "kumakalat"
+  // sa susunod na cell/cells - tingnan ang computeMasterOverflowSlots),
+  // hindi na ang buong/hilaw na getBagUnassignedCount(item.id).
+  count.textContent =
+    typeof displayCount === "number"
+      ? displayCount
+      : getBagUnassignedCount(item.id);
 
   slot.appendChild(count);
 
@@ -2689,9 +3942,13 @@ function buildBagSplitStackSlot(index, stack) {
   const slot = document.createElement("div");
 
   slot.className = "bag-item bag-item-plantable";
-  slot.title = item.label + " - hiwalay na split-stack";
+  slot.title = EDIBLE_ITEMS[item.id]
+    ? getFoodTooltipText(item.id) + "\n\n(hiwalay na split-stack)"
+    : item.label + " - hiwalay na split-stack";
 
-  slot.addEventListener("pointerdown", (event) => startPointerAction("bagSplit", index, event));
+  slot.addEventListener("pointerdown", (event) =>
+    startPointerAction("bagSplit", index, event),
+  );
 
   slot.addEventListener("contextmenu", (event) => event.preventDefault());
 
@@ -2833,8 +4090,10 @@ function setupDraggablePanel(panelId, headerId) {
     const maxLeft = window.innerWidth - panel.offsetWidth;
     const maxTop = window.innerHeight - panel.offsetHeight;
 
-    panel.style.left = Math.max(0, Math.min(maxLeft, event.clientX - offsetX)) + "px";
-    panel.style.top = Math.max(0, Math.min(maxTop, event.clientY - offsetY)) + "px";
+    panel.style.left =
+      Math.max(0, Math.min(maxLeft, event.clientX - offsetX)) + "px";
+    panel.style.top =
+      Math.max(0, Math.min(maxTop, event.clientY - offsetY)) + "px";
   });
 
   header.addEventListener("pointerup", (event) => {

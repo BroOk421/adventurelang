@@ -22,7 +22,7 @@
 // pagputi/pag-flash ng buong screen (parang kidlat), random ang
 // pagitan - tingnan ang drawThunderFlash.
 
-const RAIN_DROP_COUNT = 150;
+const RAIN_DROP_COUNT = 50;
 
 // Light blue ang kulay ng ulan. Iisa lang ang kulay - ang tier (sa
 // ibaba) ang nagbabago ng opacity/laki/bilis, hindi ng kulay.
@@ -50,8 +50,8 @@ const RAIN_TIERS = [
   },
   {
     name: "mid",
-    speedMin: 10,
-    speedMax: 13,
+    speedMin: 6,
+    speedMax: 8,
     lengthMin: 9,
     lengthMax: 13,
     opacityMin: 0.32,
@@ -61,8 +61,8 @@ const RAIN_TIERS = [
   },
   {
     name: "bottom",
-    speedMin: 14,
-    speedMax: 18,
+    speedMin: 7,
+    speedMax: 8,
     lengthMin: 13,
     lengthMax: 18,
     opacityMin: 0.5,
@@ -342,6 +342,92 @@ function getThunderFlashAlpha() {
   return 1 - withinSlot / THUNDER_FLASH_SECONDS;
 }
 
+// BAGO (hiling ng user): "kung kaya mo mag-lagay ng lightning kapag
+// nagbabagyo sa rain, mag-lightning sa random na area ng map" -
+// hiwalay na "bolt" (kidlat na guhit, hindi lang basta pagputi ng
+// buong screen) na lumalabas sa isang RANDOM na (x,y) ng KASALUKUYANG
+// mapa, PAREHONG "slot" (THUNDER_SLOT_SECONDS) ang batayan ng
+// pagpili ng posisyon nito - kaya STABLE ang lokasyon sa BUONG
+// 0.18s na tagal ng isang flash (hindi bumabago-bago kada frame),
+// pero IBA-IBA (at HINDI mahuhulaan) sa bawat susunod na flash.
+function getThunderBoltWorldPosition(slot) {
+  if (!mapReady || !mapData || !mapData.width || !mapData.height) return null;
+
+  const mapWidthPx = mapData.width * mapData.tilewidth;
+  const mapHeightPx = mapData.height * mapData.tileheight;
+
+  // Magkaibang seed offset sa ginagamit na ng "may flash ba sa slot na
+  // ito" (13) at ng sound-slot tracking, para hindi sila magkatugma/
+  // mag-correlate sa isa't isa.
+  const rx = seededRandom(slot * 977 + 501);
+  const ry = seededRandom(slot * 977 + 733);
+
+  return { x: rx * mapWidthPx, y: ry * mapHeightPx };
+}
+
+// Guhit ng MISMONG kidlat - isang jagged/zigzag na linya mula sa itaas
+// ng screen (langit) pababa sa TALAGANG (random) na puwesto sa mapa.
+// Screen space ito (kaparehong dahilan ng buong flash sa itaas), kaya
+// manual ang world-to-screen na conversion (camera.x/camera.zoom) -
+// kung LABAS sa (o malayong-malayo sa) kasalukuyang view ang random na
+// puwesto, LAKTAWAN na lang ang pagguhit ng bolt (natural lang na
+// "malayo" ang kidlat na iyon - makikita/mararamdaman pa rin ang
+// pagputi ng buong screen, tingnan ang drawThunderFlash).
+function drawLightningBolt(alpha, slot) {
+  const groundWorld = getThunderBoltWorldPosition(slot);
+
+  if (!groundWorld) return;
+
+  const groundX = (groundWorld.x - camera.x) * camera.zoom;
+  const groundY = (groundWorld.y - camera.y) * camera.zoom;
+
+  const margin = 240;
+
+  if (
+    groundX < -margin ||
+    groundX > canvas.width + margin ||
+    groundY < -margin ||
+    groundY > canvas.height + margin
+  ) {
+    return;
+  }
+
+  // Jagged na landas - ilang random (pero STABLE kada slot) na
+  // zigzag na tuldok sa pagitan ng itaas ng screen at ng puwesto sa
+  // lupa, tapos isang tuwid na linya na lang sa pagitan ng bawat isa.
+  const segments = 6;
+  const points = [{ x: groundX, y: -60 }];
+
+  for (let i = 1; i < segments; i++) {
+    const t = i / segments;
+    const y = -60 + (groundY - -60) * t;
+    const jitter = (seededRandom(slot * 977 + 601 + i) - 0.5) * 46;
+
+    points.push({ x: groundX + jitter, y });
+  }
+
+  points.push({ x: groundX, y: groundY });
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = "rgba(225, 238, 255, 0.95)";
+  ctx.lineWidth = 3;
+  ctx.shadowColor = "rgba(195, 222, 255, 0.9)";
+  ctx.shadowBlur = 16;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i].x, points[i].y);
+  }
+
+  ctx.stroke();
+  ctx.restore();
+}
+
 // Screen space, sa PINAKAIBABAW ng lahat (kahit ng snow) - kidlat ito,
 // dapat kitang-kita saan mang parte ng screen.
 function drawThunderFlash() {
@@ -354,4 +440,12 @@ function drawThunderFlash() {
   ctx.fillStyle = "white";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.restore();
+
+  // Parehong "slot" formula ng getThunderFlashAlpha sa itaas - dapat
+  // TALAGANG magkatugma para STABLE ang puwesto ng bolt sa buong
+  // tagal ng flash na ito.
+  const t = Date.now() / 1000;
+  const slot = Math.floor(t / THUNDER_SLOT_SECONDS);
+
+  drawLightningBolt(alpha, slot);
 }

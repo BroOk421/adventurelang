@@ -25,7 +25,6 @@
 //   - hashStringToInt (resources.js), seededRandom (calendar.js)
 //   - isColliding (collisions.js), getObjectCells/isTileInReach/
 //     getMouseTile (dig.js)
-//   - startPunchStrike (player.js)
 
 const PIG_COUNT_PER_WORLD = 10;
 
@@ -403,47 +402,51 @@ function startPigWalk(pig) {
   pig.idleFacing8 = angleTo8Direction(dx, dy);
 }
 
-function stepPigWalk(pig, deltaMs) {
-  const dx = pig.targetX - pig.x;
-  const dy = pig.targetY - pig.y;
-  const dist = Math.hypot(dx, dy);
-  const step = (PIG_WALK_SPEED_PX_PER_SEC * deltaMs) / 1000;
+function finishPigWalk(pig) {
+  pig.moving = false;
+  pig.state = "idle";
+  pig.phaseUntil =
+    performance.now() + randomBetween(PIG_IDLE_MIN_MS, PIG_IDLE_MAX_MS);
+}
 
-  if (dist <= step || dist === 0) {
-    pig.x = pig.targetX;
-    pig.y = pig.targetY;
+function stepPigWalk(pig, deltaMs) {
+  // KAPAREHONG AYOS ng oldman (tingnan ang moveFeetTowards/
+  // clampWanderDelta sa decor.js): naka-clamp na deltaMs, hakbang-
+  // hakbang na collision check, at axis sliding - kaya hindi na
+  // "tumatalon"/nakakadaan ang baboy sa puno/bahay/bakod kapag
+  // nag-lag o naka-background ang tab.
+  const step = (PIG_WALK_SPEED_PX_PER_SEC * clampWanderDelta(deltaMs)) / 1000;
+
+  if (step <= 0) return;
+
+  const result = moveFeetTowards(
+    pig.x,
+    pig.y,
+    pig.targetX,
+    pig.targetY,
+    step,
+    PIG_COLLISION_BOX_WIDTH,
+    PIG_COLLISION_BOX_HEIGHT,
+    { excludePig: pig },
+  );
+
+  pig.x = result.x;
+  pig.y = result.y;
+
+  const remaining = Math.hypot(pig.targetX - pig.x, pig.targetY - pig.y);
+
+  if (remaining <= 0.01) {
     pig.col = pig.targetCol;
     pig.row = pig.targetRow;
-    pig.moving = false;
-    pig.state = "idle";
-    pig.phaseUntil =
-      performance.now() + randomBetween(PIG_IDLE_MIN_MS, PIG_IDLE_MAX_MS);
+    finishPigWalk(pig);
 
     return;
   }
 
-  const nextX = pig.x + (dx / dist) * step;
-  const nextY = pig.y + (dy / dist) * step;
+  pig.col = Math.floor(pig.x / TILE_SIZE);
+  pig.row = Math.floor((pig.y - 1) / TILE_SIZE);
 
-  // May puno/bahay/bato (o anumang collidable) sa dinaraanan niya -
-  // huwag ituloy ang galaw na ito (kaparehong bagong gawi ng oldman,
-  // tingnan ang canFeetMoveTo sa decor.js) - sa halip na mag-clip sa
-  // gitna nito, mag-iidle na lang muna siya rito.
-  if (
-    !canFeetMoveTo(nextX, nextY, PIG_COLLISION_BOX_WIDTH, PIG_COLLISION_BOX_HEIGHT, {
-      excludePig: pig,
-    })
-  ) {
-    pig.moving = false;
-    pig.state = "idle";
-    pig.phaseUntil =
-      performance.now() + randomBetween(PIG_IDLE_MIN_MS, PIG_IDLE_MAX_MS);
-
-    return;
-  }
-
-  pig.x = nextX;
-  pig.y = nextY;
+  if (!result.moved) finishPigWalk(pig);
 }
 
 // =========================
@@ -725,11 +728,4 @@ canvas.addEventListener("mousedown", (event) => {
   lastPigHitAt = Date.now();
 
   registerPigHit(pig);
-
-  // Kunwaring "suntok" na reaction (kaparehong startPunchStrike na
-  // ginagamit din ng puno/bato gamit ang kamao - tingnan ang
-  // resources.js) - cosmetic lang, naaplay na agad ang hit sa itaas.
-  if (typeof startPunchStrike === "function") {
-    startPunchStrike(tile.col, tile.row);
-  }
 });

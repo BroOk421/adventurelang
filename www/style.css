@@ -322,9 +322,12 @@ button.hotbar-slot {
   padding: 8px;
 
   /* 7 hanay lang ang nakikita nang sabay (para lumiit ang panel at
-     mabawasan ang patay na espasyo sa footer/trash/gold), pero 15 hanay
-     pa rin ang TOTAL na kapasidad ng bag (BAG_GRID_ROWS sa hotbar.js) -
-     mag-scroll na lang para sa natitira: 7*40 + 6*4(gap) + 2*8(padding) */
+     mabawasan ang patay na espasyo sa footer/trash/gold) - ang TOTAL
+     na kapasidad ng bag mismo ay DINAMIKO na ngayon (tingnan ang
+     getActiveBagGridRows sa hotbar.js): 2 hanay lang (16 slot) kapag
+     wala pang naka-suot na bag, hanggang 15 hanay (120 slot) kapag
+     naka-"Use"/naka-suot na - mag-scroll na lang kapag lumagpas sa 7
+     hanay: 7*40 + 6*4(gap) + 2*8(padding) */
   max-height: 320px;
   overflow-y: auto;
 
@@ -578,6 +581,19 @@ button.hotbar-slot {
   cursor: default;
 }
 
+/* AYOS (hiling ng user): kapag isang "ghost" cell ay talagang KULANG/
+   WALANG stock ang kailangang item dito (tingnan ang syncCraftPanel sa
+   craft.js - sinusuri ang item.getCount() kada ghost cell), gawing
+   solid PULANG 1px na border (sa halip na gold) - malinaw na senyales
+   na hindi pa makakapag-craft hangga't hindi nadadagdagan ang item na
+   ito. Nananatili pa rin ang dimmed na opacity ng icon mismo (tingnan
+   ang ".craft-slot-ghost > *" sa itaas). */
+.craft-slot-ghost.craft-slot-missing {
+  border-width: 1px;
+  border-style: solid;
+  border-color: #ff3b3b;
+}
+
 /* Recipe guide - listahan ng mga craftable na item (CRAFT_GUIDE_ITEMS),
    diretso sa ILALIM ng grid (walang "margin-top: auto" na pagtulak) -
    tingnan ang renderCraftGuide sa craft.js. Dahil naka-stretch ang
@@ -610,18 +626,31 @@ button.hotbar-slot {
   color: rgba(212, 175, 55, 0.85);
 }
 
-/* WALANG scroll dito (walang scrollbar) - naka-hidden na lang ang
-   sobra kung mangyari man (bihira, 4 lang na icon ang default list). */
+/* AYOS (hiling ng user): "craftable item list slots is only 5 rows and
+   wrap" - dating flex-wrap na umaasa sa LAPAD ng ninuno (#crafter-dock
+   ay "width: max-content", kaya hindi kailanman kumikitid/nag-wo-wrap
+   ang row - lumalaki na lang ang buong card para kasya LAHAT sa isang
+   hanay). Ngayon, GAMIT NA ANG CSS GRID na may EKSAKTONG 5 kolum
+   (grid-template-columns: repeat(5, 32px)) - kaya AWTOMATIKONG
+   nagwa-wrap na sa SUSUNOD na hanay ang ika-6 na icon pataas, hindi na
+   umaasa sa lapad ng magulang/ninuno nito. Kung dumami pa (higit sa
+   ilang hanay), overflow-y: auto na lang ang bahala (scroll pababa sa
+   halip na tuluyang paliitin/itago). */
 #craft-recipe-guide-icons {
   flex: 1;
   min-height: 0;
 
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
+  display: grid;
+  grid-template-columns: repeat(5, 32px);
+  grid-auto-rows: 32px;
   gap: 6px;
+  align-content: flex-start;
 
-  overflow: hidden;
+  width: 184px;
+  max-height: 184px;
+
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Isang icon kada craftable item sa guide - i-click para makita ang
@@ -844,7 +873,7 @@ button.hotbar-slot {
   grid-template-rows: repeat(4, 40px);
   grid-template-areas:
     "ringleft      helmet     ringright"
-    "gauntletleft  character  gauntletright"
+    "bagslot       character  gauntletright"
     "tshirt        character  boots"
     "lefthand      pet        righthand";
   gap: 10px;
@@ -917,8 +946,8 @@ button.hotbar-slot {
   grid-area: ringright;
 }
 
-#equip-slot-gauntlet-left {
-  grid-area: gauntletleft;
+#equip-slot-bag {
+  grid-area: bagslot;
 }
 
 #equip-slot-gauntlet-right {
@@ -954,10 +983,36 @@ button.hotbar-slot {
 }
 
 #equip-slot-lefthand.equip-slot-filled,
-#equip-slot-righthand.equip-slot-filled {
+#equip-slot-righthand.equip-slot-filled,
+#equip-slot-bag.equip-slot-filled {
   border-style: solid;
   border-color: rgba(255, 210, 90, 0.7);
   background: rgba(255, 210, 90, 0.1);
+}
+
+/* AYOS (hiling ng user): dedikadong "bag" slot na ngayon ito (hindi na
+   gauntlet placeholder) - opaque na (hindi dashed/malabo) at may
+   pointer cursor habang naka-suot ang bag (tingnan ang
+   syncEquipmentPanel sa hotbar.js), para malinaw na click-able ito
+   (left-click = unequip). */
+#equip-slot-bag.equip-slot-filled {
+  opacity: 1;
+  cursor: pointer;
+}
+
+/* AYOS (hiling ng user: "yung bag kapag na use hindi nalitaw dun sa
+   tinuturo ng mouse arrow") - VERIFIED: gumagana naman nang tama ang
+   pag-equip mismo (tama pa rin ang lumalabas na "Unuse/Drop" kapag
+   right-click, kahit "hindi nalitaw" ang icon) - display/visibility
+   issue lang ito: 24px icon LANG ito dating (.hotbar-slot-item-img sa
+   itaas) sa loob ng 40px na slot, kaya madaling MATAKPAN NANG BUO ng
+   normal na mouse cursor kapag dumidiretso ang manlalaro roon para
+   tingnan (parehong laki halos). Pinalaki dito ang icon PARA DITO LANG
+   sa bag slot (hindi sa ibang equip slot/hotbar) para mas malabas ito
+   sa gilid ng cursor. */
+#equip-slot-bag .hotbar-slot-item-img {
+  width: 32px;
+  height: 32px;
 }
 
 /* Progress bar ng pagkasunog ng torch - WALANG TEXT, purong bar lang
@@ -991,6 +1046,17 @@ button.hotbar-slot {
 
 #equip-slot-lefthand.torch-burning::after {
   opacity: 1;
+}
+
+/* AYOS (hiling ng user): "kung ilan yung nasa inventory... dapat 3 din
+   nandun" - ang .hotbar-badge (karaniwang bottom/right: -6px) ay
+   MAPuputol ng overflow:hidden nitong parent (para sa progress bar sa
+   itaas) - kaya dito, i-reposisyon papuntang TAAS-kanan, LOOB ng
+   parisukat (hindi na negatibong offset), para hindi ito maputol. */
+#equip-slot-lefthand .hotbar-badge {
+  top: 2px;
+  right: 2px;
+  bottom: auto;
 }
 
 /* =========================
@@ -1088,6 +1154,20 @@ button.hotbar-slot {
   background: linear-gradient(90deg, #6ba8ff, #3b6fe0);
 }
 
+/* BAGO (hiling ng user): FOOD stat - orange/amber, iba sa health/
+   stamina/exp. */
+#player-hud-fill-food {
+  background: linear-gradient(90deg, #ffb84d, #e07b00);
+}
+
+/* PANSAMANTALA - tingnan ang paliwanag sa index.html (#player-hud-row-debug-coords). */
+#player-hud-debug-coords {
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffd97a;
+  white-space: nowrap;
+}
+
 /* =========================
    EQUIPMENT STATS (sa ilalim ng equipment-panel)
    =========================
@@ -1156,6 +1236,12 @@ button.hotbar-slot {
 
 #stat-fill-exp {
   background: linear-gradient(90deg, #6ba8ff, #3b6fe0);
+}
+
+/* BAGO (hiling ng user): FOOD stat - orange/amber, iba sa health/
+   stamina/exp. */
+#stat-fill-food {
+  background: linear-gradient(90deg, #ffb84d, #e07b00);
 }
 
 .stat-line {
@@ -1345,6 +1431,31 @@ button.hotbar-slot {
   background: rgba(255, 255, 255, 0.02);
   border-style: dashed;
   border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* AYOS (hiling ng user): mga slot LAMPAS sa 2 hanay (16) habang wala
+   pang bag (backpack) - naka-render pa rin (tingnan ang
+   renderBagGridInto, hotbar.js), pero naka-"disable": naka-gray,
+   walang pointer events (kaya hindi rin dito puwedeng mag-click/drag/
+   drop - awtomatikong lalampas dito ang elementFromPoint). Naaalis
+   ito sa sandaling isuot/"Use" ang bag (bagEquipped, tingnan
+   getActiveBagGridRows). */
+.bag-slot-locked {
+  opacity: 0.32;
+  filter: grayscale(1);
+  pointer-events: none;
+  position: relative;
+}
+
+.bag-slot-locked::after {
+  content: "🔒";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  opacity: 0.7;
 }
 
 /* =========================
@@ -1554,6 +1665,39 @@ button.hotbar-slot {
   opacity: 0.3;
   filter: grayscale(1) !important;
   cursor: not-allowed;
+}
+
+/* AYOS (hiling ng user): "may duration na rin kada gamit... doon na
+   lang ipakita sa circle/tool radial" - maliit na "kasalukuyan/max" na
+   badge sa ilalim ng bawat pickaxe/rake/axe icon (parehong konsepto ng
+   .hotbar-badge, hotbar.js) - #tool-radial-option ay position:absolute
+   na, kaya ito ang magiging "containing block" ng badge na ito. */
+.tool-radial-durability {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+
+  min-width: 22px;
+  padding: 1px 4px;
+
+  background: #2b2f38;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+
+  font-size: 9px;
+  line-height: 1.4;
+  text-align: center;
+  color: white;
+  white-space: nowrap;
+
+  filter: none; /* huwag masamang apektuhan ng grayscale/glow ng parent */
+}
+
+/* Mababa na (<=20% ng max) - pulang babala bago pa man tuluyang masira. */
+.tool-radial-durability-low {
+  background: #6b1f1f;
+  border-color: rgba(255, 120, 120, 0.7);
 }
 
 /* Bawat direksyon ay may sariling positioning transform (4 na direksyon
@@ -1824,15 +1968,18 @@ button.hotbar-slot {
   color: #ffffff;
 }
 
-/* Tooltip (presyo + pangalan) - PURONG CSS, walang JS - lumalabas sa
-   ITAAS ng cell habang naka-hover (data-tooltip="..." mula sa decor.js). */
-.oldman-shop-cell[data-tooltip]:hover::after {
-  content: attr(data-tooltip);
-
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
+/* AYOS (hiling ng user): "dapat naka overlap kasi kapag naka hover ako
+   sa items di nakikita natatakpan" - dating PURONG CSS ::after ito
+   (position:absolute laban sa mismong cell), pero na-cclip ng
+   overflow-y:auto ng #oldman-shop-body kapag WALANG sapat na espasyo
+   sa itaas ng cell (lalo na sa unang hanay). Ang bagong tooltip
+   (showOldManShopTooltip, decor.js) ay IISANG element na naka-
+   position:fixed laban sa BUONG SCREEN (dinadala sa document.body sa
+   index.html, hindi bahagi ng #oldman-shop-body) - kaya LAGING
+   nasa IBABAW/naka-overlap ito ng KAHIT ANO, kahit anong row pa. */
+#oldman-shop-tooltip {
+  position: fixed;
+  z-index: 500;
 
   padding: 3px 7px;
 
@@ -1845,7 +1992,10 @@ button.hotbar-slot {
   color: white;
 
   pointer-events: none;
-  z-index: 20;
+}
+
+#oldman-shop-tooltip.hidden {
+  display: none;
 }
 
 /* =========================
@@ -2166,6 +2316,47 @@ button.hotbar-slot {
   z-index: 10;
 }
 
+/* BAGO (hiling ng user): "minimap sa top right baba ng weather section"
+   - fixed din, kaparehong "right: 14px" ng #top-right-bar sa itaas para
+   magkahanay/nakadikit sa parehong gilid, pero mas mababa (top: 70px -
+   sapat na puwang para sa #settings-menu/#calendar-panel sa itaas
+   nito, karaniwang ~54px ang taas noon). BILOG (border-radius: 50% +
+   overflow: hidden) - tingnan ang paliwanag/gawi sa minimap.js
+   (drawMinimap). */
+#minimap {
+  position: fixed;
+  top: 90px;
+  right: 20px;
+
+  width: 150px;
+  height: 150px;
+
+  border-radius: 50%;
+  overflow: hidden;
+
+  background: rgba(20, 22, 28, 0.6);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* AYOS (hiling ng user): "kapag nasa inside house is alisin na lang
+   yung minimap" - itinatago ang BUONG bilog (kasama na ang border/
+   background nito) sa sandaling naka-toggle ang klase na ito
+   (drawMinimap, minimap.js - isIndoors() check) - hindi lang basta
+   binabakante ang laman ng canvas. */
+#minimap.hidden {
+  display: none;
+}
+
+#minimap-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 #settings-menu {
   position: relative;
   display: flex;
@@ -2277,7 +2468,11 @@ button.hotbar-slot {
   font-family: system-ui, sans-serif;
   color: white;
   user-select: none;
-  z-index: 31;
+  /* AYOS (hiling ng user: main menu bago mag-start) - dating 31 lang -
+     kailangang mas mataas pa sa #main-menu-overlay (1000) dahil
+     puwede na ngayong buksan ang Settings PANEL mula sa main menu
+     (js/main-menu.js), bago pa man mag-umpisa ang laro. */
+  z-index: 1010;
 }
 
 #settings-panel.hidden {
@@ -2357,6 +2552,15 @@ button.hotbar-slot {
   border-color: rgba(255, 90, 90, 0.5);
 }
 
+/* BAGO (hiling ng user: "pwede ring export at import ng file para
+   pwede ako maglaro kahit saang computer") - I-export/I-import
+   buttons, tingnan ang exportSaveFile/importSaveFile sa
+   settings-menu.js. */
+/* BAGO (hiling ng user: "wag mo ilagay sa settings section yung
+   import"/"gusto ko yung export is nasa tabi ng button ng i-load") -
+   inilipat na ang Export/Import papunta sa LOAD popup (tingnan sa
+   ibaba, "LOAD-SLOTS POPUP") sa halip na dito sa Settings panel. */
+
 /* =========================
    SETTINGS TOAST (maikling mensahe, hal. "Na-save!") - gitna-ibaba,
    sa ibabaw halos ng lahat.
@@ -2396,6 +2600,231 @@ button.hotbar-slot {
 }
 
 /* =========================
+   LOAD-SLOTS POPUP (hiling ng user: "may list ng save dun sa load mag
+   popup yung list") - dark overlay + panel na nakalista ang lahat ng
+   save slot, gitna ng screen. Tingnan ang settings-menu.js.
+   ========================= */
+
+#load-slots-overlay {
+  position: fixed;
+  inset: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(0, 0, 0, 0.55);
+
+  /* AYOS (hiling ng user: main menu bago mag-start) - dating 45 lang -
+     kailangang mas mataas pa sa #main-menu-overlay (1000) dahil
+     puwede na ngayong buksan ang "Load" popup mula sa main menu
+     (js/main-menu.js), bago pa man mag-umpisa ang laro. */
+  z-index: 1010;
+}
+
+#load-slots-overlay.hidden {
+  display: none;
+}
+
+#load-slots-panel {
+  width: 320px;
+  max-height: 70vh;
+
+  display: flex;
+  flex-direction: column;
+
+  background: rgba(20, 22, 28, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+
+  font-family: system-ui, sans-serif;
+  color: white;
+  user-select: none;
+}
+
+#load-slots-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* BAGO (hiling ng user: "wag mo ilagay sa settings section yung
+   import dapat nasa taas ng load top right") - grupo (Import + ✕) sa
+   kanang bahagi ng header, tabi-tabi. */
+#load-slots-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#load-slots-import {
+  padding: 6px 10px;
+
+  background: rgba(120, 170, 255, 0.16);
+  border: 1px solid rgba(120, 170, 255, 0.35);
+  border-radius: 6px;
+
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  color: white;
+
+  cursor: pointer;
+}
+
+#load-slots-import:hover {
+  background: rgba(120, 170, 255, 0.3);
+  border-color: rgba(120, 170, 255, 0.55);
+}
+
+#load-slots-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+#load-slots-close {
+  width: 20px;
+  height: 20px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+
+  cursor: pointer;
+}
+
+#load-slots-close:hover {
+  background: rgba(255, 90, 90, 0.35);
+  color: white;
+}
+
+#load-slots-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  padding: 12px;
+  overflow-y: auto;
+
+  scrollbar-width: thin;
+  scrollbar-color: rgba(212, 175, 55, 0.65) rgba(255, 255, 255, 0.06);
+}
+
+#load-slots-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+#load-slots-list::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.65);
+  border-radius: 4px;
+}
+
+.load-slot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+
+  padding: 8px 10px;
+
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 7px;
+}
+
+.load-slot-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  min-width: 0;
+}
+
+.load-slot-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: white;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.load-slot-date {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.load-slot-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  flex-shrink: 0;
+}
+
+.load-slot-btn {
+  padding: 6px 9px;
+
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  color: white;
+
+  cursor: pointer;
+}
+
+.load-slot-load-btn:hover {
+  background: rgba(120, 200, 140, 0.35);
+  border-color: rgba(120, 200, 140, 0.6);
+}
+
+/* BAGO (hiling ng user: "gusto ko yung export is nasa tabi ng button
+   ng i-load, load, export and trash") - export button PER save slot,
+   tabi ng "I-load"/🗑️ ng bawat row (tingnan ang renderLoadSlotsList
+   sa settings-menu.js). */
+.load-slot-export-btn:hover {
+  background: rgba(120, 170, 255, 0.3);
+  border-color: rgba(120, 170, 255, 0.55);
+}
+
+.load-slot-delete-btn:hover {
+  background: rgba(255, 90, 90, 0.35);
+  border-color: rgba(255, 90, 90, 0.55);
+}
+
+#load-slots-empty {
+  padding: 20px 16px;
+
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.6);
+  text-align: center;
+}
+
+#load-slots-empty.hidden {
+  display: none;
+}
+
+/* =========================
    BED SLEEP OVERLAY (buong itim na screen) - tingnan ang
    fadeScreenThenBack sa js/bed.js.
    ========================= */
@@ -2429,12 +2858,13 @@ button.hotbar-slot {
    desktop) - tingnan ang paliwanag sa index.html/mobile-controls.js.
 
    BAGONG LAYOUT (hiling ng user, MLBB-style): puro BILOG na "skill
-   cluster" sa kanang-ibaba - Punch ang PINAKAMALAKI (totoong
-   punch.png), Tools at Run ay magkatabi, parehong nasa ITAAS ng
-   Punch. Enter/Exit, Bag, at Menu na floating button ay TINANGGAL
-   na (auto-door na ang Enter/Exit, hotbar's own bag slot pa rin ang
-   Bag, at ang phone BACK button na ang nagbubukas ng Settings sa
-   gitna ng screen - tingnan ang mobile-controls.js). */
+   cluster" sa kanang-ibaba - Tools at Run ay magkatabi. Enter/Exit,
+   Bag, Menu, at Punch na floating button ay TINANGGAL na (auto-door
+   na ang Enter/Exit, hotbar's own bag slot pa rin ang Bag, ang phone
+   BACK button na ang nagbubukas ng Settings sa gitna ng screen -
+   tingnan ang mobile-controls.js - at direktang pag-tap sa
+   mundo/canvas na lang ang paraan para mag-interact, di na kailangan
+   ng Punch button). */
 
 #mobile-joystick,
 #mobile-skill-cluster {
@@ -2544,41 +2974,24 @@ body.touch-controls-active #mobile-skill-cluster {
   transform: scale(0.94);
 }
 
-/* Punch - pinakamalaki, gold ring, nasa kanang-ibabang sulok. */
-.mobile-skill-punch {
-  width: 92px;
-  height: 92px;
-  right: 0;
-  bottom: 0;
-
-  border-color: rgba(255, 205, 90, 0.75);
-  box-shadow:
-    0 0 16px rgba(255, 195, 70, 0.5),
-    inset 0 0 12px rgba(0, 0, 0, 0.45);
-  background: radial-gradient(circle at 35% 30%, #4a3a1c, #201608);
-}
-
-.mobile-skill-punch:active {
-  background: radial-gradient(circle at 35% 30%, #5c481f, #2a1d0c);
-}
-
-/* Tools - inibaba + pinaliit ng konti (dati'y 58px, mas mataas). */
+/* Tools - ngayon nasa mismong kanang-ibabang sulok (dating nasa itaas
+   ng Punch button, na TINANGGAL na - hiling ng user). */
 .mobile-skill-tools {
-  width: 46px;
-  height: 46px;
-  right: 92px;
-  bottom: 78px;
+  width: 54px;
+  height: 54px;
+  right: 16px;
+  bottom: 16px;
 
   border-color: rgba(160, 200, 255, 0.6);
 }
 
-/* Run - katabi ng Tools, parehong nasa itaas ng Punch (hindi na
-   malapit sa joystick). */
+/* Run - katabi ng Tools, pareho silang nasa kanang-ibabang sulok
+   ngayon. */
 .mobile-skill-run {
-  width: 44px;
-  height: 44px;
-  right: 34px;
-  bottom: 88px;
+  width: 50px;
+  height: 50px;
+  right: 82px;
+  bottom: 18px;
 
   border-color: rgba(140, 220, 150, 0.65);
   background: radial-gradient(circle at 35% 30%, #23361f, #0f180d);
@@ -2631,12 +3044,17 @@ body.touch-controls-active #mobile-skill-cluster {
 }
 
 /* =========================
-   SETTINGS MENU - CENTERED MODE (phone BACK button)
+   SETTINGS MENU - CENTERED MODE
    =========================
-   Normal: naka-anchor ang dropdown sa ilalim ng burger icon (top-
-   right). Kapag binuksan sa pamamagitan ng phone BACK button
-   (mobile-controls.js, setSettingsMenuOpen(true, true)) - naka-
-   center ito sa GITNA ng screen sa halip, hiling ng user. */
+   BAGO (hiling ng user: "yung sa settings sana yung pop up is lagay
+   sa gitna ng screen at medyo malaki natatabunan kasi ng minimap") -
+   ito na ngayon ang DEFAULT sa tuwing binubuksan ang burger dropdown
+   (dati naka-anchor lang ito sa ilalim ng burger icon sa top-right,
+   kaya kadikit/natatabunan ng #minimap doon). Mas malaki na rin ngayon
+   ang laki nito (200px -> 240px, mas malaking font/padding sa mga
+   button) para mas kitang-kita. Ginagamit pa rin ito ng phone BACK
+   button (mobile-controls.js, setSettingsMenuOpen(true, true)), pero
+   ngayon pareho na lang ito sa normal na pag-click ng burger icon. */
 
 #settings-menu-dropdown.settings-menu-centered {
   position: fixed;
@@ -2645,10 +3063,20 @@ body.touch-controls-active #mobile-skill-cluster {
   right: auto;
   transform: translate(-50%, -50%);
 
-  width: 200px;
+  width: 240px;
   z-index: 200;
 
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+
+#settings-menu-dropdown.settings-menu-centered button {
+  padding: 12px 14px;
+  gap: 10px;
+  font-size: 14px;
+}
+
+#settings-menu-dropdown.settings-menu-centered .settings-menu-item-icon {
+  font-size: 15px;
 }
 
 /* =========================
@@ -2677,6 +3105,17 @@ body.touch-controls-active #player-hud {
 body.touch-controls-active #top-right-bar {
   top: max(8px, env(safe-area-inset-top));
   right: max(8px, env(safe-area-inset-right));
+}
+
+/* Minimap - manatiling itaas-kanan (kasunod ng burger button, na
+   nag-iisa na lang sa #top-right-bar sa touch mode dahil inilipat ang
+   calendar-panel sa kaliwa sa ibaba) - bahagyang mas maliit din para
+   hindi masyadong malaki sa maliit na screen. */
+body.touch-controls-active #minimap {
+  top: max(56px, calc(56px + env(safe-area-inset-top)));
+  right: max(8px, env(safe-area-inset-right));
+  width: 110px;
+  height: 110px;
 }
 
 /* Calendar/petsa/panahon - INILIPAT na sa ILALIM ng #player-hud
@@ -2726,23 +3165,18 @@ body.touch-controls-active #mobile-skill-cluster {
   height: 140px;
 }
 
-body.touch-controls-active .mobile-skill-punch {
-  width: 84px;
-  height: 84px;
-}
-
 body.touch-controls-active .mobile-skill-tools {
-  width: 42px;
-  height: 42px;
-  right: 84px;
-  bottom: 72px;
+  width: 48px;
+  height: 48px;
+  right: 14px;
+  bottom: 14px;
 }
 
 body.touch-controls-active .mobile-skill-run {
-  width: 40px;
-  height: 40px;
-  right: 30px;
-  bottom: 82px;
+  width: 44px;
+  height: 44px;
+  right: 74px;
+  bottom: 16px;
 }
 
 /* Sobrang KIPOT na screen (hal. maliit na phone sa PORTRAIT, o
@@ -2780,4 +3214,165 @@ body.touch-controls-active .mobile-skill-run {
   body.touch-controls-active #hotbar {
     transform: translateX(-50%) scale(0.68);
   }
+}
+
+/* =========================
+   BAG ACTION MENU ("Use"/"Drop" sa inventory, "Use"/"Break" sa lupa)
+   - tingnan ang showBagActionMenu sa hotbar.js. Munting floating menu
+   na lumalabas malapit sa cursor sa oras ng right-click. */
+.bag-action-menu {
+  position: fixed;
+
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  padding: 6px;
+
+  background: rgba(24, 26, 32, 0.97);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  border-radius: 8px;
+
+  font-family: system-ui, sans-serif;
+
+  z-index: 40;
+}
+
+.bag-action-menu-btn {
+  min-width: 90px;
+
+  padding: 6px 12px;
+
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.bag-action-menu-btn:hover {
+  background: rgba(212, 175, 55, 0.25);
+  border-color: rgba(212, 175, 55, 0.6);
+}
+
+/* =========================
+   MAIN MENU (Loading / Play / Load / Settings / Exit) - lumalabas BAGO
+   pa man mag-umpisa ang laro (tingnan ang beginInitialWorldLoad sa
+   map.js, at js/main-menu.js). Pinakamataas na z-index sa buong laro -
+   dapat ito ang UNANG makikita, sa ibabaw ng LAHAT (kasama pa ang
+   #world-loading-overlay, 400).
+   ========================= */
+
+#main-menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: radial-gradient(
+    ellipse at center,
+    rgba(28, 46, 34, 1) 0%,
+    rgba(10, 16, 12, 1) 100%
+  );
+
+  font-family: system-ui, sans-serif;
+  color: white;
+  user-select: none;
+
+  opacity: 1;
+  transition: opacity 260ms ease;
+}
+
+#main-menu-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#main-menu-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+#main-menu-loading.hidden {
+  display: none;
+}
+
+#main-menu-loading-spinner {
+  width: 34px;
+  height: 34px;
+
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: rgba(212, 175, 55, 0.9);
+  border-radius: 50%;
+
+  animation: world-loading-spin 700ms linear infinite;
+}
+
+#main-menu-loading-label {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.75);
+  letter-spacing: 0.03em;
+}
+
+#main-menu-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+}
+
+#main-menu-content.hidden {
+  display: none;
+}
+
+#main-menu-title {
+  font-size: 42px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: rgba(212, 175, 55, 0.95);
+  text-shadow: 0 3px 12px rgba(0, 0, 0, 0.6);
+}
+
+#main-menu-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  width: 220px;
+}
+
+#main-menu-buttons button {
+  padding: 12px 14px;
+
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 9px;
+
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: white;
+  text-align: center;
+
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+#main-menu-buttons button:hover {
+  background: rgba(212, 175, 55, 0.25);
+  border-color: rgba(212, 175, 55, 0.7);
+}
+
+#main-menu-exit:hover {
+  background: rgba(255, 90, 90, 0.3);
+  border-color: rgba(255, 90, 90, 0.5);
 }

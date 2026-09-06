@@ -1,0 +1,15 @@
+{
+ "columns": 62,
+ "image": "snowgrassmap2.png",
+ "imageheight": 560,
+ "imagewidth": 992,
+ "margin": 0,
+ "name": "snowgrassmap2-full1",
+ "spacing": 0,
+ "tilecount": 2170,
+ "tiledversion": "1.12.2",
+ "tileheight": 16,
+ "tilewidth": 16,
+ "type": "tileset",
+ "version": "1.10"
+}

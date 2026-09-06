@@ -39,18 +39,36 @@ const MAX_CRAFT_STACK = 99;
 // { itemId, count } o null kung wala pang naigawang resulta.
 let craftOutput = null;
 
-const CRAFT_RECIPES = [
-  { ingredients: { wood: 4 }, result: { itemId: "crafter", count: 1 } },
-];
+// AYOS (hiling ng user): "kapag nag lagay ako ng 4 woods kusang
+// lumilitaw sa result slot yung crafter dapat hindi kasi dapat ma fill
+// yung tamang slots niya bago makagawa" - dating SHAPELESS ito
+// (basta 4 total wood kahit saan/kahit anong cell/cells, kahit
+// 4-in-1-cell), kaya kusang "gumagana" agad kahit hindi pa TALAGANG
+// napuno ang BAWAT isa sa 4 slot ng "basic" (2x2) grid. Ngayon, SHAPED
+// na rin ito (parang Minecraft: kailangang MAY laman ang BAWAT isa sa
+// 4 slot) - inilipat na ito papunta sa CRAFT_SHAPED_RECIPES sa ibaba
+// (4-cell na "shape", tumutugma sa laki ng "basic" grid - tingnan ang
+// findMatchingShapedRecipe). WALA nang laman ang CRAFT_RECIPES (walang
+// SHAPELESS recipe sa ngayon) - naiwan pa rin ang buong SHAPELESS na
+// sistema (findMatchingCraftRecipe, atbp.) sakaling magdagdag pa ng
+// bago balang araw.
+const CRAFT_RECIPES = [];
 
-// SHAPED na recipe - MAHALAGA ang EKSAKTONG posisyon (0-8, "advanced"
-// 3x3 lang - tingnan ang findMatchingShapedRecipe). Ang "shape" ay 9
-// entry (null = dapat bakante ang cell na iyon).
+// SHAPED na recipe - MAHALAGA ang EKSAKTONG posisyon. Ang "shape" ay
+// tumutugma sa KASALUKUYANG laki ng grid nito: 4 entry = "basic" (2x2),
+// 9 entry = "advanced" (3x3) - tingnan ang findMatchingShapedRecipe.
+// Para sa 9-entry (advanced), (null = dapat bakante ang cell na iyon):
 //
 //   0 1 2      (ipinapakita bilang 1 2 3 sa UI)
 //   3 4 5      (4 5 6)
 //   6 7 8      (7 8 9)
 const CRAFT_SHAPED_RECIPES = [
+  {
+    // W W    ("basic" 2x2 - kailangang MAY laman ang LAHAT ng 4 slot,
+    // W W     hindi puwedeng "dumpin" nalang lahat sa iisang cell)
+    shape: ["wood", "wood", "wood", "wood"],
+    result: { itemId: "crafter", count: 1 },
+  },
   {
     // S S S
     // S W .
@@ -90,11 +108,49 @@ const CRAFT_SHAPED_RECIPES = [
     result: { itemId: "sword", count: 1 },
   },
   {
+    // BAGO (hiling ng user): "sa crafter naman yung pattern niya is
+    // 1,5,3 stones 7,9 wood" - slot 1/5/3 = stone, slot 7/9 = wood.
+    // S . S
+    // . S .
+    // W . W
+    shape: [
+      "stone",
+      null,
+      "stone",
+      null,
+      "stone",
+      null,
+      "wood",
+      null,
+      "wood",
+    ],
+    result: { itemId: "cutter", count: 1 },
+  },
+  {
+    // . C .
+    // . W .
+    // . . .
+    //
+    // BAGO (hiling ng user): "2 slot charcoal, 5 slot wood is torch" -
+    // pinasimple, TINANGGAL na ang ikatlong "wood" (dating nasa cell 8
+    // rin) - ang dating 3-cell na shape na ito (charcoal-2, wood-5,
+    // wood-8) ay ngayon ang shape na ng "Light"/"Lamp" sa halip
+    // (tingnan sa ibaba).
+    shape: [null, "charcoal", null, null, "wood", null, null, null, null],
+    result: { itemId: "torch", count: 1 },
+  },
+  {
     // . C .
     // . W .
     // . W .
+    //
+    // BAGONG SHAPE (hiling ng user): "lamp: 2 slot charcoal, 5 slot
+    // wood, 8 slot wood" - ito na ngayon ang shape ng "Light"/"Lamp"
+    // (dating shapeless lang - wood 2 + stone 1, CRAFT_RECIPES) -
+    // SHAPED na ito ngayon (parang torch, pero may dagdag na wood sa
+    // cell 8), kaya "advanced" (3x3) mode lang ito magagawa.
     shape: [null, "charcoal", null, null, "wood", null, null, "wood", null],
-    result: { itemId: "torch", count: 1 },
+    result: { itemId: "light", count: 1 },
   },
   {
     // S S S
@@ -105,7 +161,7 @@ const CRAFT_SHAPED_RECIPES = [
       "stone",
       "stone",
       "stone",
-      null,
+      "charcoal",
       "stone",
       "stone",
       "stone",
@@ -113,13 +169,63 @@ const CRAFT_SHAPED_RECIPES = [
     ],
     result: { itemId: "stove", count: 1 },
   },
+  {
+    // W W W    (hiling ng user: "yung sa bed 123 slots wool at
+    // S S S     nabibili dun kay oldman 456 slots silk nabibili din
+    // O O O     kay oldman 789 slots wood")
+    shape: [
+      "wool",
+      "wool",
+      "wool",
+      "silk",
+      "silk",
+      "silk",
+      "wood",
+      "wood",
+      "wood",
+    ],
+    result: { itemId: "bed", count: 1 },
+  },
+  {
+    // I I I    (hiling ng user: "sa refrigerator naman is dapat iron e
+    // I . I     12346789 slots yan puro iron" - lahat ng 8 slot sa
+    // I I I     paligid ay iron, bakante lang ang gitna, slot 5)
+    shape: [
+      "iron",
+      "iron",
+      "iron",
+      "iron",
+      null,
+      "iron",
+      "iron",
+      "iron",
+      "iron",
+    ],
+    result: { itemId: "refrigerator", count: 1 },
+  },
 ];
 
 // Listahan ng mga item na ipinapakita sa recipe guide (dead space sa
 // ilalim ng #crafter-dock - tingnan ang renderCraftGuide). Lahat ng ito
 // ay SHAPED recipe (CRAFT_SHAPED_RECIPES), kaya "advanced" (3x3) mode
 // lang gumagana ang guide/preview nito.
-const CRAFT_GUIDE_ITEMS = ["pickaxe", "axe", "rake", "sword", "torch", "stove"];
+//
+// BAGO (hiling ng user): "wala pa sa list ng craftable list yung lamp" -
+// idinagdag na ang "light" (Lamp) - SHAPED recipe na rin ito ngayon
+// (dating shapeless lang, hindi kasama dito), kaya puwede na siyang
+// lumabas sa guide.
+const CRAFT_GUIDE_ITEMS = [
+  "pickaxe",
+  "axe",
+  "rake",
+  "cutter",
+  "sword",
+  "torch",
+  "light",
+  "stove",
+  "bed",
+  "refrigerator",
+];
 
 // ItemId ng kasalukuyang PINILING guide/preview (null = wala) - tingnan
 // ang renderCraftGuide/getSelectedGuideRecipe. GUIDE/PREVIEW LANG ito
@@ -138,6 +244,38 @@ let craftersCollected = 0;
 // itong aktwal na hotbar equip/combat na gawi (susunod na feature) -
 // dito muna ito idineklara dahil crafting-specific pa lang ito.
 let swordUnlocked = false;
+
+// =========================
+// BAGONG MATERIAL PARA SA BED/REFRIGERATOR RECIPE (hiling ng user)
+// =========================
+//
+// "wool"/"silk" - parehong "countable" na crafting material,
+// kaparehong pattern ng craftersCollected sa itaas - NABIBILI kay
+// Oldman (OLDMAN_SHOP_ITEMS, decor.js), hindi (sa ngayon) makukuha sa
+// paraan ng paghukay/pagputol.
+let woolCollected = 0;
+let silkCollected = 0;
+
+// "iron" - kaparehong-pareho ng gawi ng wool/silk sa itaas
+// ("countable" na crafting material), PERO HINDI muna ito nabibili kay
+// Oldman - hiling ng user, magmumula ito sa PAGMIMINA ng bato sa isang
+// BAGONG "cave" na mundo (balang araw pang gagawin, "cave map para sa
+// mga minerals" - susunod na hiling). Idineklara na muna dito ang
+// counter/BAG_ITEMS entry nito (tingnan ang hotbar.js) para gumana na
+// AGAD ang "refrigerator" recipe sa ibaba - kapag gumawa na ng cave
+// map balang araw, doon na lang idadagdag ang paraan ng PAGKUHA ng
+// iron (hal. collectIron(), kaparehong pattern ng collectWood/
+// collectStone sa resources.js) - hindi na kailangang galawin pa ang
+// recipe/BAG_ITEMS entry nito.
+let ironCollected = 0;
+
+// "refrigerator" - bagong craftable na item (BAGO, hiling ng user: "add
+// ka pala bed sa crafter tyaka refrigerator") - kaparehong-pareho ng
+// gawi ng "bag" (hotbar.js): simpleng "countable" na stock sa bag/
+// inventory (walang world-placement pa - hal. bed/crafter/stove - sa
+// ngayon, dahil hindi pa ito hiniling; puwedeng idagdag balang araw
+// kung gusto).
+let refrigeratorCollected = 0;
 
 function getCraftGridSize() {
   return craftPanelMode === "advanced" ? 9 : 4;
@@ -182,13 +320,16 @@ function findMatchingCraftRecipe() {
   return null;
 }
 
-// SHAPED recipe lang - EKSAKTONG posisyon (0-8) ang sinusukat, "advanced"
-// (3x3) mode lang ito valid (walang ika-10 cell sa "basic" para tugma
-// dito, kaya walang epekto ang tawag na ito habang "basic" pa).
+// SHAPED recipe - EKSAKTONG posisyon ang sinusukat, kaya kailangang
+// TUMUGMA ang KASALUKUYANG laki ng grid (craftInputs.length) sa
+// bilang ng cell ng "shape" ng recipe (4 = "basic"/2x2, 9 =
+// "advanced"/3x3) - hindi na hard-coded sa "advanced" lang (AYOS,
+// hiling ng user: dapat SHAPED/may tamang slot din ang Crafter recipe
+// sa "basic" 2x2 grid, tingnan ang CRAFT_SHAPED_RECIPES sa itaas).
 function findMatchingShapedRecipe() {
-  if (craftPanelMode !== "advanced" || craftInputs.length !== 9) return null;
-
   for (const recipe of CRAFT_SHAPED_RECIPES) {
+    if (craftInputs.length !== recipe.shape.length) continue;
+
     const matches = recipe.shape.every((expected, i) => {
       const cell = craftInputs[i];
       const actualId = cell ? cell.itemId : null;
@@ -214,6 +355,70 @@ function getSelectedGuideRecipe() {
       (recipe) => recipe.result.itemId === craftGuideRecipeId,
     ) || null
   );
+}
+
+// BAGO (hiling ng user): "gawin madali/automatic ang paglalagay ng
+// items sa tamang slot (1-9) kapag na-click ang isang craftable item sa
+// guide". Sinusubukang punan ang BAWAT required cell ng shape ng recipe
+// (recipe.shape[i]) gamit ang AKTWAL na item mula sa stock (parehong
+// mekanismo ng placeCraftIngredient - kaya nababawas talaga ang stock,
+// hindi lang ghost/preview). Mga tinatakasan (SKIP):
+//   - cell na WALANG kailangan doon (null sa shape)
+//   - cell na may laman na ng TAMANG item (huwag nang idagdag pa,
+//     iwan kung ano man ang laman - baka gusto pa ng manlalaro ang
+//     dami nito para sa batch crafting)
+//   - cell na may laman ng IBANG item (huwag idisturbo/palitan -
+//     kailangan pang alisin ito manually bago mapalitan)
+// Kung walang (o kulang) stock ang isang required item, basta
+// mananatiling bakante ang cell na iyon - ipapakita na lang bilang
+// "missing" na ghost (pulang border, tingnan ang syncCraftPanel).
+function autoFillGuideRecipe(itemId) {
+  const recipe = CRAFT_SHAPED_RECIPES.find(
+    (entry) => entry.result.itemId === itemId,
+  );
+
+  if (!recipe) return;
+
+  // Lahat ng laman ng CRAFT_GUIDE_ITEMS ay 9-cell/"advanced" na shape,
+  // pero sinusuri pa rin dito bilang safety net (huwag mag-autofill sa
+  // maling laki ng grid).
+  if (recipe.shape.length !== craftInputs.length) return;
+
+  recipe.shape.forEach((expected, i) => {
+    if (!expected) return;
+
+    const cell = craftInputs[i];
+
+    if (cell && cell.itemId === expected) return; // tama na, may laman na
+    if (cell) return; // may ibang laman - huwag idisturbo
+
+    placeCraftIngredient(i, expected, 1);
+  });
+}
+
+// AYOS (hiling ng user): "di nag rereset yung sa pattern slots ... kapag
+// nag change ako ng item is kung anung pattern niya yun yung lalabas" -
+// dating iniiwan/hindi nadidisturbo ang laman ng mga cell kapag
+// lumipat ng piniling guide recipe (tingnan ang autoFillGuideRecipe sa
+// itaas - "may ibang laman - huwag idisturbo") - kaya kung may naiwang
+// ingredient mula sa DATING pattern na hindi bahagi ng BAGONG pattern,
+// naharangan/naka-block ang mga cell na iyon (hindi na maaaring ma-
+// autofill ng bagong item). Ngayon, sa SANDALING magpalit (o mag-
+// deselect) ng guide recipe, IBINABALIK muna sa stock ang BUONG laman
+// ng LAHAT ng input cell (parang closeCraftPanel) bago ilapat ang
+// bagong pattern - kaya laging "malinis"/fresh simula ang bawat pagpili
+// ng ibang craftable item.
+function resetCraftInputs() {
+  for (let i = 0; i < craftInputs.length; i++) {
+    const cell = craftInputs[i];
+
+    if (!cell) continue;
+
+    refundCraftItemAmount(cell.itemId, cell.count);
+    craftInputs[i] = null;
+  }
+
+  craftOutput = null;
 }
 
 // Iginuguhit ang hanay ng mga icon sa ilalim ng #crafter-dock (CRAFT_
@@ -247,8 +452,34 @@ function renderCraftGuide() {
       btn.innerHTML = getItemIconHTML(item);
 
     btn.addEventListener("click", () => {
-      craftGuideRecipeId = craftGuideRecipeId === itemId ? null : itemId;
+      const wasSelected = craftGuideRecipeId === itemId;
+
+      craftGuideRecipeId = wasSelected ? null : itemId;
+
+      // AYOS (hiling ng user): laging i-RESET (ibalik sa stock) muna
+      // ang BUONG laman ng mga input cell BAWAT pagpili/pagbabago ng
+      // guide recipe (kasama na ang pag-deselect) - tingnan ang
+      // resetCraftInputs sa itaas - bago ilapat (kung mayroon man) ang
+      // BAGONG pattern, para laging tugma sa TALAGANG kasalukuyang
+      // piniling craftable item ang laman ng 1-9 grid, hindi naiiwan
+      // ang laman ng dating pattern.
+      resetCraftInputs();
+
+      // BAGO (hiling ng user): "kapag na-click yung isang craftable item
+      // is dapat automatic na malalagay yung mga item sa tamang slot
+      // (1-9) kung meron namang stock" - sa SANDALING PINILI (hindi
+      // deselect) ang isang guide icon, subukan agad na AWTOMATIKONG
+      // ilagay ang aktwal na ingredients (mula sa stock/bag) sa bawat
+      // required cell ng shape nito - tingnan ang autoFillGuideRecipe
+      // sa ibaba. Kung kulang/walang stock sa isang partikular na cell,
+      // mananatili itong bakante (ipapakita na lang bilang "missing"
+      // na ghost - pulang 1px na border - tingnan ang syncCraftPanel).
+      if (!wasSelected) autoFillGuideRecipe(itemId);
+
+      updateCraftOutputFromInputs();
       syncCraftPanel();
+
+      if (typeof syncHotbarUI === "function") syncHotbarUI();
     });
 
     iconsEl.appendChild(btn);
@@ -256,38 +487,63 @@ function renderCraftGuide() {
 }
 
 // Tinatawag pagkatapos ng bawat pagbabago sa craftInputs. SHAPED muna
-// ang sinusubukan (pickaxe/rake/axe - walang output slot, diretso nang
-// na-"unlock"), tapos SHAPELESS (may output slot pa - hindi ito
-// susubukan kung may naka-hintay na output).
+// ang sinusubukan, tapos SHAPELESS.
+//
+// AYOS (BUG FIX #3, hiling ng user): "gusto ko lang ipafix yung sa
+// crafter na kapag lumabas na yung result sa slot is dapat hindi
+// mawawala yung nasa slots pattern kapag na drag ko na sa mismong
+// inventory tsaka lang dapat mawawala para if ever na change mind na
+// magbago ng pattern o i-build is magagamit ulit yung nasa pattern
+// slot na item kung di niya gusto yung item result" - dating
+// KINOKONSUMO na agad (consumeShapedRecipeInputs/
+// consumeShapelessRecipeInputs) ang mga ingredient sa SANDALING
+// tumugma ang pattern - kaya kahit hindi pa na-drag palabas ang
+// resulta papunta sa bag, "nawawala" na agad ang laman ng mga input
+// cell (naka-eksena pa lang PREVIEW ang laman ng output slot, pero
+// tapos na talaga ang "gawa"). Ngayon, ito ay PREVIEW/COMPUTED LANG -
+// PANANATILIHIN ang buong laman ng bawat input cell (HINDI kinokonsumo
+// dito), kaya kahit magbago pa ng isip ang manlalaro (halimbawa ibang
+// recipe/shape na ang gusto, o gusto niyang bawiin ang ingredients),
+// buo pa rin ang mga ito - magagamit/matatanggal pa. Saka pa lang
+// TALAGANG kinokonsumo ang mga ingredient (tingnan ang
+// collectCraftOutput sa ibaba) sa SANDALING i-drag/kunin ang resulta
+// papunta sa bag/hotbar.
 function updateCraftOutputFromInputs() {
-  if (craftOutput) return;
-
   const shapedRecipe = findMatchingShapedRecipe();
 
   if (shapedRecipe) {
-    consumeShapedRecipeInputs(shapedRecipe);
-    craftOutput = {
-      itemId: shapedRecipe.result.itemId,
-      count: shapedRecipe.result.count,
-    };
+    const multiplier = getShapedRecipeMultiplier(shapedRecipe);
+
+    craftOutput =
+      multiplier > 0
+        ? {
+            itemId: shapedRecipe.result.itemId,
+            count: shapedRecipe.result.count * multiplier,
+          }
+        : null;
 
     return;
   }
 
   const recipe = findMatchingCraftRecipe();
 
-  if (!recipe) return;
-
-  consumeShapelessRecipeInputs(recipe);
-  craftOutput = { itemId: recipe.result.itemId, count: recipe.result.count };
+  craftOutput = recipe
+    ? { itemId: recipe.result.itemId, count: recipe.result.count }
+    : null;
 }
 
 // SHAPED: 1 lang ang kailangan bawat "required" na cell (walang
-// bilang/quantity ang shape mismo) - kaya bawasan lang ng 1 ang bawat
-// cell na bahagi ng shape, panatilihin ang ANUMANG NATITIRA (hal. kung
-// may 3 wood na naipon sa isang cell na kailangan lang ng 1, 2 ang
-// matitira roon pagkatapos - HINDI basta nawawala/nasasayang).
-function consumeShapedRecipeInputs(recipe) {
+// bilang/quantity ang shape mismo) - PERO (AYOS/BUG FIX, hiling ng
+// user: "kung ilan yung item halimbawa wood is 99 so dapat malagay
+// dun is 99 ... tapos result dapat 99 din") - kung MARAMI pa ang
+// naipon sa bawat kinakailangang cell (hal. 99 wood/stone/charcoal),
+// dapat silang LAHAT magamit sa ISANG pag-craft (batch), hindi 1
+// piraso lang kada beses. Tingnan ang getShapedRecipeMultiplier sa
+// ibaba - doon kinukuha kung ilang beses puwedeng ma-craft ang recipe
+// gamit ang KASALUKUYANG laman ng mga required cell (ang PINAKAMALIIT
+// na count sa kanila - hal. kung 99 ang wood pero 5 lang ang stone sa
+// isang recipe na parehong kailangan, 5 lang ang magiging multiplier).
+function consumeShapedRecipeInputs(recipe, multiplier) {
   recipe.shape.forEach((expected, i) => {
     if (!expected) return;
 
@@ -295,10 +551,30 @@ function consumeShapedRecipeInputs(recipe) {
 
     if (!cell) return;
 
-    cell.count -= 1;
+    cell.count -= multiplier;
 
     if (cell.count <= 0) craftInputs[i] = null;
   });
+}
+
+// Ilang BESES puwedeng ma-craft ang isang SHAPED recipe ngayon dayon,
+// base sa PINAKAMALIIT na available count sa lahat ng required cell
+// nito (tingnan ang comment sa itaas). 0 kung may kulang/walang laman
+// (hindi dapat mangyari kung tumugma na ang findMatchingShapedRecipe,
+// pero sinusuri pa rin bilang safety net).
+function getShapedRecipeMultiplier(recipe) {
+  let multiplier = Infinity;
+
+  recipe.shape.forEach((expected, i) => {
+    if (!expected) return;
+
+    const cell = craftInputs[i];
+    const available = cell ? cell.count : 0;
+
+    multiplier = Math.min(multiplier, available);
+  });
+
+  return Number.isFinite(multiplier) ? multiplier : 0;
 }
 
 // SHAPELESS: TOTAL na bilang (kahit saang cell/cells nanggaling) ang
@@ -334,44 +610,108 @@ function consumeCraftItemAmount(itemId, amount) {
   else if (itemId === "stone") stoneCollected -= amount;
   else if (itemId === "carrot") carrotsCollected -= amount;
   else if (itemId === "charcoal") charcoalCollected -= amount;
+  // AYOS (hiling ng user: "add ka pala bed sa crafter tyaka
+  // refrigerator") - BUG na nahanap sa pagte-test: dating WALA dito ang
+  // bagong crafting material (wool/silk/iron) - kaya kapag inilalagay
+  // ang mga ito sa isang craft input cell (placeCraftIngredient, tawag
+  // nito ito), TALAGANG WALANG NABABAWAS sa woolCollected/silkCollected/
+  // ironCollected (walang tumutugmang "if" branch dito dati) - resulta,
+  // "duplicate" ang materyal: nasa craft grid na ito PERO buo pa rin
+  // ang laman ng bag/inventory (parang libre na lang, walang nagastos).
+  // Idinagdag dito ang tatlong ito.
+  else if (itemId === "wool") woolCollected -= amount;
+  else if (itemId === "silk") silkCollected -= amount;
+  else if (itemId === "iron") ironCollected -= amount;
 }
 
+// AYOS (hiling ng user): "dapat babalik sa slot niya na may memory ba
+// yun na old slots niya" - dating basta consumeCraftItemAmount(itemId,
+// -amount) lang ito (direktang pagdagdag sa RAW/generic na counter -
+// hal. woodCollected++) - kaya kahit naka-PIN pa noon sa isang partikular
+// na hotbar slot (o naka-split sa isang partikular na bag cell) ang
+// pinagmulan ng ingredient bago ito nailagay sa crafter, "nawawala" ang
+// bakas na iyon pagkatapos i-refund - basta na lang lumalabas/dumadagdag
+// sa GENERIC/unassigned na bag pool (posibleng ibang cell na ito
+// makikita, hindi na sa dating pinagmulan). Ngayon, gamit na ang
+// PAREHONG "routing" mechanism ng ibang bahagi ng laro (kaparehong-
+// pareho ng collectGroundItem sa ground-items.js AT collectSmeltOutput
+// sa stove.js): unang idinagdag sa RAW counter (adjustGlobalItemCount,
+// hotbar.js), TAPOS "ino-route" (routeCollectedItemIncrease) - kung
+// may KASALUKUYANG naka-pin na hotbar slot O naka-split na bag cell
+// ang item type na ito, DOON muna idinagdag/"bumalik" ang bilang
+// (parang naibalik sa "dating slot" nito), sa halip na basta sa
+// generic/unassigned pool - kung wala namang ganoon, doon pa rin sa
+// generic pool bumabagsak (walang pagbabago sa gawi kung walang
+// tugmang pinned/split slot).
 function refundCraftItemAmount(itemId, amount) {
-  consumeCraftItemAmount(itemId, -amount);
+  if (amount <= 0) return;
+
+  if (typeof adjustGlobalItemCount === "function") {
+    adjustGlobalItemCount(itemId, amount);
+  } else {
+    // Fallback (hal. kung sakaling hindi pa naka-load ang hotbar.js) -
+    // dating gawi, generic RAW counter lang.
+    consumeCraftItemAmount(itemId, -amount);
+  }
+
+  if (typeof routeCollectedItemIncrease === "function") {
+    routeCollectedItemIncrease(itemId, amount);
+  }
 }
 
 // =========================
 // PAGLALAGAY/PAG-ALIS NG INGREDIENTS
 // =========================
 
-// Tinatawag ng hotbar.js (pointerup) kapag ni-drop ang isang HAWAK (mula
-// sa floatingPickup - tingnan ang "HOLD-DRAG SPLIT STACK" sa hotbar.js)
-// papunta sa isang craft input cell - PUWEDE nang MARAMING piraso kada
-// cell ngayon (dating isa lang): kung bakante ang cell, gumagawa ng
-// bagong stack (count 1); kung may laman na PAREHONG item, dinadagdagan
-// lang ng 1 ang count (hanggang MAX_CRAFT_STACK); kung IBANG item ang
-// laman, tinatanggihan (kailangan pang alisin muna, kagaya ng dati).
-// Ang natitira sa hawak (kung meron) ay ibinabalik na ng hotbar.js
-// pabalik sa pinagmulan.
-function placeCraftIngredient(slotIndex, itemId) {
+// Tinatawag ng hotbar.js (pointerup, DRAG-AND-DROP ng BUONG hawak) at
+// ng craft.js mismo (pointerdown sa cell, PLAIN CLICK - 1 lang laging
+// hawak na `amount` doon) kapag maglalagay ng ingredient sa isang craft
+// input cell - PUWEDE nang MARAMING piraso kada cell (dating isa lang):
+// kung bakante ang cell, gumagawa ng bagong stack; kung may laman na
+// PAREHONG item, dinadagdagan lang ang count (hanggang MAX_CRAFT_STACK);
+// kung IBANG item ang laman, tinatanggihan (kailangan pang alisin muna).
+//
+// AYOS (hiling ng user): "yung slots sa crafter is di nalalagyan ng 99
+// woods... kung yung woods ay more than one pwede siya madrag to slots
+// 1-9" - dating "amount" ay LAGING 1 lang PER CALL kahit gaano karami
+// ang HAWAK (floatingPickup) - kaya kahit i-drag mo ang BUONG 99 wood,
+// 1 piraso lang ang naiilagay, ang natitirang 98 ay bumabalik sa bag.
+// Ngayon, TUMATANGGAP na ng `amount` parameter (default 1, para hindi
+// masira ang dating "plain click = 1 piraso lang" na gawi) - kapag
+// DRAG-AND-DROP (hotbar.js), IPINAPASA na ang BUONG floatingPickup.count
+// dito, kaya kung KASYA (base sa MAX_CRAFT_STACK at sa TALAGANG stock),
+// BUONG stack ang naiilagay sa ISANG paglagay lang - kaya kung 99 wood +
+// 99 charcoal, agad na 99 din ang resulta (torch, atbp. - tingnan ang
+// getShapedRecipeMultiplier, umiiral na ito). Ibinabalik ang AKTWAL na
+// bilang na TALAGANG naiLAGAY (0 kung tinanggihan/walang stock) - dito
+// bumabatay ang caller (hotbar.js) kung gaano babawasan ang hawak.
+function placeCraftIngredient(slotIndex, itemId, amount = 1) {
   const cell = craftInputs[slotIndex];
 
-  if (cell && cell.itemId !== itemId) return; // ibang item na - alisin muna
-  if (cell && cell.count >= MAX_CRAFT_STACK) return; // puno na ang stack dito
+  if (cell && cell.itemId !== itemId) return 0; // ibang item na - alisin muna
+  if (cell && cell.count >= MAX_CRAFT_STACK) return 0; // puno na ang stack dito
 
   const item = BAG_ITEMS.find((entry) => entry.id === itemId);
 
-  if (!item || item.getCount() <= 0) return;
+  if (!item) return 0;
 
-  consumeCraftItemAmount(itemId, 1);
+  const spaceLeft = MAX_CRAFT_STACK - (cell ? cell.count : 0);
+  const stockAvailable = item.getCount();
+  const placedAmount = Math.max(0, Math.min(amount, spaceLeft, stockAvailable));
 
-  if (cell) cell.count += 1;
-  else craftInputs[slotIndex] = { itemId, count: 1 };
+  if (placedAmount <= 0) return 0;
+
+  consumeCraftItemAmount(itemId, placedAmount);
+
+  if (cell) cell.count += placedAmount;
+  else craftInputs[slotIndex] = { itemId, count: placedAmount };
 
   updateCraftOutputFromInputs();
   syncCraftPanel();
 
   if (typeof syncHotbarUI === "function") syncHotbarUI();
+
+  return placedAmount;
 }
 
 // Tinatawag kapag ni-drag PALABAS (pabalik sa bag) ang laman ng isang
@@ -385,17 +725,53 @@ function removeCraftIngredient(slotIndex) {
   refundCraftItemAmount(cell.itemId, cell.count);
   craftInputs[slotIndex] = null;
 
+  // AYOS (hiling ng user): dahil hindi na "pre-consumed" ang mga input
+  // cell (tingnan ang updateCraftOutputFromInputs sa itaas), kailangang
+  // i-refresh ang preview ng output kada may inaalis na ingredient -
+  // baka nasira na ang pattern (dapat mawala/mag-iba ang naka-preview
+  // na resulta), o baka may IBANG tugmang recipe pa gamit ang natira.
+  updateCraftOutputFromInputs();
+
   syncCraftPanel();
 
   if (typeof syncHotbarUI === "function") syncHotbarUI();
 }
 
 // Tinatawag kapag ni-drag PALABAS (papunta sa bag) ang laman ng OUTPUT
-// slot - saka pa lang talaga naidaragdag sa stock ang resulta.
+// slot - DITO pa lang talaga TALAGANG kinokonsumo ang mga ingredient sa
+// pattern (tingnan ang AYOS sa updateCraftOutputFromInputs sa itaas -
+// PREVIEW/COMPUTED lang ang craftOutput bago dito, hindi pa
+// "ginagastos" ang mga input cell) AT saka pa lang naidaragdag sa stock
+// ang resulta. Hinahanap ulit dito ang tumutugmang recipe (dapat
+// pareho pa rin sa nag-produce ng kasalukuyang craftOutput, dahil hindi
+// pa ito nagbabago mula nang huling na-preview) para malaman EKSAKTO
+// kung anong mga cell/bilang ang dapat bawasan.
 function collectCraftOutput() {
   if (!craftOutput) return;
 
+  const shapedRecipe = findMatchingShapedRecipe();
+
+  if (shapedRecipe) {
+    const multiplier = getShapedRecipeMultiplier(shapedRecipe);
+
+    if (multiplier > 0) consumeShapedRecipeInputs(shapedRecipe, multiplier);
+  } else {
+    const recipe = findMatchingCraftRecipe();
+
+    if (recipe) consumeShapelessRecipeInputs(recipe);
+  }
+
   if (craftOutput.itemId === "crafter") craftersCollected += craftOutput.count;
+  else if (craftOutput.itemId === "light") lightsCollected += craftOutput.count;
+  // BAGO (hiling ng user: "add ka pala bed sa crafter tyaka
+  // refrigerator") - parehong "countable" na stock lang (kaparehong
+  // pattern ng "crafter"/"light" sa itaas).
+  else if (craftOutput.itemId === "bed") {
+    if (typeof bedsCollected !== "undefined") bedsCollected += craftOutput.count;
+  } else if (craftOutput.itemId === "refrigerator") {
+    if (typeof refrigeratorCollected !== "undefined")
+      refrigeratorCollected += craftOutput.count;
+  }
   // Pickaxe/rake/axe - BAGONG HILING: direktang "Unlocked" (equip-
   // ready sa tool radial) agad SA SANDALING i-drag palabas ang output
   // (dating dumadaan pa muna sa "InInventory"/bag bilang normal na
@@ -407,15 +783,36 @@ function collectCraftOutput() {
   // NAIWAN pa rin bilang variable (safe/hindi na aktibong gamit ng
   // landas na ito - tingnan ang bahagi 7 item 19 sa ibaba) sakaling
   // may umaasa pa dito (hal. lumang naka-save na data).
-  else if (craftOutput.itemId === "pickaxe") pickaxeUnlocked = true;
-  else if (craftOutput.itemId === "rake") rakeUnlocked = true;
-  else if (craftOutput.itemId === "axe") axeUnlocked = true;
-  else if (craftOutput.itemId === "sword") swordUnlocked = true;
+  else if (craftOutput.itemId === "pickaxe") {
+    pickaxeUnlocked = true;
+    // AYOS (hiling ng user): bagong-crafted na tool = FRESH/BUONG
+    // durability (50) - tingnan ang TOOL_DURABILITY_MAX (dig.js).
+    if (typeof pickaxeDurability !== "undefined")
+      pickaxeDurability = typeof TOOL_DURABILITY_MAX !== "undefined" ? TOOL_DURABILITY_MAX : 50;
+  } else if (craftOutput.itemId === "rake") {
+    rakeUnlocked = true;
+    if (typeof rakeDurability !== "undefined")
+      rakeDurability = typeof TOOL_DURABILITY_MAX !== "undefined" ? TOOL_DURABILITY_MAX : 50;
+  } else if (craftOutput.itemId === "axe") {
+    axeUnlocked = true;
+    if (typeof axeDurability !== "undefined")
+      axeDurability = typeof TOOL_DURABILITY_MAX !== "undefined" ? TOOL_DURABILITY_MAX : 50;
+  } else if (craftOutput.itemId === "cutter") {
+    if (typeof cutterUnlocked !== "undefined") cutterUnlocked = true;
+    if (typeof cutterDurability !== "undefined")
+      cutterDurability = typeof TOOL_DURABILITY_MAX !== "undefined" ? TOOL_DURABILITY_MAX : 50;
+  } else if (craftOutput.itemId === "sword") swordUnlocked = true;
   else if (craftOutput.itemId === "torch")
     torchesCollected += craftOutput.count;
   else if (craftOutput.itemId === "stove") stovesCollected += craftOutput.count;
 
   craftOutput = null;
+
+  // AYOS: baka may natirang sapat pa ring ingredients (hal. malaking
+  // stack, 99 wood pero 5 lang stone - 5 lang nagamit, may natitira pang
+  // 94 wood) para sa parehong recipe - agad na muling i-preview kung
+  // meron (hindi na kailangang mag-alis-lagay pa ulit ng ingredient).
+  updateCraftOutputFromInputs();
 
   syncCraftPanel();
 
@@ -426,17 +823,61 @@ function collectCraftOutput() {
 // TOGGLE/PAGBUBUKAS NG PANEL
 // =========================
 
-function toggleCraftPanel() {
-  craftPanelOpen = !craftPanelOpen;
+// AYOS (hiling ng user, kaparehong-pareho ng ginawang ayos sa
+// updateCraftOutputFromInputs sa itaas): "kapag biglang nasara yung
+// crafter or napindot yung 'B' is babalik yung item na naiwan dun sa
+// crafter" - dati, kapag "nasara" (bumaba/nagtago) ang panel (basta
+// craftPanelOpen === false, o kaya naman VISUALLY nakatago na lang ito
+// kasabay ng #bag-panel kapag pinindot ang 'B'/'b' - tingnan ang
+// toggleBagPanel sa hotbar.js), NANANATILI pa rin ang laman ng mga
+// craftInputs (at nakabawas pa rin sa stock) kahit tuluyan nang
+// nakatago/"naiwan" ito - parang "nawawala"/naka-limbo ang mga
+// ingredient (hindi makikita, pero hindi rin nababalik). Ngayon, sa
+// SANDALING TALAGANG isinara ang panel (dito, sa closeCraftPanel),
+// ibinabalik/rine-refund muna ang BUONG laman ng bawat pattern slot
+// pabalik sa stock (parang hindi pa naisagawa ang batch na iyon -
+// tama lang dahil PREVIEW/COMPUTED lang naman ang craftOutput hangga't
+// hindi pa ito na-drag palabas, tingnan ang updateCraftOutputFromInputs) -
+// KASAMA rin dito ang pagsara mismo (dating hiwalay na "if" sa loob ng
+// toggleCraftPanel).
+function closeCraftPanel() {
+  if (!craftPanelOpen) return;
 
-  // Bumabalik sa "basic" (2x2) kapag isinara, para laging sariwa ang
-  // susunod na pagbukas gamit ang footer icon (hindi naiiwang naka-
-  // "advanced" mode kahit wala nang kalapit na Crafter). Nililinis din
-  // ang napiling recipe guide/preview (tingnan ang renderCraftGuide).
-  if (!craftPanelOpen) {
-    craftPanelMode = "basic";
-    craftGuideRecipeId = null;
+  craftPanelOpen = false;
+
+  for (let i = 0; i < craftInputs.length; i++) {
+    const cell = craftInputs[i];
+
+    if (!cell) continue;
+
+    refundCraftItemAmount(cell.itemId, cell.count);
+    craftInputs[i] = null;
   }
+
+  // Hindi pa naman "nakuha"/na-drag palabas ang naka-preview na resulta
+  // (kung meron man) - kaya wala rin itong dapat maidagdag sa stock,
+  // basta nililinis na lang.
+  craftOutput = null;
+
+  // Bumabalik sa "basic" (2x2), para laging sariwa ang susunod na
+  // pagbukas gamit ang footer icon (hindi naiiwang naka-"advanced"
+  // mode kahit wala nang kalapit na Crafter). Nililinis din ang
+  // napiling recipe guide/preview (tingnan ang renderCraftGuide).
+  craftPanelMode = "basic";
+  craftGuideRecipeId = null;
+
+  syncCraftPanel();
+
+  if (typeof syncHotbarUI === "function") syncHotbarUI();
+}
+
+function toggleCraftPanel() {
+  if (craftPanelOpen) {
+    closeCraftPanel();
+    return;
+  }
+
+  craftPanelOpen = true;
 
   syncCraftPanel();
 }
@@ -595,7 +1036,10 @@ function syncCraftPanel() {
         if (afterCount > beforeCount) {
           floatingPickup.count--;
 
-          if (floatingPickup.count <= 0 && typeof clearFloatingPickupState === "function") {
+          if (
+            floatingPickup.count <= 0 &&
+            typeof clearFloatingPickupState === "function"
+          ) {
             clearFloatingPickupState();
           } else if (typeof updateFloatingGhostContent === "function") {
             updateFloatingGhostContent();
@@ -628,6 +1072,21 @@ function syncCraftPanel() {
 
       if (ghostItem && typeof getItemIconHTML === "function") {
         cell.classList.add("craft-slot-ghost");
+
+        // AYOS (hiling ng user): "kung wala/kulang ang requirement sa
+        // slot na ito, gawing pulang 1px na border" - kung nasa GHOST
+        // pa rin ang cell na ito (bakante) SA KABILA ng autoFillGuideRecipe
+        // (tingnan sa itaas, tinatawag sa SANDALING piliin ang guide),
+        // ibig sabihin talagang WALANG (o naubos na ang) stock ng item
+        // na kailangan dito - kaya "craft-slot-missing" (pulang border,
+        // tingnan ang style.css) - malinaw na senyales na hindi pa
+        // makakapag-craft hangga't hindi nakukuha/nadadagdagan ang
+        // item na ito.
+        const stockAvailable =
+          typeof ghostItem.getCount === "function" ? ghostItem.getCount() : 0;
+
+        if (stockAvailable <= 0) cell.classList.add("craft-slot-missing");
+
         cell.innerHTML = getItemIconHTML(ghostItem);
       } else {
         const key = document.createElement("span");
@@ -753,6 +1212,15 @@ function isCrafterSlotSelected() {
 // madadampot, PERMANENTENG BAGAY ito sa mundo (parang bahay/puno) na
 // puwedeng i-click para buksan ang "advanced" crafting panel (tingnan
 // ang getPlacedCrafterAt sa dig.js).
+// BAGO (hiling ng user): "dapat mag select ng tile sa mismong loob ng
+// bahay" + "kapag kalahati lang ang 16x16 tile is di pwede malagyan" -
+// dating kahit saan/kahit anong tile puwede, ngayon dumaraan muna sa
+// isFootprintPlaceable (placement.js): (a) LOOB LANG ng bahay
+// (isInsideHouseWorld), (b) LAHAT ng 2 tile ng footprint (PLACEMENT_FOOTPRINTS,
+// placement.js) ay dapat LIBRE - kung may kalahating tile lang na
+// bakante o may hadlang, WALANG mangyayari (tahimik lang na hindi
+// natutuloy ang paglalagay, kaparehong "walang epekto" na gawi ng
+// facing check sa Entry #63).
 function placeCrafterInWorld(col, row) {
   if (craftersCollected <= 0) return;
 
@@ -765,6 +1233,13 @@ function placeCrafterInWorld(col, row) {
 
   if (!tile) return;
 
+  if (
+    typeof isFootprintPlaceable === "function" &&
+    !isFootprintPlaceable("crafter", tile.col, tile.row)
+  ) {
+    return;
+  }
+
   placedCrafters.push({
     world: currentWorld,
     col: tile.col,
@@ -774,19 +1249,35 @@ function placeCrafterInWorld(col, row) {
 
   craftersCollected--;
 
+  // AYOS (hiling ng user): kung ITO ang kasalukuyang naka-hold (ulo ng
+  // player), "mawawala" na rin ito dito - naibigay/nailagay na kasi
+  // (tingnan ang hold.js).
+  if (typeof clearHeldItemIfPlaced === "function")
+    clearHeldItemIfPlaced("crafter");
+
   if (typeof syncHotbarUI === "function") syncHotbarUI();
 }
 
-// May naka-lagay bang Crafter sa eksaktong cell na ito (sa kasalukuyang
-// mundo)? Tingnan ang paggamit nito sa dig.js (mousedown listener).
+// May naka-lagay bang Crafter dito (sa kasalukuyang mundo)? BAGO: 2
+// tile na ang footprint nito (placement.js) - kaya HINDI na simpleng
+// col/row equality lang, tinitingnan kung KASAMA ang (col,row) sa
+// buong footprint ng bawat naka-lagay na Crafter. Tingnan ang paggamit
+// nito sa dig.js (mousedown listener).
 function getPlacedCrafterAt(col, row) {
   return (
-    placedCrafters.find(
-      (crafter) =>
-        crafter.world === currentWorld &&
-        crafter.col === col &&
-        crafter.row === row,
-    ) || null
+    placedCrafters.find((crafter) => {
+      if (crafter.world !== currentWorld) return false;
+
+      if (typeof getPlacementFootprintCells !== "function") {
+        return crafter.col === col && crafter.row === row;
+      }
+
+      return getPlacementFootprintCells(
+        "crafter",
+        crafter.col,
+        crafter.row,
+      ).some((cell) => cell.col === col && cell.row === row);
+    }) || null
   );
 }
 
@@ -825,25 +1316,42 @@ function breakPlacedCrafter(crafter) {
 // ito ng canMoveTo (collisions.js, player) AT ng canFeetMoveTo
 // (decor.js, oldman/pig) - totoong hadlang na ngayon ang naka-lagay na
 // Crafter, hindi na madadaanan.
-const CRAFTER_COLLISION_SIZE = TILE_SIZE * 0.85;
-
+// BAGO: 2 tile na ngayon ang footprint (placement.js) - ang collision
+// box ay sumasakop na sa BUONG bounding box ng 2 tile (getFootprintCollisionBox),
+// hindi lang sa unang tile.
 function getPlacedCrafterCollisionBoxes() {
   if (placedCrafters.length === 0) return [];
 
-  const inset = (TILE_SIZE - CRAFTER_COLLISION_SIZE) / 2;
-
   return placedCrafters
     .filter((crafter) => crafter.world === currentWorld)
-    .map((crafter) => ({
-      x: crafter.col * TILE_SIZE + inset,
-      y: crafter.row * TILE_SIZE + inset,
-      width: CRAFTER_COLLISION_SIZE,
-      height: CRAFTER_COLLISION_SIZE,
-    }));
+    .map((crafter) =>
+      typeof getFootprintCollisionBox === "function"
+        ? getFootprintCollisionBox("crafter", crafter.col, crafter.row)
+        : {
+            x: crafter.col * TILE_SIZE,
+            y: crafter.row * TILE_SIZE,
+            width: TILE_SIZE,
+            height: TILE_SIZE,
+          },
+    );
 }
 
+// BAGO (hiling ng user): "ibahin mo itsura ng stove at crafter dapat
+// kung ano yung nasa inventory na itsura" - ang ITSURA (world sprite)
+// ng naka-lagay na Crafter ay ang MISMONG icon na ginagamit sa bag/
+// hotbar (assets/items/crafter.png, BAG_ITEMS - hotbar.js), hindi na
+// basta emoji. "Mali yung tile dapat exact 16x16" - iginuguhit ito
+// EKSAKTO sa loob ng buong 2-tile na footprint box (2*TILE_SIZE x
+// TILE_SIZE, walang overflow/palabas sa grid) - hindi base sa aspect
+// ratio ng larawan (puwede itong bahagyang ma-squish, pero laging
+// TAMA/EKSAKTO ang pagkakahanay nito sa 16x16 grid).
+const CRAFTER_SPRITE_IMAGE = new Image();
+
+CRAFTER_SPRITE_IMAGE.src = "./assets/items/crafter.png";
+
 // Iginuguhit sa PAREHONG layer/oras ng drawGroundItems (draw.js) - world
-// space, sa ilalim ng player.
+// space, sa ilalim ng player. BAGO: naka-sentro na sa GITNA ng BUONG
+// 2-tile na footprint (hindi lang sa unang tile).
 function drawPlacedCrafters() {
   if (placedCrafters.length === 0) return;
 
@@ -854,16 +1362,46 @@ function drawPlacedCrafters() {
   if (here.length === 0) return;
 
   ctx.save();
-  ctx.font = TILE_SIZE * 0.8 + "px sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
+
+  // Fallback (emoji) habang hindi pa fully-loaded ang sprite.
+  if (
+    !CRAFTER_SPRITE_IMAGE.complete ||
+    CRAFTER_SPRITE_IMAGE.naturalWidth === 0
+  ) {
+    ctx.font = TILE_SIZE * 0.9 + "px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    for (const crafter of here) {
+      ctx.fillText(
+        "🛠️",
+        crafter.col * TILE_SIZE + TILE_SIZE,
+        crafter.row * TILE_SIZE + TILE_SIZE / 2,
+      );
+    }
+
+    ctx.restore();
+    return;
+  }
 
   for (const crafter of here) {
-    ctx.fillText(
-      "🛠️",
-      crafter.col * TILE_SIZE + TILE_SIZE / 2,
-      crafter.row * TILE_SIZE + TILE_SIZE / 2,
-    );
+    if (typeof drawSpriteFillWidthInBox === "function") {
+      drawSpriteFillWidthInBox(
+        CRAFTER_SPRITE_IMAGE,
+        crafter.col * TILE_SIZE,
+        crafter.row * TILE_SIZE,
+        TILE_SIZE * 2, // EKSAKTONG 2 tile (32x16) - hindi lalabas sa grid
+        TILE_SIZE,
+      );
+    } else {
+      ctx.drawImage(
+        CRAFTER_SPRITE_IMAGE,
+        crafter.col * TILE_SIZE,
+        crafter.row * TILE_SIZE,
+        TILE_SIZE * 2,
+        TILE_SIZE,
+      );
+    }
   }
 
   ctx.restore();

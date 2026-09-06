@@ -1,5 +1,5 @@
 // =========================
-// TOOL RADIAL MENU (pickaxe/rake/axe/arrow - hawak-Alt)
+// TOOL RADIAL MENU (pickaxe/rake/axe/cutter - hawak-Alt)
 // =========================
 //
 // Kapalit ng dating magkakahiwalay na hotbar slots: hawakan ang "Alt"
@@ -53,14 +53,19 @@ const TOOL_RADIAL_EQUIP_BY_DIRECTION = {
   top: () => equipPickaxe(),
   right: () => equipRake(),
   bottom: () => equipAxe(),
-  left: () => equipArrow(),
+  // BAGO (hiling ng user): "alisin mo na yung hand sa radial tools
+  // ipalit mo dun yung cutter" - pinalitan na ang "kamao"/arrow
+  // (walang function naman talaga - tingnan ang dating paliwanag sa
+  // resources.js) ng cutter dito sa "left" slot ng 4-direction na
+  // aim+release na gesture.
+  left: () => equipCutter(),
 };
 
 const TOOL_RADIAL_ID_BY_DIRECTION = {
   top: "tool-radial-pickaxe",
   right: "tool-radial-rake",
   bottom: "tool-radial-axe",
-  left: "tool-radial-arrow",
+  left: "tool-radial-cutter",
 };
 
 function showToolRadial() {
@@ -205,10 +210,16 @@ document.getElementById("tool-radial-axe")?.addEventListener("click", () => {
   hideToolRadial();
 });
 
-document.getElementById("tool-radial-arrow")?.addEventListener("click", () => {
-  equipArrow();
-  hideToolRadial();
-});
+// BAGO (hiling ng user): "cutter" - pumalit na ito sa dating
+// "kamao"/arrow slot (left, 4th cardinal direction) - direktang click
+// bilang alternatibo sa "aim+release" na gesture (parehong-pareho ng
+// ibang 3 sa itaas).
+document
+  .getElementById("tool-radial-cutter")
+  ?.addEventListener("click", () => {
+    equipCutter();
+    hideToolRadial();
+  });
 
 function setRadialActive(id, active) {
   const el = document.getElementById(id);
@@ -225,11 +236,14 @@ function syncToolRadialUI() {
   setRadialActive("tool-radial-pickaxe", pickaxeEquipped);
   setRadialActive("tool-radial-rake", rakeEquipped);
   setRadialActive("tool-radial-axe", axeEquipped);
-  setRadialActive("tool-radial-arrow", arrowEquipped);
+  setRadialActive(
+    "tool-radial-cutter",
+    typeof cutterEquipped !== "undefined" && cutterEquipped,
+  );
 
   // Naka-lock (greyed-out, "tool-radial-locked") hanggang ma-craft -
-  // tingnan ang pickaxeUnlocked/rakeUnlocked (dig.js), axeUnlocked
-  // (resources.js), at ang mga SHAPED recipe sa craft.js.
+  // tingnan ang pickaxeUnlocked/rakeUnlocked (dig.js), axeUnlocked/
+  // cutterUnlocked (resources.js), at ang mga SHAPED recipe sa craft.js.
   document
     .getElementById("tool-radial-pickaxe")
     ?.classList.toggle("tool-radial-locked", !pickaxeUnlocked);
@@ -239,6 +253,74 @@ function syncToolRadialUI() {
   document
     .getElementById("tool-radial-axe")
     ?.classList.toggle("tool-radial-locked", !axeUnlocked);
+  document
+    .getElementById("tool-radial-cutter")
+    ?.classList.toggle(
+      "tool-radial-locked",
+      !(typeof cutterUnlocked !== "undefined" && cutterUnlocked),
+    );
+
+  // AYOS (hiling ng user): "may duration na rin kada gamit... panatilihin
+  // sa circle/tool radial, doon na lang ipakita ang durability" - maliit
+  // na badge (parang hotbar-badge) sa ilalim ng bawat icon, "kasalukuyan/
+  // max" (hal. "37/50") - lumalabas LANG kapag naka-unlock na ang tool
+  // (walang silbi ipakita kung naka-lock/hindi pa na-craft).
+  const cap = typeof TOOL_DURABILITY_MAX !== "undefined" ? TOOL_DURABILITY_MAX : 50;
+
+  updateToolDurabilityBadge(
+    "tool-radial-pickaxe",
+    pickaxeUnlocked,
+    typeof pickaxeDurability !== "undefined" ? pickaxeDurability : 0,
+    cap,
+  );
+  updateToolDurabilityBadge(
+    "tool-radial-rake",
+    rakeUnlocked,
+    typeof rakeDurability !== "undefined" ? rakeDurability : 0,
+    cap,
+  );
+  updateToolDurabilityBadge(
+    "tool-radial-axe",
+    axeUnlocked,
+    typeof axeDurability !== "undefined" ? axeDurability : 0,
+    cap,
+  );
+  updateToolDurabilityBadge(
+    "tool-radial-cutter",
+    typeof cutterUnlocked !== "undefined" && cutterUnlocked,
+    typeof cutterDurability !== "undefined" ? cutterDurability : 0,
+    cap,
+  );
+}
+
+// Ginagawa/ina-update ang maliit na "kasalukuyan/max" na badge ng
+// durability sa loob ng isang tool-radial button - tinatanggal ito
+// (kung meron) kapag "unlocked" ay false (wala namang silbi ipakita).
+// Pulang tint (tool-radial-durability-low) kapag mababa na (<=20% ng
+// max) - babala bago pa man talaga "sumabog"/masira ang tool.
+function updateToolDurabilityBadge(buttonId, unlocked, durability, max) {
+  const btn = document.getElementById(buttonId);
+
+  if (!btn) return;
+
+  let badge = btn.querySelector(".tool-radial-durability");
+
+  if (!unlocked) {
+    if (badge) badge.remove();
+    return;
+  }
+
+  if (!badge) {
+    badge = document.createElement("span");
+    badge.className = "tool-radial-durability";
+    btn.appendChild(badge);
+  }
+
+  badge.textContent = durability + "/" + max;
+  badge.classList.toggle(
+    "tool-radial-durability-low",
+    durability <= Math.ceil(max * 0.2),
+  );
 }
 
 syncToolRadialUI();

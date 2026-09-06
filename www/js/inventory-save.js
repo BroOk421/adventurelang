@@ -48,22 +48,45 @@
 // ang mga bagong swing animation), pero hindi na dapat makita ng
 // aktwal na manlalaro - dapat magsimula silang WALANG laman ang bag at
 // kailangan pa munang mag-craft bago magkaroon ng pickaxe/rake/axe.
-const INVENTORY_SAVE_KEY = "tralala.inventory.v6";
+// ".v7" - hiling ng user: "bigyan mo muna ako sa inventory ng 1 light,
+// stove at crafter" (para matest agad ang bagong placement system,
+// Entry #64) - PERO may EXISTING na naka-save na siya (".v6"), kaya
+// hindi naabot ang bagong default (craftersCollected/stovesCollected/
+// lightsCollected = 1) sa ibaba - laging babalik doon sa dating naka-
+// save na 0. Itinaas ang bersyon dito (parehong paraan ng ".v1") para
+// ma-force ang bagong laro/panimulang estado - MATATABUNAN ang lumang
+// progreso (hotbar/bag/placed structures) ng sinumang naglalaro na
+// gamit ang lumang ".v6" na save.
+// ".v8" - bagong hiling ng user: "lagay ka na lang muna din ng 1 bed
+// panimula sa inventory" - PAREHONG dahilan/pattern ng ".v7" sa itaas
+// (bagong default na starting stock, pero hindi maaabot kung may
+// EXISTING nang naka-save) - itinaas ulit ang bersyon para ma-force ang
+// bagong panimulang estado (1 Bed na agad, tingnan ang loadInventoryState
+// sa ibaba).
+// ".v9" - hiling ng user: "lagay ka rin ng 5 quantity ng carrots sa
+// inventory for testing" (bagong FOOD/hunger system - EDIBLE_ITEMS,
+// hotbar.js) - PAREHONG dahilan/pattern ng ".v7"/".v8" sa itaas (bagong
+// default na starting stock, pero hindi maaabot kung may EXISTING nang
+// naka-save) - itinaas ang bersyon dito para ma-force ang bagong
+// panimulang estado (5 Carrot na agad, tingnan ang loadInventoryState
+// sa ibaba).
+const INVENTORY_SAVE_KEY = "tralala.inventory.v9";
 
 // Mabagal ang localStorage - kagaya ng maybeSavePlayerPosition
 // (update.js), hindi tayo nagsu-save KADA TAWAG (maaaring paulit-ulit
 // ito mula sa syncHotbarUI, na tumatakbo nang madalas) - sapat nang
 // "iskedyul" ang isang save sa loob ng kaunting sandali, kahit paulit-
 // ulit na hilingin ito bago pa man umabot doon (debounce).
-let inventorySaveTimer = null;
-
+// BAGO (hiling ng user: "ayoko na ng auto save") - hindi na dapat
+// mag-iskedyul ng save sa background (ang function na ito ay tinatawag
+// nang MADALAS, tuwing may pagbabago sa hotbar/bag, mula sa
+// syncHotbarUI) - tingnan ang paliwanag sa savePlayerPosition (player.js)
+// para sa disenyo ng "force" parameter na ginagamit ng lahat ng ibang
+// save function sa buong laro. Dito, sapat nang gawing NO-OP na lang
+// ang buong scheduleInventorySave() (hindi na kailangan pang mag-debounce
+// ng isang bagay na hindi naman dapat mangyari).
 function scheduleInventorySave() {
-  if (inventorySaveTimer) return; // may naka-iskedyul na, huwag nang dagdagan
-
-  inventorySaveTimer = setTimeout(() => {
-    inventorySaveTimer = null;
-    saveInventoryState();
-  }, 500);
+  // Sinasadyang walang laman - tingnan ang paliwanag sa itaas.
 }
 
 function serializeInventoryState() {
@@ -77,14 +100,39 @@ function serializeInventoryState() {
     crafter: craftersCollected,
     charcoal: typeof charcoalCollected !== "undefined" ? charcoalCollected : 0,
     stove: typeof stovesCollected !== "undefined" ? stovesCollected : 0,
+    light: typeof lightsCollected !== "undefined" ? lightsCollected : 0,
     meat: typeof meatCollected !== "undefined" ? meatCollected : 0,
     cookedmeat: typeof cookedmeat !== "undefined" ? cookedmeat : 0,
+    bag: typeof bagCollected !== "undefined" ? bagCollected : 0,
+    bed: typeof bedsCollected !== "undefined" ? bedsCollected : 0,
+
+    // BAGO (hiling ng user: "add ka pala bed sa crafter tyaka
+    // refrigerator...yung sa bed 123 slots wool...456 slots
+    // silk...refrigerator naman is dapat iron") - bagong crafting
+    // material/item, tingnan ang craft.js (woolCollected/silkCollected/
+    // ironCollected/refrigeratorCollected).
+    wool: typeof woolCollected !== "undefined" ? woolCollected : 0,
+    silk: typeof silkCollected !== "undefined" ? silkCollected : 0,
+    iron: typeof ironCollected !== "undefined" ? ironCollected : 0,
+    refrigerator:
+      typeof refrigeratorCollected !== "undefined" ? refrigeratorCollected : 0,
 
     // Mga na-craft/na-unlock na kasangkapan (boolean).
     pickaxeUnlocked: typeof pickaxeUnlocked !== "undefined" ? pickaxeUnlocked : false,
     rakeUnlocked: typeof rakeUnlocked !== "undefined" ? rakeUnlocked : false,
     axeUnlocked: typeof axeUnlocked !== "undefined" ? axeUnlocked : false,
+    cutterUnlocked: typeof cutterUnlocked !== "undefined" ? cutterUnlocked : false,
     swordUnlocked: typeof swordUnlocked !== "undefined" ? swordUnlocked : false,
+
+    // BAGO (hiling ng user): DURABILITY ng bawat tool (50 max, HIWALAY
+    // na counter bawat isa - tingnan ang TOOL_DURABILITY_MAX/
+    // useToolDurability sa dig.js).
+    pickaxeDurability:
+      typeof pickaxeDurability !== "undefined" ? pickaxeDurability : 0,
+    rakeDurability: typeof rakeDurability !== "undefined" ? rakeDurability : 0,
+    axeDurability: typeof axeDurability !== "undefined" ? axeDurability : 0,
+    cutterDurability:
+      typeof cutterDurability !== "undefined" ? cutterDurability : 0,
 
     // BAGO: pickaxe/rake/axe na na-craft na PERO hindi pa na-double
     // click/i-INSTALL papunta sa tool radial - nakalagay pa lang ito
@@ -104,8 +152,16 @@ function serializeInventoryState() {
     pickaxeEquipped: typeof pickaxeEquipped !== "undefined" ? pickaxeEquipped : false,
     rakeEquipped: typeof rakeEquipped !== "undefined" ? rakeEquipped : false,
     axeEquipped: typeof axeEquipped !== "undefined" ? axeEquipped : false,
+    cutterEquipped: typeof cutterEquipped !== "undefined" ? cutterEquipped : false,
     arrowEquipped: typeof arrowEquipped !== "undefined" ? arrowEquipped : false,
     torchEquipped: typeof torchEquipped !== "undefined" ? torchEquipped : false,
+    // BAGO: naka-suot ba ang backpack (tingnan ang player.js -
+    // sprites.bagIdle).
+    bagEquipped: typeof bagEquipped !== "undefined" ? bagEquipped : false,
+
+    // BAGO: "Hold" na item (hold.js) - kung anong itemId ang kasalukuyang
+    // hawak sa ulo ng player (null kung wala).
+    heldItemId: typeof heldItemId !== "undefined" ? heldItemId : null,
 
     // Buong hotbar (1-9) at bag (split-stacks + default na posisyon ng
     // bawat item type).
@@ -115,13 +171,21 @@ function serializeInventoryState() {
     itemDefaultBagPosition:
       typeof itemDefaultBagPosition !== "undefined" ? itemDefaultBagPosition : {},
 
-    // Mga permanenteng naka-lagay na bagay sa mundo (Crafter/Stove).
+    // Mga permanenteng naka-lagay na bagay sa mundo (Crafter/Stove/Bag/Light/Bed).
     placedCrafters: typeof placedCrafters !== "undefined" ? placedCrafters : [],
     placedStoves: typeof placedStoves !== "undefined" ? placedStoves : [],
+    placedBags: typeof placedBags !== "undefined" ? placedBags : [],
+    placedLights: typeof placedLights !== "undefined" ? placedLights : [],
+    placedBeds: typeof placedBeds !== "undefined" ? placedBeds : [],
   };
 }
 
-function saveInventoryState() {
+// BAGO (hiling ng user: "ayoko na ng auto save") - "force" param,
+// default false - tingnan ang paliwanag sa savePlayerPosition (player.js)
+// para sa buong disenyo nito.
+function saveInventoryState(force = false) {
+  if (!force) return;
+
   try {
     localStorage.setItem(INVENTORY_SAVE_KEY, JSON.stringify(serializeInventoryState()));
   } catch (error) {
@@ -142,11 +206,15 @@ function loadInventoryState() {
   }
 
   // Walang naka-save (bagong laro, o ni-clear - tingnan ang tala sa
-  // INVENTORY_SAVE_KEY sa itaas) - TALAGANG WALANG LAMAN ang simula
-  // (hindi ang "panimulang starter kit" na naka-hardcode sa ibang
-  // script - carrotsCollected=5 sa dig.js, torchesCollected=3/
-  // woodCollected=4 sa resources.js - dito na ang HULING salita kung
-  // ano talaga ang laman sa simula).
+  // INVENTORY_SAVE_KEY sa itaas) - TALAGANG WALANG LAMAN ang simula.
+  //
+  // AYOS (hiling ng user: "alisin mo na yung mga gamit sa bag gawin mo
+  // siyang parang new player na walang gamit o kahit ano") - dating
+  // may "starter kit" dito (99 wood/stone/charcoal, 5 carrot, 1 torch,
+  // 1 crafter/stove/light/bed, atbp) - PANSAMANTALA/PAMBUBURA lang ito
+  // dati, para sa pagte-test ng iba't ibang feature. TINANGGAL na ito -
+  // TALAGANG 0/false/walang-laman na ngayon ang lahat sa isang bagong
+  // laro, tulad ng dapat sa isang totoong bagong manlalaro.
   if (!saved || typeof saved !== "object") {
     woodCollected = 0;
     stoneCollected = 0;
@@ -156,8 +224,27 @@ function loadInventoryState() {
     craftersCollected = 0;
     if (typeof charcoalCollected !== "undefined") charcoalCollected = 0;
     if (typeof stovesCollected !== "undefined") stovesCollected = 0;
+    if (typeof lightsCollected !== "undefined") lightsCollected = 0;
     if (typeof meatCollected !== "undefined") meatCollected = 0;
     if (typeof cookedmeat !== "undefined") cookedmeat = 0;
+    if (typeof bagCollected !== "undefined") bagCollected = 0;
+    if (typeof bedsCollected !== "undefined") bedsCollected = 0;
+    // BAGO (hiling ng user: "add ka pala bed sa crafter tyaka
+    // refrigerator") - bagong crafting material/item, kaparehong-
+    // pareho ng "new player" na ayos ng lahat sa itaas - 0 lahat sa
+    // bagong laro.
+    if (typeof woolCollected !== "undefined") woolCollected = 0;
+    if (typeof silkCollected !== "undefined") silkCollected = 0;
+    if (typeof ironCollected !== "undefined") ironCollected = 0;
+    if (typeof refrigeratorCollected !== "undefined") refrigeratorCollected = 0;
+
+    // Walang naka-craft na tool pa (pickaxeUnlocked/rakeUnlocked/
+    // axeUnlocked = false pa rin) - 0 muna ang durability, fresh na 50
+    // ang ibibigay sa sandaling ma-craft (collectCraftOutput, craft.js).
+    if (typeof pickaxeDurability !== "undefined") pickaxeDurability = 0;
+    if (typeof rakeDurability !== "undefined") rakeDurability = 0;
+    if (typeof axeDurability !== "undefined") axeDurability = 0;
+    if (typeof cutterDurability !== "undefined") cutterDurability = 0;
 
     return;
   }
@@ -171,8 +258,18 @@ function loadInventoryState() {
   if (Number.isFinite(saved.charcoal) && typeof charcoalCollected !== "undefined") {
     charcoalCollected = saved.charcoal;
   }
+
+  // AYOS (hiling ng user: "gawin mo siyang parang new player na walang
+  // gamit") - dating PINIPILIT (Math.max) ang wood/stone/charcoal na
+  // HINDI bumaba sa 99 kahit ano ang laman ng save - pambubura/testing
+  // lang ito dati. TINANGGAL na ito - ang TALAGANG naka-save (o 0 kung
+  // walang laman/bagong laro) na ang laging sinusunod, walang artipisyal
+  // na minimum.
   if (Number.isFinite(saved.stove) && typeof stovesCollected !== "undefined") {
     stovesCollected = saved.stove;
+  }
+  if (Number.isFinite(saved.light) && typeof lightsCollected !== "undefined") {
+    lightsCollected = saved.light;
   }
   if (Number.isFinite(saved.meat) && typeof meatCollected !== "undefined") {
     meatCollected = saved.meat;
@@ -180,11 +277,79 @@ function loadInventoryState() {
   if (Number.isFinite(saved.cookedmeat) && typeof cookedmeat !== "undefined") {
     cookedmeat = saved.cookedmeat;
   }
+  if (Number.isFinite(saved.bag) && typeof bagCollected !== "undefined") {
+    bagCollected = saved.bag;
+  }
+  if (Number.isFinite(saved.bed) && typeof bedsCollected !== "undefined") {
+    bedsCollected = saved.bed;
+  }
+  // BAGO (hiling ng user): "add ka pala bed sa crafter tyaka
+  // refrigerator" - bagong crafting material/item, parehong-parehong
+  // ayos ng paglo-load sa itaas.
+  if (Number.isFinite(saved.wool) && typeof woolCollected !== "undefined") {
+    woolCollected = saved.wool;
+  }
+  if (Number.isFinite(saved.silk) && typeof silkCollected !== "undefined") {
+    silkCollected = saved.silk;
+  }
+  if (Number.isFinite(saved.iron) && typeof ironCollected !== "undefined") {
+    ironCollected = saved.iron;
+  }
+  if (
+    Number.isFinite(saved.refrigerator) &&
+    typeof refrigeratorCollected !== "undefined"
+  ) {
+    refrigeratorCollected = saved.refrigerator;
+  }
+
 
   if (typeof pickaxeUnlocked !== "undefined") pickaxeUnlocked = Boolean(saved.pickaxeUnlocked);
   if (typeof rakeUnlocked !== "undefined") rakeUnlocked = Boolean(saved.rakeUnlocked);
   if (typeof axeUnlocked !== "undefined") axeUnlocked = Boolean(saved.axeUnlocked);
+  if (typeof cutterUnlocked !== "undefined") cutterUnlocked = Boolean(saved.cutterUnlocked);
   if (typeof swordUnlocked !== "undefined") swordUnlocked = Boolean(saved.swordUnlocked);
+
+  // BAGO (hiling ng user): ibalik ang naka-save na DURABILITY - PERO
+  // kung may EXISTING na naka-save na "Unlocked" na tool MULA PA BAGO
+  // idinagdag ang durability feature na ito (walang number/`NaN` sa
+  // saved.*Durability), bigyan ng BUONG/FRESH na durability (TOOL_
+  // DURABILITY_MAX) sa halip na 0 - para hindi agad "sira" sa
+  // paningin ng manlalaro ang tool na matagal na niyang ginagamit.
+  {
+    const cap = typeof TOOL_DURABILITY_MAX !== "undefined" ? TOOL_DURABILITY_MAX : 50;
+
+    if (typeof pickaxeDurability !== "undefined") {
+      pickaxeDurability = Number.isFinite(saved.pickaxeDurability)
+        ? saved.pickaxeDurability
+        : pickaxeUnlocked
+          ? cap
+          : 0;
+    }
+
+    if (typeof rakeDurability !== "undefined") {
+      rakeDurability = Number.isFinite(saved.rakeDurability)
+        ? saved.rakeDurability
+        : rakeUnlocked
+          ? cap
+          : 0;
+    }
+
+    if (typeof axeDurability !== "undefined") {
+      axeDurability = Number.isFinite(saved.axeDurability)
+        ? saved.axeDurability
+        : axeUnlocked
+          ? cap
+          : 0;
+    }
+
+    if (typeof cutterDurability !== "undefined") {
+      cutterDurability = Number.isFinite(saved.cutterDurability)
+        ? saved.cutterDurability
+        : cutterUnlocked
+          ? cap
+          : 0;
+    }
+  }
 
   if (typeof pickaxeInInventory !== "undefined") {
     pickaxeInInventory = Boolean(saved.pickaxeInInventory);
@@ -199,8 +364,14 @@ function loadInventoryState() {
   if (typeof pickaxeEquipped !== "undefined") pickaxeEquipped = Boolean(saved.pickaxeEquipped);
   if (typeof rakeEquipped !== "undefined") rakeEquipped = Boolean(saved.rakeEquipped);
   if (typeof axeEquipped !== "undefined") axeEquipped = Boolean(saved.axeEquipped);
+  if (typeof cutterEquipped !== "undefined") cutterEquipped = Boolean(saved.cutterEquipped);
   if (typeof arrowEquipped !== "undefined") arrowEquipped = Boolean(saved.arrowEquipped);
   if (typeof torchEquipped !== "undefined") torchEquipped = Boolean(saved.torchEquipped);
+  if (typeof bagEquipped !== "undefined") bagEquipped = Boolean(saved.bagEquipped);
+
+  if (typeof heldItemId !== "undefined") {
+    heldItemId = saved.heldItemId || null;
+  }
 
   if (saved.pinnedSlots && typeof saved.pinnedSlots === "object") {
     pinnedSlots = saved.pinnedSlots;
@@ -218,6 +389,34 @@ function loadInventoryState() {
     itemDefaultBagPosition = saved.itemDefaultBagPosition;
   }
 
+  // AYOS (hiling ng user: "bumabalik yung bag kapag nag sort") - kung
+  // naka-suot ang bag (bagEquipped=true), dapat WALA itong slot sa
+  // inventory grid. Puwedeng may LUMANG save data (bago ang ayos na
+  // ito) na naglalaman pa rin ng bag bilang split stack (bagSplitStacks)
+  // o may naka-pako itong itemDefaultBagPosition, kahit naka-suot -
+  // kaya "bumabalik" ito pagka-load/pagka-Sort. Linisin dito: kung
+  // naka-suot, alisin ang lahat ng bag na split stack AT ang naka-pako
+  // nitong default position - pumapasok ito sa dynamic na sistema
+  // (nakatago habang naka-suot, tingnan ang getBagDynamicPositions sa
+  // hotbar.js).
+  if (typeof bagEquipped !== "undefined" && bagEquipped) {
+    if (typeof bagSplitStacks === "object" && bagSplitStacks) {
+      for (const key in bagSplitStacks) {
+        if (bagSplitStacks[key] && bagSplitStacks[key].itemId === "bag") {
+          delete bagSplitStacks[key];
+        }
+      }
+    }
+
+    if (
+      typeof itemDefaultBagPosition === "object" &&
+      itemDefaultBagPosition &&
+      itemDefaultBagPosition["bag"] !== undefined
+    ) {
+      delete itemDefaultBagPosition["bag"];
+    }
+  }
+
   if (Array.isArray(saved.placedCrafters) && typeof placedCrafters !== "undefined") {
     placedCrafters = saved.placedCrafters;
     placedCrafterIdCounter = placedCrafters.reduce(
@@ -229,6 +428,27 @@ function loadInventoryState() {
   if (Array.isArray(saved.placedStoves) && typeof placedStoves !== "undefined") {
     placedStoves = saved.placedStoves;
     placedStoveIdCounter = placedStoves.reduce((max, entry) => Math.max(max, entry.id + 1), 0);
+  }
+
+  if (Array.isArray(saved.placedBags) && typeof placedBags !== "undefined") {
+    placedBags = saved.placedBags;
+    placedBagIdCounter = placedBags.reduce((max, entry) => Math.max(max, entry.id + 1), 0);
+  }
+
+  if (Array.isArray(saved.placedLights) && typeof placedLights !== "undefined") {
+    placedLights = saved.placedLights;
+    placedLightIdCounter = placedLights.reduce(
+      (max, entry) => Math.max(max, entry.id + 1),
+      0,
+    );
+  }
+
+  if (Array.isArray(saved.placedBeds) && typeof placedBeds !== "undefined") {
+    placedBeds = saved.placedBeds;
+    placedBedIdCounter = placedBeds.reduce(
+      (max, entry) => Math.max(max, entry.id + 1),
+      0,
+    );
   }
 }
 

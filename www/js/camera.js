@@ -5,14 +5,14 @@
 // Hangganan ng zoom - hindi puwedeng lumagpas dito sa magkabilang
 // dulo. Buong numero lang ang bawat baitang (hindi fraction) para
 // manatiling malinaw/crisp ang pixel art kahit anong zoom.
-const CAMERA_MIN_ZOOM = 3;
+const CAMERA_MIN_ZOOM = 3.5;
 const CAMERA_MAX_ZOOM = 8;
 
 const camera = {
   x: 0,
   y: 0,
 
-  zoom: 3,
+  zoom: 3.5,
 
   follow() {
     const viewWidth = canvas.width / this.zoom;

@@ -45,9 +45,29 @@ function collectGroundItem(itemId, count) {
   else if (itemId === "axe") axeUnlocked = true;
   else if (itemId === "sword") swordUnlocked = true;
   else {
-    if (typeof adjustGlobalItemCount === "function") adjustGlobalItemCount(itemId, count);
+    if (typeof adjustGlobalItemCount === "function")
+      adjustGlobalItemCount(itemId, count);
     if (typeof routeCollectedItemIncrease === "function") {
       routeCollectedItemIncrease(itemId, count);
+    }
+
+    // AYOS (hiling ng user): "lagyan mo na rin ng ganung effects sa
+    // trees kung ilan nakuha niya like 3... galing head pa taas konti
+    // na +1 +2 +3 kada isa +1 isa pa +2 +3 pero isang label lang" -
+    // floating text (floating-text.js) sa itaas ng ulo ng player -
+    // "mergeKey" = itemId, kaya kung SUNOD-SUNOD (loob ng ilang
+    // segundo) ang pagdampot ng PAREHONG item type (hal. 3 magkakahiwalay
+    // na piraso ng kahoy mula sa isang puno), ISANG label lang ang
+    // gagamitin/dadagdagan (+1 -> +2 -> +3), hindi tatlong hiwalay na
+    // lumulutang na text.
+    if (typeof spawnFloatingText === "function" && typeof player !== "undefined") {
+      const pos = getPlayerHeadPosition();
+
+      spawnFloatingText(pos.x, pos.y, "+" + count, {
+        color: "#ffe98a",
+        mergeKey: "pickup:" + itemId,
+        amount: count,
+      });
     }
   }
 }
@@ -90,7 +110,16 @@ const GROUND_ITEM_FADE_WARNING_MS = 3 * 1000;
 // habang papalapit (parang vacuum) - hanggang MAABOT ito
 // (GROUND_ITEM_MAGNET_CATCH_DISTANCE), saka awtomatikong nadadampot,
 // walang kailangang i-click.
-const GROUND_ITEM_MAGNET_RADIUS = TILE_SIZE * 3.2;
+//
+// BINAGO (hiling ng user): "1 tile distance" - eksaktong 1 TILE na
+// lang ang layo bago mag-umpisang mahila/ma-loot ang isang nakalapag
+// na item (dating mas malawak, TILE_SIZE * 3.2) - kasama na dito ang
+// mga "floating"/nabreak na Crafter/Stove/Bag (tingnan ang
+// breakPlacedCrafter/breakPlacedStove/breakPlacedBag) at ang normal na
+// ani (trunk/wood/stone/atbp.) - PAREHONG generic na sistema ito para
+// sa LAHAT ng ground item, hindi na kailangan pang idagdag nang
+// bukod-bukod kada item type.
+const GROUND_ITEM_MAGNET_RADIUS = TILE_SIZE * 1;
 const GROUND_ITEM_MAGNET_CATCH_DISTANCE = 5; // world pixels
 const GROUND_ITEM_MAGNET_MIN_SPEED = 0.09; // pixels/ms, sa dulo ng radius (mabagal)
 const GROUND_ITEM_MAGNET_MAX_SPEED = 0.6; // pixels/ms, kapag halos naabot na (mabilis)
@@ -187,7 +216,8 @@ function spawnGroundItem(col, row, itemId, count, delayMs = 0) {
 
 function getGroundItemsAt(col, row) {
   return groundItems.filter(
-    (item) => item.world === currentWorld && item.col === col && item.row === row,
+    (item) =>
+      item.world === currentWorld && item.col === col && item.row === row,
   );
 }
 
@@ -201,7 +231,8 @@ function getGroundItemsAt(col, row) {
 // anihin ang carrot sa parehong tile).
 function tryPickupGroundItemsAt(col, row) {
   const index = groundItems.findIndex(
-    (item) => item.world === currentWorld && item.col === col && item.row === row,
+    (item) =>
+      item.world === currentWorld && item.col === col && item.row === row,
   );
 
   if (index === -1) return false;

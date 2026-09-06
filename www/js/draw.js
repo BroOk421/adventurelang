@@ -28,11 +28,20 @@ function draw() {
 
   drawMapBackground();
 
-  // Ang kama (bed.js) - sa loob lang ng houseInside, sa ibabaw ng sahig/
-  // dingding ng "placeholder room" (drawMapBackground/drawPlaceholderRoom
-  // sa worlds.js) pero sa ilalim ng player (walang Y-sort dito, laging
-  // nasa likod dahil laging naka-diretso sa dingding).
-  if (typeof drawBed === "function") drawBed();
+  // BAGO (hiling ng user): "yung lightray nung bahay is dapat
+  // nakapailalim sa tao at sa grass at sa trees" - dating iginuguhit
+  // ito NA HULI (screen space, PAGKATAPOS ng drawDayNight/drawMapObjects
+  // - tingnan ang dating paliwanag sa loob ng atmosphere.js), kaya
+  // NASA IBABAW ito ng LAHAT (player, damo, puno) - lumipat na dito
+  // (WORLD SPACE, PINAKAUNA - kaagad pagkatapos ng background, bago pa
+  // man ang damo) - kaya AWTOMATIKONG natatakpan na ito ng damo/puno/
+  // player (Y-sorted/normal na draw-order occlusion na lang, hindi na
+  // kailangan pang umasa sa dating "masked na pinetree cutout" trick
+  // - naiwan pa rin iyon sa atmosphere.js, pero redundant/hindi na
+  // mahalaga ngayon, dahil AWTOMATIKO nang natatakpan ang ray ng
+  // KAHIT ANONG puno/damo/player sa itaas nito).
+  if (typeof drawGrassmapHouseLightray === "function")
+    drawGrassmapHouseLightray();
 
   // Ang damo (kapag matagal nang tila ang niyebe) - sa ibabaw ng snow
   // layer, sa ilalim ng mga hinukay na tile.
@@ -52,10 +61,12 @@ function draw() {
   // camera transform (world space).
   drawFootprints();
 
-  // Ang madilim na "patse" (dark patch) sa lupa - marker ng gate
-  // patungong "town" (decor.js) - GROUND DECAL din ito (walang Y-sort,
-  // laging flat sa lupa), kaya dito ito ilagay kasunod ng bakas.
-  if (typeof drawTownGatePatch === "function") drawTownGatePatch();
+  // AYOS (hiling ng user): "alisin mo na yung mga blackhole erase mo
+  // na sa lahat" - TINANGGAL na ang umiikot na "blackhole" ground decal
+  // sa magkabilang gate (town<->grassmap) - tingnan ang buong
+  // paliwanag/TINANGGAL na code sa decor.js ("GATE PATUNGONG TOWN").
+  // Hindi naman kailangan ng mismong pag-teleport (DOORS, worlds.js) -
+  // hiwalay at independent ang area/coordinates niyan sa visual na ito.
 
   // Mga item na nakalapag sa lupa (galing sa ani o inihagis) - nasa
   // ibabaw ng lupa, sa ilalim ng player (nalalakaran).
@@ -69,10 +80,32 @@ function draw() {
   // gawi ng Crafter (tingnan ang stove.js).
   if (typeof drawPlacedStoves === "function") drawPlacedStoves();
 
+  // Mga naka-lagay na Bag (backpack, "Drop" mula sa inventory) -
+  // kaparehong-pareho ng gawi ng Crafter/Stove (tingnan ang hotbar.js).
+  if (typeof drawPlacedBags === "function") drawPlacedBags();
+
+  // Mga naka-lagay na Light (1 tile, may ON/OFF) - kaparehong-pareho ng
+  // gawi ng Crafter/Stove/Bag (tingnan ang light.js).
+  if (typeof drawPlacedLights === "function") drawPlacedLights();
+
+  // Mga naka-lagay na Bed (2x3 tiles) - BAGO (hiling ng user): kaparehong-
+  // pareho na ngayon ito sa Crafter/Stove/Light/Bag (naka-hold, may
+  // collision, PERMANENTENG structure na sa mundo) - dating fixed/laging
+  // naroroon na lang ito sa bawat bahay (drawBed sa itaas ng file na
+  // ito, dati) - tingnan ang bed.js.
+  if (typeof drawPlacedBeds === "function") drawPlacedBeds();
+
   // Ang outline ng tile na tinututukan ng mouse - nasa lupa rin, para
   // hindi ito pumatong sa puno o sa player.
   drawDigCursor();
   drawResourceCursor();
+
+  // BAGONG "placement preview" - 16x16 (kada tile) na outline sa
+  // ibabaw ng tinuturo ng mouse habang naka-highlight/armed ang isang
+  // Crafter/Stove/Light sa hotbar (tingnan ang placement.js) - LUNTIAN
+  // kapag puwedeng ilagay, PULA kapag hindi (kalahati lang ang
+  // bakante, may nakalagay na, o wala sa loob ng bahay).
+  if (typeof drawPlacementPreview === "function") drawPlacementPreview();
 
   ctx.restore();
 
@@ -88,6 +121,14 @@ function draw() {
   drawSnowGroundSparkles();
   drawRainGroundSplashes();
 
+  // BAGO (hiling ng user - ULIT): "dapat lahat mag-black, pati house
+  // ground, pati paligid" - BINAWI na ang dating "ground laging tunay
+  // na kulay" na eksperimento (kasama ang off-screen na objects-layer
+  // na ginamit para dito) - normal/DIREKTA na ulit dito sa TALAGANG
+  // canvas ang pagguhit (walang binabaling na `ctx`), dahil ang
+  // BUONG eksena na (lupa+puno+bahay+player) ang pinapadilim ngayon
+  // nang SABAY-SABAY (tingnan ang drawDayNight sa ibaba, atmosphere.js) -
+  // hindi na kailangan pang paghiwalayin ang lupa sa mga object.
   ctx.save();
   ctx.scale(camera.zoom, camera.zoom);
   ctx.translate(-snappedCameraX, -snappedCameraY);
@@ -98,6 +139,13 @@ function draw() {
   // "lamps" / "snowlamps" (parol ng town) - LAGING NASA HARAP ng player,
   // tingnan ang paliwanag sa map.js (drawTownLampsForeground).
   if (typeof drawTownLampsForeground === "function") drawTownLampsForeground();
+
+  // Ang TOP/FRONT na piraso ng bawat damong tuft (grass.js) - LAGING
+  // NASA HARAP ng player (hindi Y-sort/dynamic, tingnan ang paliwanag
+  // sa grass.js/GRASS_TUFT_TRAMPLE_HEIGHT_RATIO) - ang BACK/BOTTOM na
+  // piraso na lang (maliit na sliver malapit sa lupa) ang Y-sorted sa
+  // loob ng drawMapObjects sa itaas.
+  if (typeof drawGrassTuftsForeground === "function") drawGrassTuftsForeground();
 
   // Ang mga pirasong niyebe mula sa paghukay - lumilipad sila paitaas,
   // kaya dapat nasa IBABAW ng mga bagay at ng player para kitang-kita.
@@ -122,13 +170,39 @@ function draw() {
   drawFog();
   drawDayNight();
 
-  // Ang liwanag ng torch (kapag naka-equip) - dapat nasa IBABAW ng
-  // araw/gabi tint, para talagang "kumakalaban" ito sa dilim.
-  drawTorchLight();
+  // Ang liwanag ng torch (kapag naka-equip) - GINAWA na itong world-
+  // space (sa loob ng drawMapObjects/map.js, kasabay ng player sa
+  // Y-sort "drawables" list - tingnan ang drawTorchGlowWorld sa
+  // atmosphere.js) sa halip na dito, para TAMA ang pagkakasunod-sunod
+  // nito laban sa mga puno/bahay (natatakpan ito kapag nasa HARAP ang
+  // isang puno, hindi na laging nasa IBABAW ng lahat). AYOS (hiling ng
+  // user: "gusto ko lang yung torchglow kapag napadaan sa trees or mga
+  // halaman is mag bebehind yung glow niya") - dating dito ito iginuguhit
+  // (screen space, laging IBABAW), tapos may dagdag pang muling
+  // pagguhit sa player mismo dito (para "mailigtas" ang katawan niya sa
+  // ilalim ng glow) - PERO sobra/mali ang naging epekto noon: NAGING
+  // LAGING NASA IBABAW ng LAHAT (kasama ang puno/bahay) ang buong
+  // katawan ng player, hindi lang ang glow. TINANGGAL na ang PAREHONG
+  // bahaging iyon dito - wala nang tawag sa drawTorchLight/muling
+  // pagguhit ng player dito, tingnan na lang ang map.js.
 
   // Ang ilaw ng Stove (kapag AKTIBONG NAGLULUTO) - kaparehong dahilan/
   // batayan ng torch light sa itaas (sa IBABAW ng araw/gabi tint).
   if (typeof drawStoveLight === "function") drawStoveLight();
+
+  // NAALIS NA (hiling ng user: "yung glow sa loob ng bahay kapag naka
+  // open yung lamp is alisin na") - dating dito tinatawag ang
+  // drawPlacedLightGlow() (buong-screen na warm wash sa LOOB ng silid
+  // kapag may naka-ON na Light) - wala na ring hiwalay na buong-silid
+  // na tint mula sa LOOB. Ang naka-ON na Light ay makikita/
+  // mararamdaman na lang sa loob mismo ng silid (ang sprite mismo ng
+  // Light, light.js) - PLUS ang lightray sa LABAS ng grassmapHouse
+  // (drawGrassmapHouseLightray, atmosphere.js, naka-GATE sa TALAGANG
+  // estado ng Light sa loob) - ANG PAGGUHIT NITO AY LUMIPAT NA sa
+  // PINAKAUNA ng frame (WORLD SPACE, tingnan sa itaas ng file na ito,
+  // bago pa man ang drawGrass()) - hiling ng user na "nakapailalim sa
+  // tao at sa grass at sa trees" ang ray, kaya kailangang mauna itong
+  // maiguhit bago ang mga iyon.
 
   // Ang ilaw ng bintana ng bahay (kapag gabi) at ng mga lamb sa town -
   // parehong dahilan/batayan ng torch light sa itaas (sa IBABAW ng
@@ -137,6 +211,7 @@ function draw() {
   // character) - iginuguhit ito PAGKATAPOS ng drawMapObjects (kung
   // saan iginuguhit ang player), kaya laging nasa IBABAW ng player ang
   // liwanag kapag lumapit siya sa parol/bintana.
+
   drawHouseWindowLights();
   drawTownLamps();
   drawTownWindowLights();
@@ -153,14 +228,28 @@ function draw() {
   // para talagang kitang-kita ito.
   drawThunderFlash();
 
-  // drawDoorPrompt() - TINANGGAL na (hiling ng user): lahat ng pintuan
-  // ay "auto" na ngayon (worlds.js, DOORS), kaya wala nang "E - ..."
-  // na prompt na kailangan pang ipakita.
+  // drawDoorPrompt() - muling PINAGANA (hiling ng user: "gusto ko e
+  // press pa yung E key para makaenter tapos may label na house name")
+  // - ang mga pintuang PAPASOK ngayon sa 6 bahay sa town (worlds.js)
+  // ay HINDI na "auto", kaya kailangan ulit ang "E - <pangalan>" na
+  // paalala. Sinusuri sa loob mismo ng function (tingnan sa ibaba) na
+  // "auto" na pintuan lang ang nilalaktawan - kaya hindi ito lumalabas
+  // nang walang dahilan sa mga pintuang OTOMATIKO pa rin (Exit, mga
+  // gate ng town<->grassmap, atbp.).
+  drawDoorPrompt();
   drawMissionaryGreeting();
 
-  // Compass arrow patungong blackhole gate (decor.js) - SCREEN SPACE,
-  // dapat pinakahuli para laging nasa IBABAW ng lahat.
-  if (typeof drawTownGateCompass === "function") drawTownGateCompass();
+  // BAGO (hiling ng user): floating text ("+health"/"+item",
+  // floating-text.js) - SCREEN space (kaparehong pattern ng
+  // drawMissionaryGreeting sa itaas - manual world->screen conversion,
+  // FIXED na font size, hindi apektado ng camera.zoom).
+  if (typeof drawFloatingTexts === "function") drawFloatingTexts();
+
+  // BAGO (hiling ng user): minimap (minimap.js) - SARILING canvas
+  // (hindi bahagi ng world-space na "ctx" sa itaas), kaya tinatawag
+  // ito DITO sa labas/dulo (hindi apektado ng camera.zoom/translate na
+  // ginamit sa itaas ng draw() na ito).
+  if (typeof drawMinimap === "function") drawMinimap();
 }
 
 // Awtomatikong label na lumalabas kapag MALAPIT na ang player sa
@@ -267,15 +356,53 @@ function roundRect(context, x, y, width, height, radius) {
 
 // Maliit na paalala kapag nakatayo ka sa isang pintuan. Screen space
 // ito at hindi apektado ng araw/gabi, kaya nababasa mo kahit hatinggabi.
+//
+// AYOS: hindi ito lumalabas para sa mga pintuang "auto" (worlds.js) -
+// dahil awtomatiko na namang lumilipat ang mundo sa mga iyon (walang
+// dahilan para sabihing "pindutin ang E").
 function drawDoorPrompt() {
   if (!mapReady) return;
 
-  const door = getUsableDoor();
+  const door = typeof getUsableDoor === "function" ? getUsableDoor() : null;
 
-  if (!door) return;
+  if (door && !door.auto) {
+    drawEPrompt("E - " + door.label);
+    return;
+  }
 
-  const text = "E - " + door.label;
+  // BAGO (hiling ng user): "E na lang" din ang paraan para gamitin ang
+  // Crafter/Stove/Light/Bed (dating left-click, dig.js) - kaya dito rin
+  // ipinapakita ang PAREHONG "E - <pangalan>" na paalala (kaparehong-
+  // istilo ng pintuan sa itaas) kapag may isa sa mga ito na nasa loob
+  // ng saklaw (getUsableStructureUnderPlayer, dig.js).
+  const structure =
+    typeof getUsableStructureUnderPlayer === "function"
+      ? getUsableStructureUnderPlayer()
+      : null;
 
+  if (!structure) return;
+
+  const labels = {
+    crafter: "Crafting Table",
+    stove: "Stove",
+    bed: "Sleep",
+  };
+
+  let label = labels[structure.type];
+
+  // "Light" - ipinapakita kung Buksan (kapag OFF) o Patayin (kapag ON)
+  // ang ilaw, sa halip na generic na pangalan lang.
+  if (structure.type === "light") {
+    label = structure.target && structure.target.on ? "Turn Off Light" : "Turn On Light";
+  }
+
+  drawEPrompt("E - " + label);
+}
+
+// SHARED na "E - <label>" na paalala sa ilalim ng screen - kaparehong-
+// pareho ng lumang laman ng drawDoorPrompt (pintuan LANG dati) - ngayon
+// ginagamit din ito ng Crafter/Stove/Light/Bed (tingnan sa itaas).
+function drawEPrompt(text) {
   ctx.save();
 
   ctx.font = "600 20px system-ui, sans-serif";

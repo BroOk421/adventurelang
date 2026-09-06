@@ -92,14 +92,30 @@ function updateFootprints() {
 
   if (expired > 0) footprints.splice(0, expired);
 
-  // Sa loob ng bahay walang niyebe, kaya walang bakas.
-  if (isIndoors()) {
+  // Sa loob ng bahay walang niyebe, kaya walang bakas. Wala ring bagong
+  // bakas kapag HINDI umuulan ng niyebe ngayon (hiling ng user: "gusto
+  // ko lang lumitaw ang bakas/niyebe kapag umuulan talaga") - dating
+  // wala itong check dito, kaya nagpapatuloy pa rin ang mga lumang
+  // bakas na naiwan noong huling snow day kahit ubod-linaw na ang araw
+  // ngayon (walang niyebe), at patuloy pang nagdaragdag ng bago habang
+  // naglalakad ang player kahit HINDI umuulan.
+  if (
+    isIndoors() ||
+    typeof isSnowWeather !== "function" ||
+    !isSnowWeather()
+  ) {
     lastFootprintX = null;
     lastFootprintY = null;
+
+    // Alisin din ang mga natirang bakas mula sa nakaraang snow day -
+    // hindi na dapat sila makita/mag-fade out sa isang araw na walang
+    // niyebe.
+    if (footprints.length > 0) footprints = [];
+
     return;
   }
 
-  if (!player.moving || player.sitting) return;
+  if (!player.moving) return;
 
   const box = getPlayerCollisionBox();
 

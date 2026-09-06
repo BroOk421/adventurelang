@@ -39,134 +39,223 @@ let tilesets = [];
 // PLAYER SPRITES
 // =========================
 
-// =========================
-// OLDMAN SKIN (bagong itsura ng player)
-// =========================
-//
-// Pinalitan na ang player mula sa dating "generic" na sprite tungo sa
-// oldman art (assets/player/oldman/) - idle, walk, sit, pick, pickaxe.
-// Iba ang FORMAT ng mga bagong asset na ito kumpara dati: hindi na
-// isang spritesheet-strip na hinahati sa frameCount (tulad ng dating
-// idleFront.png/walkFront.png/sit.png) - HIWALAY na larawan na ito
-// kada frame (tulad na rin ng dating "pick"), at may APAT na direksyon
-// na ngayon (front/back/left/right) sa halip na dalawa lang
-// (left/right) para sa pick/pickaxe.
-//
-// WALANG oldman art para sa AXE at PUNCH (kamao) - kulang pa ang mga
-// asset na iyon (tingnan ang CLAUDE.md/usapan) - kaya PINANATILI muna
-// natin ang DATING sprite set (sprites.axeStrike, sprites.punchStrike)
-// sa ibaba - ibang itsura pa rin ito habang naghahampas ng axe/kamao,
-// hanggang sa magkaroon ng tamang oldman art para dito.
-//
-// WALANG hiwalay na "run" art ang oldman - ginagamit na lang natin
-// ulit ang WALK frames kapag tumatakbo (sprites.run = sprites.walk sa
-// ibaba) - kulang lang ito sa art, hindi bug.
-const OLDMAN_ANIM_FRAME_COUNT = 8;
-
-// down = "front", up = "back" - ganito ang naka-pangalan ang mga
-// folder/file sa assets/player/oldman/.
-const OLDMAN_DIR_PREFIX = {
-  down: "front",
-  up: "back",
-  left: "left",
-  right: "right",
-};
-
-// Kinakarga ang APAT na direksyon (front/back/left/right) ng isang
-// oldman animation (\"idle\", \"walk\", \"sit\", \"pick\", \"pickaxe\") -
-// parehong pattern ang folder/file naming sa lahat ng ito:
-//   assets/player/oldman/<anim>/<prefix><anim>/<prefix><anim><N>.png
-// kung saan walang <N> (blangko) ang unang frame, saka 2..8 sunod.
-function loadOldmanAnim(anim) {
-  const frames = { down: [], up: [], left: [], right: [] };
-
-  Object.keys(OLDMAN_DIR_PREFIX).forEach((dir) => {
-    const prefix = OLDMAN_DIR_PREFIX[dir];
-
-    for (let i = 1; i <= OLDMAN_ANIM_FRAME_COUNT; i++) {
-      const img = new Image();
-      const suffix = i === 1 ? "" : String(i);
-
-      img.src = `./assets/player/oldman/${anim}/${prefix}${anim}/${prefix}${anim}${suffix}.png`;
-
-      frames[dir].push(img);
-    }
-  });
-
-  return frames;
-}
-
 const sprites = {
-  idle: loadOldmanAnim("idle"),
-  walk: loadOldmanAnim("walk"),
-  sit: loadOldmanAnim("sit"),
+  idle: {
+    down: new Image(),
+    up: new Image(),
+    left: new Image(),
+    right: new Image(),
+  },
+
+  walk: {
+    down: new Image(),
+    up: new Image(),
+    left: new Image(),
+    right: new Image(),
+  },
+
+  run: {
+    down: new Image(),
+    up: new Image(),
+    left: new Image(),
+    right: new Image(),
+  },
 
   // Hiwalay na larawan kada frame (hindi spritesheet) - tingnan ang
-  // PICK_FRAME_COUNT sa player.js. Apat na direksyon na ngayon
-  // (dati left/right lang).
-  pick: loadOldmanAnim("pick"),
-
-  // Axe swing (pagputol ng puno) - hiwalay na larawan kada frame kada
-  // direksyon (hindi na naka-mirror/flip pa - totoong Left/Right art na
-  // ito, kaparehong-pareho ng "pick" sa itaas).
-  axeStrike: {
+  // PICK_FRAME_COUNT sa player.js.
+  pick: {
     left: [],
     right: [],
   },
 
+  // Axe swing (pagputol ng puno) - BAGO na ngayon: 4 TUNAY na direksyon
+  // (front/back/left/right, mula sa assets/character/axe/) sa halip na
+  // 2 lang (left/right, saka minimirror/ginamit na rin para sa up/down).
+  // KAPAREHONG FORMAT ng idle/walk (IISANG strip na larawan kada
+  // direksyon, hindi hiwa-hiwalay na PNG kada frame) - tingnan ang
+  // drawPlayer() sa player.js para sa bagong paraan ng pag-crop nito.
+  axeStrike: {
+    down: new Image(),
+    up: new Image(),
+    left: new Image(),
+    right: new Image(),
+  },
+
   // Pickaxe swing (paghukay ng bato) - tingnan ang startPickaxeStrike
-  // sa player.js. Apat na direksyon na ngayon (dati left/right lang).
-  pickaxeStrike: loadOldmanAnim("pickaxe"),
+  // sa player.js. BAGO: 4 TUNAY na direksyon na ngayon (front/back/
+  // left/right, mula sa assets/character/pickaxe/) - kaparehong-pareho
+  // ng ginawa sa axeStrike sa itaas (IISANG strip na larawan kada
+  // direksyon, HINDI na hiwa-hiwalay na PNG kada frame - tingnan ang
+  // paliwanag sa CLAUDE.md tungkol dito). Dating gamit ang
+  // assets/player/pickaxe/{left,right}/ (2-direksyon lang, LUMANG
+  // "bata" na art - hindi tugma sa kasalukuyang "santa" na character,
+  // kaya distorted/nakaka-stretch ang lumalabas).
+  pickaxeStrike: {
+    down: new Image(),
+    up: new Image(),
+    left: new Image(),
+    right: new Image(),
+  },
 
   // Rake swing (paggamit ng rake) - tingnan ang startRakeStrike sa
-  // player.js. PANSININ: sa ngayon, PICKAXE ang laman ng aktwal na mga
-  // larawan sa assets/player/rake/{left,right}/ (hindi pa naipalit sa
-  // totoong rake art) - gumagana pa rin ang code, mali lang ang
-  // makikita habang hindi pa napapalitan ang mga PNG.
+  // player.js. BAGO (hiling ng user): "sprites.rakeStrike" ay dating
+  // ARRAY (hiwa-hiwalay na PNG kada frame, assets/player/rake/), pero
+  // sa ibaba ito ay ino-OVERRIDE/inaalis (tingnan ang
+  // "sprites.rakeStrike = sprites.pickaxeStrike") - GINAGAMIT NA LANG
+  // ANG PICKAXE ART (assets/character/pickaxe/), dahil wala pang
+  // sariling art ang rake. Simpleng object reference lang ito (hindi
+  // duplicate na Image load), kaya kahit palitan pa ang pickaxe art
+  // balang araw, sumusunod agad ang rake dito.
   rakeStrike: {
     left: [],
     right: [],
   },
-
-  // Punch (kamao, walang naka-equip na tool) - tingnan ang
-  // startPunchStrike sa player.js.
-  punchStrike: {
-    left: [],
-    right: [],
-  },
 };
 
-// Walang hiwalay na "run" art ang oldman - ginagamit na lang natin
-// ulit ang WALK frames (parehong Image object references, hindi
-// kinokopya - okay lang, hindi naman ito nire-render nang magkasabay).
-sprites.run = sprites.walk;
+sprites.idle.down.src = "./assets/character/idle/frontidle/frontidle.png";
+sprites.idle.up.src = "./assets/character/idle/backidle/backidle.png";
+sprites.idle.left.src = "./assets/character/idle/leftidle/leftidle.png";
+sprites.idle.right.src = "./assets/character/idle/rightidle/rightidle.png";
+
+sprites.walk.down.src = "./assets/character/walk/frontwalk/frontwalk.png";
+sprites.walk.up.src = "./assets/character/walk/backwalk/backwalk.png";
+sprites.walk.left.src = "./assets/character/walk/leftwalk/leftwalk.png";
+sprites.walk.right.src = "./assets/character/walk/rightwalk/rightwalk.png";
+
+sprites.run.down.src = "./assets/character/walk/frontwalk/frontwalk.png";
+sprites.run.up.src = "./assets/character/walk/backwalk/backwalk.png";
+sprites.run.left.src = "./assets/character/walk/leftwalk/leftwalk.png";
+sprites.run.right.src = "./assets/character/walk/rightwalk/rightwalk.png";
+
+// Backpack (bag) na naka-suot - IISANG "idle" strip lang kada direksyon
+// (assets/character/bag/idle/, 7 frame, kaparehong format ng normal na
+// idle sa itaas) - GINAGAMIT LANG kapag "bagEquipped" (hotbar.js) AT
+// hindi gumagalaw ang player (tingnan ang drawPlayer sa player.js).
+// Walang "walk"/tool-swing na bersyon ang art na ito - kapag
+// naglalakad/gumagamit ng tool habang naka-suot ang bag, babalik muna
+// sa normal na sprite (walang bag na tila) hanggang may bagong asset.
+sprites.bagIdle = {
+  down: new Image(),
+  up: new Image(),
+  left: new Image(),
+  right: new Image(),
+};
+sprites.bagIdle.down.src = "./assets/character/bag/idle/frontbag/frontbag.png";
+sprites.bagIdle.up.src = "./assets/character/bag/idle/backbag/backbag.png";
+sprites.bagIdle.left.src = "./assets/character/bag/idle/leftbag/leftbag.png";
+sprites.bagIdle.right.src = "./assets/character/bag/idle/rightbag/rightbag.png";
+
+// BAGONG TORCH ART (assets/character/torch/) - "erase" na ang dating
+// paraan (kopyahin/gamitin na lang ang normal na bagIdle bilang
+// pansamantalang stand-in para sa torch, walang tunay na hawak na
+// torch na lumalabas sa sprite) - TUNAY na ngayon ang ginagamit na
+// larawan (may hawak na torch, 7 frame, 64x64 kada frame - kaparehong
+// bilang ng frame ng normal na idle sa itaas). Hiwalay lang ito sa
+// dalawang bersyon (may bag/walang bag) dahil magkaiba ang larawan -
+// tingnan ang drawPlayer() sa player.js kung paano pinipili sa pagitan
+// nito.
+//
+// TANGING "idle" LANG (walang "walk" na torch dito, hiling ng user:
+// "only idlebag and idle") - habang gumagalaw ang player kahit
+// naka-equip ang torch, babalik muna sa normal na walk/bagWalk sprite
+// (walang torch-specific na walk na ginagamit dito).
+sprites.torchIdle = {
+  down: new Image(),
+  up: new Image(),
+  left: new Image(),
+  right: new Image(),
+};
+sprites.torchIdle.down.src =
+  "./assets/character/torch/idle/frontidle/frontidletorch.png";
+sprites.torchIdle.up.src =
+  "./assets/character/torch/idle/backidle/backidletorch.png";
+sprites.torchIdle.left.src =
+  "./assets/character/torch/idle/leftidle/leftidletorch.png";
+sprites.torchIdle.right.src =
+  "./assets/character/torch/idle/rightidle/rightidletorch.png";
+
+// Parehong "idle" lang, pero may suot na bag ZKA-HAWAK na torch (parehong
+// naka-equip ang bag AT ang torch) - assets/character/torch/bag/idlebag/.
+sprites.torchBagIdle = {
+  down: new Image(),
+  up: new Image(),
+  left: new Image(),
+  right: new Image(),
+};
+sprites.torchBagIdle.down.src =
+  "./assets/character/torch/bag/idlebag/frontbag/frontbagandtorch.png";
+sprites.torchBagIdle.up.src =
+  "./assets/character/torch/bag/idlebag/backbag/backbagandtorch.png";
+sprites.torchBagIdle.left.src =
+  "./assets/character/torch/bag/idlebag/leftbag/leftbagandtorch.png";
+sprites.torchBagIdle.right.src =
+  "./assets/character/torch/bag/idlebag/rightbag/rightbagandtorch.png";
+
+// BAGONG "naglalakad na naka-suot ng bag" (assets/character/bag/walk/)
+// - IISANG strip kada direksyon, KAPAREHONG-KAPAREHONG frame count ng
+// normal na walk (front/back = 10 frame, left/right = 7 frame) - kaya
+// gumagana na agad ang PAREHONG getPlayerAnimationFrameCount() (player.js)
+// nang walang dagdag na espesyal na kaso.
+sprites.bagWalk = {
+  down: new Image(),
+  up: new Image(),
+  left: new Image(),
+  right: new Image(),
+};
+sprites.bagWalk.down.src = "./assets/character/bag/walk/frontwalk/frontwalk.png";
+sprites.bagWalk.up.src = "./assets/character/bag/walk/backwalk/backwalk.png";
+sprites.bagWalk.left.src = "./assets/character/bag/walk/leftwalk/leftwalk.png";
+sprites.bagWalk.right.src = "./assets/character/bag/walk/rightwalk/rightwalk.png";
+
+// "Takbo" na naka-bag - WALANG hiwalay na "run" na art ang bag (wala
+// ring hiwalay na "run" na art ang normal/walang-bag na character -
+// tingnan sa itaas, kopya lang ng walk ang sprites.run) - kaya kopya
+// rin lang ng sprites.bagWalk ito, kaparehong-pareho ng gawi ng normal
+// na run/walk.
+sprites.bagRun = {
+  down: sprites.bagWalk.down,
+  up: sprites.bagWalk.up,
+  left: sprites.bagWalk.left,
+  right: sprites.bagWalk.right,
+};
 
 for (let i = 1; i <= 6; i++) {
   const left = new Image();
-  left.src = `./assets/player/axe/left/AxeStrikeLeft${i}.png`;
-  sprites.axeStrike.left.push(left);
+  left.src = `./assets/player/pick/Left/pickLeft${i}.png`;
+  sprites.pick.left.push(left);
 
   const right = new Image();
-  right.src = `./assets/player/axe/right/AxeStrikeRight${i}.png`;
-  sprites.axeStrike.right.push(right);
+  right.src = `./assets/player/pick/Right/pickRight${i}.png`;
+  sprites.pick.right.push(right);
 }
 
-for (let i = 1; i <= 6; i++) {
-  const left = new Image();
-  left.src = `./assets/player/rake/left/rakeLeft${i}.png`;
-  sprites.rakeStrike.left.push(left);
+// Bagong 4-direksyon na AXE na art (assets/character/axe/) - IISANG
+// strip kada direksyon (kaparehong-pareho ng paraan ng idle/walk sa
+// itaas), 7 frame bawat isa (448x64px, 64x64 kada frame) - tingnan ang
+// AXE_STRIKE_FRAME_COUNT sa player.js.
+sprites.axeStrike.down.src = "./assets/character/axe/frontaxe/frontaxe.png";
+sprites.axeStrike.up.src = "./assets/character/axe/backaxe/backaxe.png";
+sprites.axeStrike.left.src = "./assets/character/axe/leftaxe/leftaxe.png";
+sprites.axeStrike.right.src = "./assets/character/axe/rightaxe/rightaxe.png";
 
-  const right = new Image();
-  right.src = `./assets/player/rake/right/RakeRight${i}.png`;
-  sprites.rakeStrike.right.push(right);
-}
+// Bagong 4-direksyon na PICKAXE na art (assets/character/pickaxe/) -
+// IISANG strip kada direksyon (kaparehong-pareho ng paraan ng
+// idle/walk/axe sa itaas), 7 frame bawat isa (448x64px, 64x64 kada
+// frame) - tingnan ang PICKAXE_STRIKE_FRAME_COUNT sa player.js.
+sprites.pickaxeStrike.down.src =
+  "./assets/character/pickaxe/frontpickaxe/frontpickaxe.png";
+sprites.pickaxeStrike.up.src =
+  "./assets/character/pickaxe/backpickaxe/backpickaxe.png";
+sprites.pickaxeStrike.left.src =
+  "./assets/character/pickaxe/leftpickaxe/leftpickaxe.png";
+sprites.pickaxeStrike.right.src =
+  "./assets/character/pickaxe/rightpickaxe/rightpickaxe.png";
 
-for (let i = 1; i <= 6; i++) {
-  const left = new Image();
-  left.src = `./assets/player/punch/left/PunchLeft${i}.png`;
-  sprites.punchStrike.left.push(left);
-
-  const right = new Image();
-  right.src = `./assets/player/punch/right/PunchRight${i}.png`;
-  sprites.punchStrike.right.push(right);
-}
+// BAGO (hiling ng user): "rakeStrike" -> gamitin na ang PICKAXE strip
+// (character/pickaxe/) sa halip na ang lumang array ng
+// assets/player/rake/{left,right}/*.png - tingnan ang paliwanag sa
+// sprites.rakeStrike sa itaas. Isang beses lang ma-load ang mga larawan
+// (sa pickaxeStrike.* Image objects sa itaas) - dito, "kinokopya" lang
+// ang parehong reference, kaya hindi na kailangan pang mag-loop/mag-
+// "new Image()" ulit para sa rake.
+sprites.rakeStrike = sprites.pickaxeStrike;

@@ -58,10 +58,20 @@ function loadGameTimeState() {
   // CALENDAR_START_YEAR sa calendar.js).
   gameEpochMs = Date.now();
   gameTimeOffsetMs = 0;
-  saveGameTimeState();
+  // BAGO (hiling ng user: "ayoko na ng auto save") - ang tawag na ito
+  // ay isang BEHES lamang, sa PAG-BOOTSTRAP ng bagong laro (walang
+  // ibang paraan para itakda ang epoch nang isang beses lang) - kaya
+  // "force: true" gamit dito, hindi tulad ng saveGameTimeState() sa
+  // advanceGameTime() sa ibaba (na dapat i-suppress).
+  saveGameTimeState(true);
 }
 
-function saveGameTimeState() {
+// BAGO (hiling ng user: "ayoko na ng auto save") - "force" param,
+// default false - tingnan ang paliwanag sa savePlayerPosition (player.js)
+// para sa buong disenyo nito.
+function saveGameTimeState(force = false) {
+  if (!force) return;
+
   try {
     localStorage.setItem(
       GAME_TIME_SAVE_KEY,

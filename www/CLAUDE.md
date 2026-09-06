@@ -44,8 +44,28 @@ js/                  # lahat ng game logic (tingnan sa ibaba)
 assets/
   map/              # Tiled maps (.tmj/.tmx) + tilesets (.tsx/.tsj) + tile PNGs
   player/           # player sprite sheets (idle/walk/run + tool animations)
+                    #   idle*/walk* ay ang "santa"/bagong character na
+                    #   ngayon (galing sa assets/character/, tingnan Entry
+                    #   #59 - SINUPERSEDE na ang Entry #58/oldman na tangkang
+                    #   ito) - run/sit/tool animations, HINDI pa binago,
+                    #   bata pa rin ang lumang character doon.
+                    #   Naka-backup ang TALAGANG ORIHINAL na bata na
+                    #   idle*/walk* sa
+                    #   assets/player/_backup_original_player_sprites/.
+  character/        # "santa" character (idle/walk, 4 direksyon) - PINAGMULAN
+                    #   ngayon ng idle/walk sprite ng PLAYER (Entry #59).
+                    #   May .ase (Aseprite source) + .png (exported strip)
+                    #   kada direksyon - IBA-IBA ang bilang ng frame kada
+                    #   isa sa ORIHINAL na PNG (idle=7, walk front/back=10,
+                    #   walk right=7) - hindi ito direktang nagamit, dahil
+                    #   FIXED sa 6 frames/strip ang engine (tingnan Entry
+                    #   #59 para sa paliwanag). WALANG PNG ang leftwalk (.ase
+                    #   lang) - kinuha na lang/na-mirror ang rightwalk.
   npc/              # oldman idle GIFs (oldmanIdleFront/Back.gif) +
-                    #   npc/oldman/walk/Oldman_<dir>/ (walking GIFs)
+                    #   npc/oldman/walk/Oldman_<dir>/ (walking GIFs) - HINDI
+                    #   na ito ang ginagamit ng player (nabawi na, tingnan
+                    #   Entry #59) - gumagana pa rin ito para sa ORIHINAL na
+                    #   oldman NPC (shopkeeper).
   animals/pig/      # pig walk (Pig_<dir>/) + idle (8 direksyon, PNG)
   trees/ rocks/     # resource art
   carrots/          # crop growth frames
@@ -81,7 +101,7 @@ fireflies → calendar-ui → update → draw → main
 | `js/bed.js` | Ang **kama** sa loob ng houseInside — i-click para matulog hanggang 6am (gabi lang puwede). |
 | `js/tool-radial.js` | Ang **radial (pabilog) na tool menu** — hawak-Alt para buksan. |
 | `js/hotbar.js` | Inventory bar, equipment panel (left/right hand), drag-drop, item counts. Pinakamalaking file. |
-| `js/player.js` | Player sprite + tool swing animations (rake/pickaxe/axe/punch). |
+| `js/player.js` | Player sprite + tool swing animations (rake/pickaxe/axe/punch). Idle/walk sprites niya ngayon (`js/assets.js`) ay galing sa "santa" character art (`assets/character/`) - tingnan Entry #59 (SINUPERSEDE na ang Entry #58/oldman). |
 | `js/craft.js` | Crafting (shaped recipes → nagbu-unlock ng mga tool). |
 | `js/stove.js` | Kalan/pagluluto. |
 | `js/settings-menu.js` | Burger-icon na menu (I-save/I-load/Settings/Lumabas). |
@@ -2465,3 +2485,939 @@ kailangang i-adjust ang mga ito.
   settings button (☰) ay NANANATILI sa itaas-KANAN, walang binago
   doon. Verified (screenshot): stacked na sila (HUD sa itaas, calendar
   sa ibaba, parehong kaliwang column).
+
+### Entry #58 — Player: pinalitan ang IDLE at WALK sprites, ngayon "oldman" na ang itsura (RUN/SIT/tools hindi pa)
+- **Files:** `assets/player/idleFront.png`, `idleBack.png`, `idleLeft.png`,
+  `idleright.png`, `walkFront.png`, `walkBack.png`, `walkLeft.png`,
+  `walkRight.png` (walang binago sa `js/assets.js`/`js/player.js` - parehong
+  filename/format pa rin ang ginagamit, palitan lang ang laman).
+- **Hiling ng user:** gawing "oldman" (yung shopkeeper NPC, `assets/npc/
+  oldman/`) ang itsura ng player - IDLE at WALK muna, hindi pa RUN/SIT/tool
+  swing animations (`runFront.png` atbp., `sit.png`, `axe/`, `pick/`,
+  `pickaxe/`, `rake/`, `punch/` - bata pa rin doon).
+- **Pinagmulan ng bagong art:** `assets/npc/oldman/` (hindi ito
+  ginalaw/binura - pinuntahan lang bilang source, gumagana pa rin ang
+  oldman NPC mismo gamit ang parehong mga file).
+  - `walkFront/Back/Left/Right.png` - direktang kinuha ang 6 magkakahiwalay
+    na GIF frame kada direksyon (`oldman/walk/Oldman_south|north|west|east/
+    frame_0..5_delay-0.2s.gif`) at pinagsama-samang PARA maging ISANG
+    horizontal strip (frame_0 sa kaliwa hanggang frame_5 sa kanan) - ito
+    ang FORMAT na inaasahan ng `drawPlayer()` sa `js/player.js`
+    (`frameWidth = sprite.width / 6`, tapos `frameIndex * frameWidth` ang
+    kino-crop kada frame ng animation).
+  - `idleFront.png`/`idleBack.png` - kinuha ang UNANG frame lang ng
+    `oldmanIdleFront.gif`/`oldmanIdleBack.gif` (breathing-idle GIF, may 4
+    frame ang orihinal, pero PAULIT-ULIT lang frame 0 ang ginagamit ng
+    player anyway kapag naka-idle - tingnan susunod na punto).
+  - `idleLeft.png`/`idleright.png` - **WALANG** hiwalay na left/right idle
+    art ang oldman NPC (front/back lang siya kapag naka-tayo) - kaya
+    ginamit na lang ang frame 0 (nakatayong pose) ng
+    `walk/Oldman_west|east/` bilang pinagmulan.
+- **Mahalagang detalye:** kahit anong ilagay dito, isang beses lang
+  gagamitin ng `drawPlayer()` ang bawat idle image kapag hindi gumagalaw
+  ang player - **laging `frameIndex = 0`** (ika-anim/unang bahagi lang ng
+  strip). Kaya para gumana nang tama sa PAREHONG frameWidth-slicing logic
+  (na fixed sa 6 frames/strip para sa lahat - idle man o walk), ang bawat
+  idle PNG dito ay UNANG frame pa rin PERO **PINAULIT nang 6 na beses**
+  (magkakaparehong larawan magkatabi) - hindi lang isang solong imahe -
+  kung hindi, mali/pira-piraso ang lalabas dahil hahatiin pa rin ito ng
+  code sa 6 na pantay na bahagi.
+- **Backup:** nakalagay ang mga LUMANG (batang) idle/walk PNG sa
+  `assets/player/_backup_original_player_sprites/` - pwedeng ibalik kung
+  kailangan (palitan lang ulit ang 8 files pabalik sa `assets/player/`).
+- **Susunod (hindi pa ginawa):** RUN, SIT, at lahat ng tool-swing
+  animations (axe/pick/pickaxe/rake/punch) - bata pa rin ang art doon,
+  kaya "magkahalo" muna ang itsura (matandang lakad/tayo, batang tumatakbo/
+  gumagamit ng tools) hangga't hindi pa hiling na palitan din ang mga ito.
+- **PINALITAN/SINUPERSEDE ni Entry #59** - hindi na "oldman" ang ginagamit,
+  "santa" character na (tingnan sa ibaba).
+
+### Entry #59 — Player: pinalitan ULIT ang IDLE/WALK sprites - "santa" na (assets/character/), HINDI na "oldman" (SINUPERSEDE ang Entry #58)
+- **Files:** parehong 8 file gaya ng Entry #58 (`assets/player/idleFront.png`,
+  `idleBack.png`, `idleLeft.png`, `idleright.png`, `walkFront.png`,
+  `walkBack.png`, `walkLeft.png`, `walkRight.png`) - laman lang ulit ang
+  pinalitan, pareho pa rin ang filename/format, walang binago sa
+  `js/assets.js`/`js/player.js`/`js/update.js`.
+- **Tama palang folder ang tinutukoy ng user:** hindi pala `assets/npc/
+  oldman/` (yun ang NPC shopkeeper) kundi `assets/character/` - literal na
+  "character" ang pangalan ng folder, may sarili itong `idle/` at `walk/`
+  subfolder (4 direksyon kada isa) - ito na ang bagong art ng MAIN
+  character/player (tinawag ng user na "santa").
+- **Pinagmulan:**
+  - `assets/character/idle/{front,back,left,right}idle/*.png` - 7 frame
+    bawat direksyon (may kasamang `.ase` - Aseprite source file, hindi
+    nagamit, PNG lang ang kinuha).
+  - `assets/character/walk/{front,back,right}walk/*.png` - front/back ay
+    10 frame, right ay 7 frame.
+  - **`leftwalk` - WALANG exported PNG** (`.ase` lang ang mayroon sa
+    folder, walang kasamang `.png`) - kaya hindi ito direktang nagamit;
+    sa halip, kinuha ang `rightwalk.png` at **hinorizontal-mirror**
+    (kaliwa-kanan) ang bawat frame nito para gawing panandaliang
+    `walkLeft.png` - gumagana naman dahil karaniwang simetriko/frontal
+    ang disenyo ng character (walang hawak na baril/tool na naka-isang
+    kamay lang na "mali" kapag na-mirror). Kung meron palang totoong
+    `leftwalk.png`/exported frames sa hinaharap, palitan na lang ito.
+- **BAGONG problema na hindi lumitaw noong "oldman" (Entry #58):**
+  IBA-IBA ang bilang ng frame kada direksyon dito sa "santa" art (7 sa
+  idle, 10 sa walk front/back, 7 sa walk left/right) - **pero FIXED sa
+  6 frames/strip ang buong sprite-slicing logic ng engine**
+  (`frameWidth = sprite.width / 6` sa `drawPlayer()`, `js/player.js`;
+  saka `if (player.frame >= 6) player.frame = 0;` sa `js/update.js`,
+  parehong hardcoded 6, hindi alam kung ilang frame TALAGA ang laman ng
+  bawat sprite). Kung direkta na lang ikinabit ang orihinal na 7/10-frame
+  na PNG dito nang walang ibang ginawa, MALI ang lalabas na paghihiwa
+  (hindi tama ang crop kada frame, "putol-putol"/maling parte ng sprite
+  ang lalabas).
+  - **Paraan ng pag-aayos (sa halip na baguhin pa ang engine/
+    `player.js`/`update.js` mismo, mas ligtas/mas maliit na pagbabago):**
+    hiniwa-hiwalay muna ang bawat orihinal na PNG papunta sa
+    magkakahiwalay na 64×64 frame (Python/Pillow script - hindi bahagi ng
+    laro, ginamit lang minsanan para gawin ang mga file dito), pumili ng
+    ANIM (6) sa mga iyon nang PANTAY-PANTAY ang pagitan (hal. sa 10 frame,
+    kinuha ang indices 0,2,4,5,7,9 - hindi lahat), tapos muling
+    pinagsama-sama papunta sa bagong 6-frame na strip bago i-save bilang
+    `walkFront.png` atbp. Kaya TAMA pa rin ang paghihiwa ng engine (6
+    frames pa rin talaga ang laman), kahit iba ang ORIHINAL na bilang ng
+    frame sa `assets/character/`.
+  - Ganito rin ang ginawa sa IDLE (7 → 6 frame) - kahit hindi na
+    kailangan dahil ISANG beses (`frameIndex = 0`) lang naman palaging
+    ginagamit sa idle (tingnan Entry #58), sinunod pa rin ang 6-frame
+    format PARA CONSISTENT/hindi malito kung sakaling babaguhin pa ito sa
+    hinaharap.
+- **Backup:** `assets/player/_backup_original_player_sprites/` - ito pa
+  rin ang TALAGANG-TALAGANG orihinal (batang character, BAGO pa man ang
+  oldman attempt) - HINDI ito nag-iba, hindi rin ito kinailangang i-update
+  dahil hindi ito ang huling ginamit na "oldman" na bersyon (walang
+  na-save na hiwalay na backup ng oldman attempt - kung kakailanganin pa
+  yun, muling bubuuin na lang gamit ang parehong paraan sa Entry #58 mula
+  sa `assets/npc/oldman/`).
+- **Susunod (hindi pa ginawa):** RUN, SIT, at lahat ng tool-swing
+  animations - bata pa rin ang art doon (parehong pahayag gaya ng
+  Entry #58) - kaya "magkahalo" pa rin ang itsura habang naka-idle/naka-
+  walk (santa) kumpara sa tumatakbo/gumagamit ng tools (bata) hangga't
+  hindi pa hiling na palitan din ang mga ito.
+
+### Entry #60 — Player: naayos ang FRAME COUNT mismatch (hardcoded "6") + naayos ang COLLISION box na hindi na tumutugma matapos palakihin ang character
+- **Konteksto:** sa pagitan ng Entry #59 at ngayon, may sarili nang
+  ginawang pagbabago ang user OUTSIDE ng Claude (bagong bersyon ng
+  project ang in-upload): (1) direktang tinuro na ni `js/assets.js`
+  ang `sprites.idle`/`sprites.walk` sa TALAGANG orihinal na strip sa
+  `assets/character/idle|walk/...` (7/10/7 frame) sa halip na sa mga
+  6-frame na "downsampled" na kopya sa `assets/player/idleFront.png`
+  atbp. na ginawa sa Entry #59 - kaya YAON (`assets/player/idle*.png`,
+  `walk*.png`) ay **DEAD/UNUSED na files na ngayon**, walang
+  bumabanggit dito maliban sa hindi-ginagamit na root-level
+  `script.js` (lumang monolitikong file, WALANG `<script>` tag dito sa
+  `index.html`, hindi tumatakbo sa laro - ligtas na balewalain/burahin
+  balang araw); (2) pinalaki ang `player.width`/`player.height`
+  (`js/player.js`) mula 16×24 papuntang **56×64**; (3) may kasamang
+  eksport na `leftwalk.png` na ngayon sa `assets/character/walk/
+  leftwalk/` (7 frame) - dating WALA pa nito noong Entry #59
+  (mirror na lang ang ginawang paraan noon dahil dito).
+- **BUG #1 - Frame count:** dahil DIREKTA na ngayong ginagamit ng
+  `js/assets.js` ang totoong-totoong strip (idle = 7 frame/direksyon,
+  walk paitaas/pababa = 10 frame, walk pakaliwa/pakanan = 7 frame -
+  eksaktong tulad ng sinabi ng user), pero `js/player.js`
+  (`drawPlayer()`) at `js/update.js` (frame wrap-around) ay
+  **HARDCODED sa 6 frames palagi**, MALI ang paghihiwa ng bawat frame
+  (`frameWidth = sprite.width / 6` gamit ang maling divisor) -
+  "pira-piraso"/pilipit ang lumalabas na sprite, at maaaring "tumalon"
+  papunta sa maling bahagi ng strip habang naglalakad.
+  - **Fix:** bagong function na `getPlayerAnimationFrameCount()`
+    (`js/player.js`, bago mismo ang `drawPlayer()`) - dinideretmina
+    kung ilang frame TALAGA ang laman ng KASALUKUYANG aktibong sprite,
+    base sa estado ng player:
+    - naka-sit → 6 (bata pa ring `sit.png`, frame 0 lang naman
+      ginagamit)
+    - naka-run → 6 (bata pa ring `run*.png`, hindi ginalaw)
+    - naglalakad (walk), direksyon up/down → **10**
+    - naglalakad (walk), direksyon left/right → **7**
+    - naka-idle (hindi gumagalaw) → **7**
+    - Ginamit ito PAREHO sa `drawPlayer()` (para tama ang
+      `frameWidth`) AT sa `js/update.js` (para tama ang wrap-around ng
+      `player.frame` - `if (player.frame >= getPlayerAnimationFrameCount())`
+      sa halip na `>= 6`) - IISANG pinagmulan ng totoo para hindi
+      na muling maging magkaiba/hindi magkatugma ang dalawang lugar na
+      ito sa hinaharap.
+- **BUG #2 - Collision box hindi na tumutugma matapos lumaki ang
+  character:** `getPlayerCollisionBox()` (`js/collisions.js`) ay
+  FIXED PIXEL VALUES dati (`x+4, y+12, width:16, height:10`) -
+  kinalkula noong 16×24 pa lang ang `player.width/height` (yung
+  ORIHINAL na batang sprite). Nang pinalaki ang character papuntang
+  56×64 nang hindi ito hinawakan, "naiwan" ang maliit/maling-posisyon
+  na hitbox malapit sa itaas-kaliwang sulok ng BAGONG mas malaking
+  sprite (malayo sa TALAGANG paanan) - kaya "maaga"/"mali" ang
+  pakiramdam ng banggaan sa mga hadlang (parang may nabanggang bagay
+  kahit malayo pa "sa mata" ang paa ng character sa hadlang).
+  - **Fix:** ginawang PROPORTIONAL (percentage ng `player.width`/
+    `player.height`) sa halip na fixed pixels ang hitbox - 45% ng
+    width, 22% ng height, naka-center horizontally at naka-anchor sa
+    PINAKABABA (paanan) ng sprite:
+    ```js
+    const width = player.width * 0.45;
+    const height = player.height * 0.22;
+    return {
+      x: x + (player.width - width) / 2,
+      y: y + player.height - height,
+      width,
+      height,
+    };
+    ```
+    Awtomatiko na itong susunod kung magbabago pa ulit ang laki ng
+    character sa hinaharap - hindi na kailangang balikan/i-retouch
+    pang muli ang collisions.js kada palitan ang `player.width`/
+    `player.height`.
+- **HINDI ginalaw/hindi kasama sa fix na ito:** `getOldManCollisionBox`
+  at `getPigCollisionBoxes` (`decor.js`/`pig.js`) - sarili nilang NPC
+  box ito, independent sa `player.width/height`, walang naiulat na
+  isyu dito.
+- **Susunod na maaaring i-clean-up (opsyonal, hindi ginawa dahil
+  hindi hiniling):** pwedeng burahin na ang mga dead na
+  `assets/player/idleFront.png`, `idleBack.png`, `idleLeft.png`,
+  `idleright.png`, `walkFront.png`, `walkBack.png`, `walkLeft.png`,
+  `walkRight.png` (6-frame na "downsampled" na kopya mula Entry #59,
+  wala nang gumagamit) - pati na rin ang buong root-level `script.js`
+  (lumang unused na kopya) - pero hindi muna hinawakan dito para
+  hindi ma-touch ang mga file na hindi bahagi ng hiling.
+
+### Entry #61 — 2-mundo na lang (town + grassmap), tinanggal ang code-drawn na placeholder room, bagong 6 bahay sa town, bagong "House naming convention"
+- **Files:** `js/worlds.js`, `js/map.js`, `js/update.js`, `js/bed.js`,
+  `js/draw.js`, `js/decor.js`, `js/resources.js`, `js/dig.js`, `index.html`
+
+- **(a) KONBENSIYON NG PANGALAN PARA SA MGA BAHAY/INTERIOR (SUNDIN ITO
+  SA BAWAT BAGONG BAHAY MULA NGAYON):** `<pangalan ng may-ari>` +
+  `"House"` (camelCase, unang letra maliit) — halimbawa: kung "tan" ang
+  pangalan ng account, ang WORLDS entry/pangalan ng silid nito ay
+  `tanHouse`. Ito ang ginamit sa 6 bagong bahay sa ibaba
+  (`manuelHouse`, `josephHouse`, atbp.) at dati nang ginamit ng
+  `grassmapHouse`. Kapag may bagong bahay sa hinaharap, gawin munang
+  isang bagong `WORLDS.<pangalan>House` entry (worlds.js) + kaukulang
+  `DOORS` pares (Enter mula sa labas + Exit `"__return__"` papuntang
+  loob nito) — tingnan ang (c) sa ibaba para sa buong pattern.
+
+- **(b) Tinanggal ang `starter`, `village`, `newmap`, at `houseInside`
+  sa `WORLDS`** (hiling ng user: "mangyayari is 2 na lang town at
+  grassmap") — `town` at `grassmap` na lang ang natitirang labas na
+  mundo, magkadugtong pa rin sa pamamagitan ng umiiral na (hindi
+  ginalaw) na "Grass Path"/"Town" na pares ng pintuan. Dahil dito:
+  - Tinanggal din ang mga `DOORS` entry na dating tumuturo
+    papunta/mula sa mga tinanggal na mundong ito (village/newmap →
+    houseInside, ang dating newmap↔town blackhole gate, at ang
+    houseInside "Exit").
+  - `js/map.js` (`loadWorld` ng dulo ng file, savedWorld migration) —
+    tinanggal ang mga HIWALAY na espesyal na "village"→"newmap" at
+    "houseInside"→DEFAULT_WORLD na migration branch — HINDI na
+    kailangan ang mga ito: awtomatiko nang bumabalik sa
+    `DEFAULT_WORLD` ("grassmap") ang generic na
+    `WORLDS[savedPlayer.world]` na check kapag wala nang entry doon
+    ang naka-save na pangalan ng mundo (kahit anong luma pang pangalan
+    pa ito).
+  - `js/dig.js` — `WORLDS_WITHOUT_GROUND_WEATHER_OVERLAY` mula
+    `["village", "town"]` papuntang `["town"]` na lang.
+
+- **(c) Tinanggal ang "PANSAMANTALANG SILID" (code-drawn placeholder
+  room) system** (hiling ng user: "yung static room na ginawa via code
+  alisin mo na ayoko na nun"):
+  - `js/worlds.js` — tinanggal ang buong `drawPlaceholderRoom()`
+    function at ang `ROOM_FLOOR_COLOR`/`ROOM_FLOOR_PLANK_COLOR`/
+    `ROOM_WALL_COLOR`/`ROOM_WALL_EDGE_COLOR` na constants. Wala nang
+    dapat maglagay ng `placeholderRoom: true` sa alinmang bagong
+    `WORLDS` entry — LAHAT ng interior mula ngayon ay dapat may TUNAY
+    na Tiled `.tmj`/tileset (gaya ng `room_grassmap.tmj`), hindi na
+    guhit-lang-ng-canvas.
+  - `js/map.js` (`drawMapBackground()`) — tinanggal ang
+    `if (world.placeholderRoom) { drawPlaceholderRoom(); return; }` na
+    sanga.
+
+- **(d) BAGONG 6 na bahay sa loob ng "town"** (hiling ng user: "yung sa
+  town is yung mga pinto is napapasukan lagyan mo rin ng name 6 house
+  yun so may different name, manuel, joseph, maria, escanor, jillian,
+  matilda"):
+  - **Paano nakita ang eksaktong 6 pintuan:** may `"door"` tile layer
+    na ang `town.tmj` (dating ginamit lang bilang marker ng ilaw ng
+    pinto, entry 51) — kinuha (Python script) ang lahat ng
+    di-blangkong (col,row) doon, pinag-cluster (magkalapit na tile),
+    at NAKAKITA ng EKSAKTONG 6 pangkat — tumutugma sa 6 bahay na may
+    bukas na guhit na pinto sa larawan mismo (`town.png`). VERIFIED
+    gamit ang script na nag-o-overlay ng "door" tiles (cyan) at
+    `Collisions` objects (red) sa ibabaw ng `town.png`
+    (screenshot-checked) — kinumpirma kung saan TALAGANG bukas/
+    madadaanan (walang Collision) sa HARAP/ilalim ng bawat pintuan,
+    hindi basta ang pintuan mismo (na may pader sa magkabilang gilid).
+  - **Pangalan → posisyon (world:"town", bawat isa "Enter", `auto:
+    true`):**
+    - `manuelHouse` — bahay na may BERDENG bubong (itaas-kaliwa),
+      `area: {x:216,y:176,width:24,height:24}`
+    - `josephHouse` — 2nd na bahay sa itaas (BUGHAW bubong),
+      `area: {x:520,y:192,width:24,height:24}`
+    - `mariaHouse` — 3rd na bahay sa itaas (PULANG bubong),
+      `area: {x:730,y:176,width:30,height:20}`
+    - `escanorHouse` — 4th/pinakakanan na bahay sa itaas (BUGHAW
+      bubong), `area: {x:950,y:168,width:22,height:18}`
+    - `jillianHouse` — bahay sa gitna-kanan (KAYUMANGGING bubong, may
+      tsimenea), `area: {x:908,y:360,width:20,height:18}`
+    - `matildaHouse` — bahay sa ibaba-kaliwa (kahel/kayumanggi),
+      `area: {x:280,y:432,width:32,height:24}`
+  - Bawat isa ay may katumbas na "Exit" na `DOORS` entry sa SARILI
+    nitong world (`area: {x:63,y:193,width:39,height:31}`, `to:
+    "__return__"`) — EKSAKTONG kopya ng butas ng `room_grassmap.tmj`
+    (tingnan sa ibaba kung bakit pareho).
+  - **WALA PANG sariling hiwalay na art/tileset ang bawat isa** — LAHAT
+    ng 6 (pati `grassmapHouse`) ay gumagamit MUNA ng PAREHONG
+    `room_grassmap.tmj` bilang panloob na larawan/tileset (parehong
+    `spawn: {x:55,y:120}` at parehong Exit-hole na posisyon) — kaya
+    IISANG itsura lang ang makikita sa loob ng bawat isa sa ngayon.
+    **Kapag may sarili nang guhit/Tiled export ang isang partikular na
+    bahay balang araw, PALITAN LANG ang `url` ng kaukulang
+    `WORLDS.<pangalan>House` entry** papunta sa bagong `.tmj` — hindi
+    na kailangang galawin ang `DOORS`/ibang bahagi ng code.
+
+- **(e) `js/bed.js` — ginawang GENERIC (dating naka-tali lang sa
+  `houseInside`, na TINANGGAL na):**
+  - `isBedTile()`/`drawBed()` — sinusunod na ngayon ang `isIndoors()`
+    (worlds.js, basta hindi `outdoor`) sa halip na
+    `currentWorld === "houseInside"` — kaya gumagana na ang
+    "matulog hanggang 6am" sa LAHAT ng interior (grassmapHouse + lahat
+    ng bagong bahay sa town), hindi lang sa isa.
+  - `BED_X`/`BED_Y` binago mula `(40,56)` papuntang `(28,80)` — VERIFIED
+    laban sa `Collisions` ng `room_grassmap.tmj` (ang walkable na
+    interior nito ay `x:20-210, y:74-193`) — ang lumang posisyon ay
+    NASA LOOB pa ng itaas na pader (para sa IBANG silid/laki,
+    `houseInside.tmj`, hindi ito) — ngayon TALAGANG nasa loob ng
+    walkable na sahig ang kama.
+
+- **(f) `js/decor.js`/`js/draw.js`/`js/resources.js` — dead-code
+  cleanup ng "town gate" system pagkatapos tanggalin ang "newmap":**
+  - Tinanggal ang UNANG "blackhole gate" (dynamic na naka-center sa
+    TAAS-GITNA ng "newmap" — `TOWN_GATE_WORLD`,
+    `getTownGateBlackholeCenter()`, `getTownGatePatchBox()`,
+    `drawTownGatePatch()`) — wala nang mundong gagamit dito. Tinanggal
+    din ang tawag dito sa `draw.js`.
+  - **Natuklasang DATING BUG (hindi dulot ng session na ito, pero
+    nahanap habang tina-trace ang "newmap" references):**
+    `drawNewmapReturnGatePatch()` ay may `if (currentWorld !==
+    "newmap") return;` — MALI/hindi tumutugma sa TALAGANG box nito
+    (`NEWMAP_RETURN_GATE_CENTER`, eksaktong kapareho ng "area" ng
+    DOORS entry `world:"grassmap"` papuntang "town") — kaya HINDI
+    KAILANMAN talaga lumalabas ang decal na ito sa loob ng grassmap.
+    **Naayos:** `currentWorld !== "grassmap"` na ang check.
+  - `isInsideTownGateClearing()` (resources.js) — dating
+    naka-gate sa `currentWorld !== "newmap"` (palaging `false` na
+    ngayon dahil wala nang "newmap") — ginawang simpleng `return
+    false;` (parehong resulta pa rin, mas malinaw/walang nakabiting
+    reference sa tinanggal na `getTownGatePatchBox`).
+
+- **Para i-adjust:** posisyon ng bawat bagong pintuan ng bahay sa town
+  → ang kaukulang `DOORS` entry (`area`, worlds.js) — ITUGMA rin ang
+  `world:"town"` `to:` niyon. Ibang tileset/art bawat bahay → `url` sa
+  kaukulang `WORLDS.<pangalan>House` (worlds.js). Posisyon ng kama →
+  `BED_X`/`BED_Y` (bed.js, i-verify munang walang overlap kung
+  babaguhin pa ang interior tileset).
+
+### Entry #63 — LAHAT ng pintuan ng bahay (town + grassmapHouse) ay E-to-use na sa PAPASOK AT PALABAS + bagong "facing check" (dapat nakaharap) para sa stove/crafter/bed/pintuan
+- **Files:** `js/worlds.js`, `js/collisions.js`, `js/dig.js`
+
+- **(a) Hiling ng user:** "sa town at sa grassmap na bahay yung mga
+  pinto papasok/palabas is dapat need na mag press 'e' key" - dating
+  ang mga Enter na pintuan ng 6 bahay sa town ay E-to-use na (Entry
+  #62), PERO ang lahat ng Exit (palabas) - kasama na ang grassmapHouse
+  Enter/Exit - ay "auto: true" pa rin (basta madaanan, awtomatiko).
+  **Ayos:** tinanggal ang `auto: true` sa **grassmapHouse Enter**,
+  **grassmapHouse Exit**, at sa **6 Exit ng bahay sa town**
+  (manuelHouse/josephHouse/mariaHouse/escanorHouse/jillianHouse/
+  matildaHouse → `__return__`) - lahat ng ito ay kailangan na ring
+  E-to-use ngayon. **HINDI ginalaw** ang gate patungong "town"
+  ("Grass Path"/"Town" na pares sa pagitan ng `town`/`grassmap`) -
+  hindi ito "bahay" ayon sa literal na hiling, nananatiling "auto".
+  Walang binago sa `js/update.js` - parehong E-key/auto-door code path
+  na umiiral na (Entry #46/#55) ang sumusunod dito, basta tinanggal
+  lang ang `auto` field sa `DOORS` (worlds.js).
+
+- **(b) Bagong "FACING CHECK" - hiling ng user:** "gusto ko yung
+  character dapat nakaharap sa mismong may mga function lang para ma
+  use yun bahay na may function like stove crafter bed door etc" -
+  dating basta ABOT/MALAPIT (`isTileInReach` sa dig.js, o
+  reach-margin ng `getDoorUnderPlayer` sa worlds.js) na lang ang
+  kailangan, kahit anong direksyon (`player.direction`) ang kaharap ng
+  player - hal. puwede pa rin buksan ang Stove kahit TALIKOD dito.
+  **Ayos - bagong SHARED helper, `isPlayerFacingWorldPoint(targetX,
+  targetY)`** (`js/collisions.js`, PIXEL-based, hindi tile-based) -
+  kinukwenta ang direksyon mula sa GITNA ng collision box ng player
+  papunta sa target point, tapos tinitignan kung tumutugma ito sa
+  `player.direction` gamit ang isang "45-degree cone" (ang
+  PANGUNAHING axis ay dapat mas malaki-o-kapantay sa KABILANG axis) -
+  hindi eksaktong-tuwid-na-linya lang, para gumana pa rin ang malaking
+  bagay (hal. kama, ilang tile ang lapad).
+  - `js/dig.js` - bagong `isPlayerFacingTile(col, row)` (tile-center
+    wrapper ng `isPlayerFacingWorldPoint`) - dinagdag ang check na ito
+    (`facingTile`) bago pahintulutan ang **Crafter** (`openAdvancedCraftPanel`),
+    **Stove** (`openStovePanel`), at **Bed** (`trySleepInBed`) sa loob
+    ng `mousedown` listener - kung hindi nakaharap, WALANG mangyayari
+    (hindi bumubukas ang panel/hindi natutulog), pero HINDI rin
+    tumutuloy sa ibang click behavior (hal. rake/pagtatanim) - basta
+    "walang epekto" lang ang click sa ganitong sitwasyon.
+  - `js/worlds.js` (`getDoorUnderPlayer`) - dinagdagan din ng parehong
+    check (gamit ang gitna ng `door.area` bilang target) - PERO
+    `door.auto === true` na pintuan lang (hal. ang gate) ang
+    EXCLUDED dito - basta madaanan pa rin (kahit anong direksyon),
+    dahil hindi naman "E to use" na interaction iyon. Lahat ng E-to-use
+    na pintuan (kasama ang LAHAT ng bahay ngayon, tingnan (a) sa
+    itaas) ay kailangan na ring HARAPIN muna bago lumabas ang
+    "E - <label>" na prompt/gumana ang E.
+  - **Sadyang HINDI kasama:** Oldman NPC shop (`isOldManTile`) - hindi
+    ito bahagi ng literal na hiling ("stove, crafter, bed, door") -
+    gumagana pa rin ito kahit anong direksyon habang malapit lang.
+  - **Para i-adjust:** lapad ng "cone" (kasalukuyan, 45°/1:1 ratio) →
+    baguhin ang `Math.abs(deltaX) <= Math.abs(deltaY)` (atbp.) sa loob
+    ng `isPlayerFacingWorldPoint` (collisions.js) - mas MALAKING
+    multiplier sa isang side (hal. `<= Math.abs(deltaY) * 1.5`) ay
+    magpapaluwag sa cone (mas madaling "nakaharap"). Para idagdag ang
+    parehong check sa ibang function object sa hinaharap (hal. oldman
+    shop, kung babaguhin ang isip) - tawagin lang ang
+    `isPlayerFacingTile(col, row)` (dig.js) bago payagan ang
+    interaction.
+
+- **(c) Bug (VERIFIED, hiwalay sa (a)/(b)): "yung paglabas ng bahay ni
+  Manuel sa ibang lugar pumupunta"** - `getDoorExitSpawn()`
+  (`js/worlds.js`) ay gumagamit pala ng HARDCODED na
+  `collisionOffsetX/Y`/`collisionWidth` (4/12/16) - EKSAKTONG kopya ng
+  LUMANG fixed-pixel na `getPlayerCollisionBox` (bago pa ang Entry #60)
+  na ginawa NOONG 16×24 pa lang ang sprite. Nang ginawang PROPORTIONAL
+  (45%/22% ng `player.width/height`, 56×64 na) ang collision box sa
+  Entry #60, NAIWAN/hindi na-update ang function na ito - kaya humigit
+  kumulang **52px masyadong PABABA at 16px masyadong PAKANAN** ang
+  nakukwentang "harap ng pintuan" kumpara sa TALAGANG tamang posisyon -
+  kaya lumalabas ang player nang malayo sa TALAGANG pinto (posibleng
+  katabi na ng ibang bahay/hadlang, "ibang lugar" ang datingan).
+  **Ayos:** sa halip na mag-hardcode ulit ng bagong numero (parehong
+  klase ng bug ang muling mangyayari kapag nagbago pa ulit ang laki ng
+  player), `getDoorExitSpawn()` ay DIREKTANG tumatawag na ngayon sa
+  TALAGANG `getPlayerCollisionBox(0, 0)` (collisions.js) para
+  kunin ang eksaktong offset ng box mula sa top-left ng sprite, tapos
+  "reverse"-kino-compute ang (x,y) ng player na kailangan para ang
+  GITNA (x) ng collision box ay tumapat sa GITNA ng pintuan, at ang
+  ILALIM (y) nito ay bahagyang PABABA (`exitBuffer`) mula sa ilalim ng
+  pintuan - AWTOMATIKO na itong tama kahit magbago pa ulit ang
+  `player.width`/`player.height` sa hinaharap.
+  - **Epekto:** TAMA na ngayon ang exit spawn ng LAHAT ng interior na
+    gumagamit ng `getDoorExitSpawn()` (grassmapHouse + 6 bahay sa
+    town) - hindi lang si Manuel, dahil IISANG SHARED function ito
+    para sa lahat (walang per-house na magkahiwalay na code path).
+
+### Entry #62 — 6 bahay sa town: kailangan na ulit pindutin ang E para pumasok + label na PANGALAN ng may-ari sa itaas ng "E - ..." na prompt
+- **Files:** `js/worlds.js`, `js/draw.js`
+
+- **Hiling ng user:** "gusto ko e press pa yung E key para makaenter
+  tapos may label na house name lke 'Joseph' yung mga name ilagay sa
+  pinto" - ang 6 pintuan PAPASOK sa bahay sa town (Entry #61) ay
+  dating "auto" (basta madaanan, awtomatikong papasok) - ngayon
+  kailangan na namang pindutin ang E, at may nakalutang na paalala sa
+  ilalim ng screen na nagsasabi kung KANINONG bahay ito.
+- **`js/worlds.js` (`DOORS`):** tinanggal ang `auto: true` sa 6 Enter
+  na pintuan (town → manuelHouse/josephHouse/mariaHouse/escanorHouse/
+  jillianHouse/matildaHouse) - kailangan na ulit pindutin ang E
+  (parehong E-key na landas na dati nang umiiral sa `update.js`,
+  walang binago doon). Pinalitan din ang `label` ng bawat isa mula sa
+  generic na `"Enter"` papuntang PANGALAN ng may-ari (`"Manuel"`,
+  `"Joseph"`, `"Maria"`, `"Escanor"`, `"Jillian"`, `"Matilda"`).
+  **Ang mga "Exit" na pintuan (palabas) ay NANANATILING "auto"** -
+  hindi hiniling baguhin, awtomatiko pa ring lalabas ang manlalaro.
+- **`js/draw.js`:** muling PINAGANA ang `drawDoorPrompt()` (dating
+  tinanggal ang tawag dito noong Entry #55, dahil noon lahat ng
+  pintuan ay "auto" na - tingnan ang paliwanag doon) - ipinapakita
+  nito ang `"E - " + door.label` sa ilalim-gitna ng screen kapag
+  nakatayo ang player sa isang MAAABOT na pintuan. Dinagdagan ng bagong
+  guard (`if (!door || door.auto) return;`) - HINDI ito lumalabas para
+  sa mga pintuang "auto" pa rin (dahil awtomatiko na namang lumilipat
+  ang mundo doon, walang saysay sabihin pang "pindutin ang E").
+- **Para i-adjust:** pangalan ng bawat bahay sa prompt → `label` sa
+  kaukulang `DOORS` entry (worlds.js). Kung gusto ring gawing "auto"
+  ulit ang isang partikular na bahay (walang E), ibalik na lang ang
+  `auto: true` doon.
+
+### Entry #64 — Crafter/Stove: paglalagay ngayon ay LOOB LANG NG BAHAY, may 2-TILE na footprint, at may "placement preview" (16x16 na outline sa mouse). Bagong "Light" (1 tile, ON/OFF, may glow) - bagong file `light.js` + `placement.js`
+- **Files (bago):** `js/placement.js`, `js/light.js`,
+  `assets/objects/light/light.png` (2-frame strip, OFF/ON - GENERATED
+  na placeholder pixel-art, PALITAN kung may tunay na art na).
+- **Files (binago):** `js/craft.js`, `js/stove.js`, `js/dig.js`,
+  `js/hotbar.js`, `js/draw.js`, `js/inventory-save.js`, `index.html`.
+
+- **(a) Hiling ng user:** "yung mga item na nilalagay sa ground like
+  crafter at stove is dapat mag-select ng tile sa MISMONG LOOB NG
+  BAHAY, at kapag tinapat ang mouse, lilitaw ang 16x16 na tile
+  (highlight) - kapag KALAHATI lang ang bakante, hindi puwedeng
+  malagyan - crafter 2 tiles, stove 2 tiles din, kapag may nakalagay na
+  sa isang tile, hindi na puwedeng malagyan pa - pero dapat may
+  collisions ang stove (crafter man)."
+
+- **Bagong SHARED file, `js/placement.js`** (dahil PAREHONG-PAREHO ang
+  logic na kailangan ng Crafter/Stove/Light, hindi na inuulit kada
+  file):
+  - `PLACEMENT_FOOTPRINTS` - listahan kung ilang tile (pahalang,
+    kanan) ang sinasakop ng bawat uri: `crafter`/`stove` = 2 tile,
+    `light` = 1 tile lang. Dito lang babaguhin kung magbabago pa ang
+    laki sa hinaharap.
+  - `isInsideHouseWorld()` - GENERIC na "loob ba tayo ng bahay?" check,
+    ginagamit ang `outdoor: false` na FLAG mismo ng `WORLDS`
+    (worlds.js) - gumagana ito sa LAHAT ng interior (grassmapHouse +
+    lahat ng bahay sa town), hindi kailangang i-hardcode ang listahan
+    ng world keys, kaya awtomatikong susunod dito ang bagong bahay sa
+    hinaharap.
+  - `isPlacementTileFree(col,row)` - isang tile lang: false kapag labas
+    sa mapa, may collision box (pader), may bagay sa isang "overlap"
+    layer (kaparehong `getObjectCells` na ginagamit din ng paghukay,
+    dig.js), pintuan ito, O may IBANG naka-lagay nang Crafter/Stove/
+    Light/Bag na dito (`isPlacedStructureTileOccupied`).
+  - `isFootprintPlaceable(itemId,col,row)` - LOOB LANG ng bahay
+    (isInsideHouseWorld) AT LAHAT (hindi kalahati lang) ng tile ng
+    buong footprint ay dapat FREE - ito ang TALAGANG GATEKEEPER, ginagamit
+    ng `placeCrafterInWorld`/`placeStoveInWorld` (dating walang anumang
+    validation - kahit saan/kahit anong tile puwede noon) at ng bagong
+    `placeLightInWorld`.
+  - `drawPlacementPreview()` - tinatawag ng `draw.js` (world space,
+    loob ng camera transform) HABANG naka-highlight/"armed" ang isang
+    Crafter/Stove/Light sa hotbar (`getArmedPlacementItemId`) - LUNTIAN
+    na outline+fill kung puwedeng ilagay dito, PULA kung hindi (ito ang
+    "kapag tinapat ko ang mouse, lilitaw ang 16x16 tile" na hiling) -
+    kaparehong estilo/lineWidth-hati-sa-zoom ng `strokeDigCursorTile`
+    (dig.js).
+  - `getFootprintCollisionBox(itemId,col,row)` - bounding box (buong
+    footprint, may kaunting inset) para sa collision - ginagamit ng
+    `getPlacedCrafterCollisionBoxes`/`getPlacedStoveCollisionBoxes`
+    (HINDI binago ang totoong "may collisions na" na gawi - NANDOON NA
+    ito bago pa ang entry na ito, dinagdagan lang para sumakop sa 2 tile
+    sa halip na 1).
+
+- **`js/craft.js`/`js/stove.js`:** `placeCrafterInWorld`/
+  `placeStoveInWorld` - dumaraan na ngayon sa `isFootprintPlaceable`
+  bago itulak sa `placedCrafters`/`placedStoves` (kung hindi puwede,
+  TAHIMIK lang na walang mangyayari, kaparehong "walang epekto" na gawi
+  ng facing-check sa Entry #63). `getPlacedCrafterAt`/`getPlacedStoveAt`
+  - hindi na simpleng col/row equality, KASAMA na ngayon ang BUONG
+  2-tile na footprint (`getPlacementFootprintCells`), kaya ma-cli-click/
+  ma-i-right-click ang ALINMAN sa 2 tile para buksan/sirain ito.
+  Drawing (emoji ng Crafter, sprite ng Stove) - naka-sentro na sa GITNA
+  ng 2-tile na footprint (dating 1 tile lang) - ganito rin ngayon ang
+  `drawStoveLight` anchor.
+
+- **Bagong `js/light.js`** ("Light" item, hiling ng user: "kapag sa
+  light is 1 tile lang... madadagdag lang is yung ON/OFF, kapag OFF
+  madilim, kapag ON gawin mong normal ang kulay ng paligid... lagyan mo
+  muna ako ng isang light.png... dapat may function ilalagay ko sa
+  tile sa loob ng bahay"):
+  - Kaparehong-pareho ng pattern ng Crafter/Stove: `lightsCollected`
+    (stock sa bag), bagong SHAPELESS recipe sa `craft.js`
+    (`CRAFT_RECIPES`, 2 wood + 1 stone → 1 Light), bagong entry sa
+    `BAG_ITEMS` (hotbar.js, icon: `assets/items/light.png` - ito yung
+    NAUNA NANG asset sa `items/` folder, INVENTORY ICON lang ito).
+  - `placeLightInWorld(col,row)` - dumaraan din sa `isFootprintPlaceable`
+    ("light", 1 tile). `getPlacedLightAt` - simpleng col/row equality
+    (1 tile lang naman ang footprint). WALANG sariling collision box
+    ito (hindi bahagi ng literal na hiling - "stove...dapat may
+    collisions" lang, hindi kasama ang Light) - madadaanan pa rin ito.
+  - `toggleLight(light)` - ang "function ilalagay sa tile" na hiling -
+    tinatawag ito ng `dig.js` (mousedown, KASAMA sa facing-check
+    pattern ng Entry #63 - crafter/stove/bed/door) kapag NI-CLICK (habang
+    ABOT AT NAKAHARAP) ang isang naka-lagay nang Light - simpleng
+    `light.on = !light.on`, walang bukas na panel.
+  - `breakPlacedLight(light)` - i-RIGHT-CLICK para tanggalin (kaparehong
+    gawi ng `breakPlacedCrafter`/`breakPlacedStove` - lumalabas muna
+    bilang floating ground item, kailangan pa itong damputin).
+  - **Bagong asset `assets/objects/light/light.png`** - 2-FRAME na
+    horizontal strip (16x16 kada frame: frame 0 = OFF/madilim, frame 1
+    = ON/maliwanag) - GINAWA/GENERATED na simpleng pixel-art na
+    lampara (Python/PIL script, hindi tunay na iginuhit/in-upload ng
+    user) bilang PANSAMANTALANG placeholder - PALITAN na lang ang file
+    na ito (parehong dimensions/frame layout) kung may tunay na art na.
+  - `drawPlacedLightGlow()` - kaparehong-estilo ng `drawStoveLight`/
+    `drawTorchLight` (atmosphere.js): bilog, "lighter"/additive blend,
+    SCREEN SPACE, sa IBABAW ng araw/gabi tint - PERO mas MALAKAS ang
+    intensity (0.95 sa gitna, laban sa 0.55-0.6 ng torch/stove) at mas
+    MALAWAK ang radius (95px laban sa 40-70px) - dahil ito talaga ang
+    "gawin mong NORMAL ang kulay ng paligid" na hiling, hindi lang
+    "dagdag na init/ambiance". AKTIBO lang ito kapag `light.on === true`
+    - kapag OFF, WALANG dagdag na epekto (nananatili ang normal na
+    araw/gabi tint mula sa `atmosphere.js`, PAREHONG-PAREHO ito sa
+    dating logic - ito mismo ang "parang ganun pa rin ang logic ngayon"
+    na sinabi ng user).
+
+- **`js/inventory-save.js`:** dinagdagan ng `light`/`placedLights` ang
+  serialize/load/reset paths - kaparehong-pareho ng ginawa na para sa
+  `stove`/`placedStoves` (kung hindi, mawawala ang mga naka-lagay na
+  Light at ang stock nito tuwing mag-reload).
+
+- **`index.html`:** dinagdag ang `<script src="./js/placement.js">`
+  (pagkatapos ng `ground-items.js`, bago ang `hotbar.js` - kailangan
+  ang `TILE_SIZE`/`mapData`/`collisions`/`DOORS`/`getObjectCells`, LAHAT
+  ay na-load na sa puntong ito) at `<script src="./js/light.js">`
+  (pagkatapos ng `stove.js`, bago ang `inventory-save.js` - kailangan
+  ang `BAG_ITEMS`/`pinnedSlots` mula sa `hotbar.js`).
+
+- **Sadyang HINDI kasama/binago:** ang orientation ng 2-tile na
+  footprint (crafter/stove) ay FIXED na PAHALANG papuntang KANAN
+  (`col`, `col+1`, parehong `row`) - hindi ito sumusunod sa
+  `player.direction` - kung gusto pa itong gawing adaptive (hal.
+  paitaas/pababa depende sa direksyon ng paglalagay), doon sa
+  `PLACEMENT_FOOTPRINTS`/`getPlacementFootprintCells` (placement.js)
+  gagawin ang pagbabago.
+- **Para i-adjust:** laki ng footprint kada item → `PLACEMENT_FOOTPRINTS`
+  (placement.js). Kulay/lakas ng "preview" outline →
+  `drawPlacementPreview` (placement.js). Lakas/radius ng glow ng Light
+  → `LIGHT_GLOW_RADIUS`/`LIGHT_GLOW_COLOR` (light.js). Recipe ng Light
+  → `CRAFT_RECIPES` (craft.js).
+
+### Entry #65 — Itsura ng naka-lagay na Crafter/Stove/Light = MISMONG inventory icon na (hindi na emoji/animated sprite), garantisadong hindi lumalabas sa 16x16 grid, at "buong silid" na warm na tint kapag may Light na ON
+- **Files (binago):** `js/placement.js`, `js/craft.js`, `js/stove.js`,
+  `js/light.js`. **Files (tinanggal):** `assets/objects/light/`
+  (generated placeholder ng Entry #64 - PALITAN na ng `assets/items/light.png`).
+
+- **(a) Hiling ng user:** "mali yung tile dapat exact 16x16 - check mo
+  yung naka-attached image dapat ganyan yung tile 16x16, tapos ibahin
+  mo itsura ng stove at crafter dapat kung ano yung nasa inventory na
+  itsura, tapos yung sa light.png yun gamitin mong light, tapos yung
+  ganyang kulay ng room dapat ganyan itsura kapag na open yung ilaw,
+  tapos off naman normal na kapag night".
+
+- **VERIFIED na BUGROOT ng "mali yung tile":** sa dating
+  `drawPlacedStoves` (stove.js, Entry #64), ang `drawHeight` ay
+  KINUWENTA base sa TALAGANG aspect ratio ng sprite
+  (`(drawWidth/frameWidth)*frameHeight`) - kung MATANGKAD ang orihinal
+  na larawan, LUMALAGPAS ang guhit sa ITAAS ng sariling 1-tile-tall na
+  footprint row, hindi na tumutugma sa 16x16 grid ng mapa.
+
+- **Bagong SHARED helper, `drawSpriteContainedInBox(image,x,y,w,h)`**
+  (placement.js) - "contain" fit (HINDI STRETCH/HINDI DISTORT):
+  pinapanatili ang aspect ratio ng orihinal na larawan, pinapaliit
+  LANG hanggang kumasya ito sa box, naka-sentro pahalang, naka-ANCHOR
+  SA ILALIM (parang nakatayo sa sahig) - GARANTISADONG hindi na ito
+  lalabas sa box kahit anong hugis pa (parisukat man o matangkad) ang
+  orihinal na larawan. Ito ang ginagamit ngayon ng LAHAT (Crafter/
+  Stove/Light) sa halip na basta `ctx.drawImage` na naka-stretch sa
+  buong box.
+
+- **`js/craft.js` (`drawPlacedCrafters`):** gumagamit na ng
+  `CRAFTER_SPRITE_IMAGE` = `assets/items/crafter.png` (ang MISMONG
+  icon sa bag/hotbar) sa halip na emoji ("🛠️"), guguhitin sa loob ng
+  2-tile na box (`drawSpriteContainedInBox`).
+- **`js/stove.js` (`drawPlacedStoves`):** gumagamit na ng
+  `STOVE_SPRITE_IMAGE` = `assets/items/stove.png` (static na icon) sa
+  halip na ang LUMANG animated na sprite
+  (`assets/objects/stove/stove.png`, 6-frame) - **TINANGGAL na ang
+  buong "cooking animation"** ng world sprite (`getStoveAnimFrameIndex`/
+  `STOVE_SPRITE_FRAME_COUNT`/`STOVE_COOK_FRAME_MS`, wala nang
+  gumagamit) - HINDI ito nakaapekto sa apoy-glow na `drawStoveLight`
+  (hiwalay/nananatili pa rin, base pa rin sa `isStoveActivelyCooking`).
+- **`js/light.js`:**
+  - `LIGHT_SPRITE_IMAGE` = `assets/items/light.png` na ngayon (dating
+    generated placeholder sa `assets/objects/light/light.png`, 2-frame
+    OFF/ON - TINANGGAL na ang buong folder na iyon). Iisang larawan na
+    lang (walang hiwalay na frame), ang ON/OFF ay sa `ctx.filter` na
+    lang: `"none"` (normal) kapag ON, `"grayscale(70%) brightness(0.55)"`
+    (madilim/walang-kulay) kapag OFF.
+  - `drawPlacedLightGlow()` - **BINAGO mula sa maliit na radial
+    gradient papunta sa BUONG-SCREEN na warm wash** (`ctx.fillRect(0,
+    0, canvas.width, canvas.height)`, "lighter" blend, kulay
+    `LIGHT_ROOM_TINT_COLOR` = "255, 214, 150") - hiling ng user
+    (reference screenshot niya): "yung ganyang kulay ng room dapat
+    ganyan itsura kapag na open yung ilaw" - BUONG SILID (hindi lang
+    lugar malapit sa lamp) ang nagiging warm/maliwanag, dahil maliit
+    lang naman ang bawat silid sa laro. AKTIBO lang ito kapag may
+    KAHIT ISANG Light na `on === true` sa kasalukuyang mundo
+    (`placedLights.some(...)`) - kapag WALA (lahat OFF, o walang
+    naka-lagay), WALANG dagdag na epekto, nananatili ang normal na
+    araw/gabi na dilim (`atmosphere.js`, hindi ito ginalaw) - ito ang
+    "off naman normal na kapag night" na hiling.
+
+- **Sadyang HINDI kasama/binago:** hindi ginalaw ang collision
+  (crafter/stove) o ang facing-check/toggle logic (light) - itong
+  Entry na ito ay PURONG VISUAL lang (itsura ng sprite + kulay ng
+  ilaw), walang binago sa mechanics/placement rules ng Entry #64.
+- **Para i-adjust:** kulay/lakas ng "buong silid" na warm wash →
+  `LIGHT_ROOM_TINT_COLOR` at ang `0.65` multiplier sa
+  `drawPlacedLightGlow` (light.js). Kung gusto pang gawing "contain"
+  fit (hindi stretch) ang IBANG existing na sprite sa laro sa
+  hinaharap → gamitin na lang ang `drawSpriteContainedInBox`
+  (placement.js).
+
+### Entry #66 — Sprite ng Crafter/Stove/Light dapat SAKOP ang BUONG LAPAD ng footprint (hindi lumiit), at Light: tinanggal ang facing-check + dagdag na "laging nakikita" na glow indicator (araw man o gabi) para talagang MAKITA agad ang ON/OFF
+- **Files:** `js/placement.js`, `js/craft.js`, `js/stove.js`,
+  `js/light.js`, `js/dig.js`.
+
+- **(a) Hiling ng user:** "try mo gawin yung size ng pinasa kong image
+  na crafter at stove at light dapat ganun kalaki sakop yung 2 tiles,
+  tapos yung light di nag switch on/off di nalitaw".
+
+- **VERIFIED na dahilan ng "lumiit"/hindi sakop ang 2 tile:** ang
+  `drawSpriteContainedInBox` (Entry #65) ay "contain" fit - kinukuha
+  ang MAS MALIIT sa dalawang scale (base sa width AT height). Dahil
+  HALOS PARISUKAT ang `crafter.png`/`stove.png` (33x32) habang
+  MALAWAK/MABABA ang box nila (32x16 - 2 tile x 1 tile), ang HEIGHT
+  ang naging LIMITING FACTOR - kaya LUMIIT ang larawan (~16px na lang
+  ang lapad, HINDI ang inaasahang 32px/2-tile).
+- **Ayos - `drawSpriteFillWidthInBox` (placement.js, PINALITAN ang
+  `drawSpriteContainedInBox`):** ang LAPAD (width) na ngayon ang
+  IPINIPILIT na EKSAKTO/kasing-lapad ng buong box (hal. 32px para sa
+  2-tile) - awtomatikong sumusunod ang TAAS sa TALAGANG aspect ratio
+  (hindi nastretch/nadistort), kahit LUMAGPAS ito sa taas ng
+  sariling 1-tile-tall na row (karaniwan sa top-down na laro - mas
+  matangkad ang guhit kaysa "footprint" sa sahig, gaya ng
+  crafter/stove/fridge sa reference image ng user) - naka-ANCHOR SA
+  ILALIM pa rin (ang ILALIM lang ang GARANTISADONG eksakto sa grid).
+  Resulta: crafter/stove ≈ 32x31px (buong 2-tile na lapad), light ≈
+  16x38px (buong 1-tile na lapad, mas matangkad - katulad ng floor
+  lamp).
+
+- **(b) "Light di nag switch on/off di nalitaw":**
+  - **`js/dig.js`:** TINANGGAL ang facing-check (`isPlayerFacingTile`)
+    bago payagan ang `toggleLight` - hindi naman talaga ito bahagi ng
+    literal na hiling noon ("stove, crafter, bed, door" lang sa Entry
+    #63) - sapat na ang ABOT (`isTileInReach`). Dating kung minsan
+    "parang walang nangyayari" ang click kapag hindi eksaktong
+    nakaharap ang player sa maliit (1-tile) na Light.
+  - **`js/light.js` (`drawPlacedLights`):** dagdag na "laging
+    nakikita" na maliit na glow (radial gradient, "lighter" blend) sa
+    paligid ng bumbilya mismo kapag `light.on === true` - HINDI ito
+    naka-batay sa gabi/`getNightAmount` (dating ang TANGING
+    pagkakaiba ng ON/OFF ay yung buong-silid na wash sa
+    `drawPlacedLightGlow`, na AKTIBO lang KAPAG GABI - kaya kung araw
+    ang pag-tetest, WALANG anumang makikitang pagbabago). Pinalakas
+    din ang OFF-dimming (`grayscale(90%) brightness(0.4)` +
+    `globalAlpha 0.85`, dating `70%`/`0.55`/walang alpha) para mas
+    kitang-kita ang pagkakaiba.
+- **Sadyang HINDI kasama:** hindi ginalaw ang buong-silid na warm wash
+  (`drawPlacedLightGlow`) - GABI PA RIN ito lang lumalabas (sadya
+  itong batay sa "kapag gabi na" sa orihinal na hiling) - ang BAGO
+  dito ay ang MALIIT na LOCAL na glow LANG (laging nakikita, hindi
+  batay sa oras).
+- **Para i-adjust:** lakas/radius ng "laging nakikita" na glow →
+  `glowRadius`/`glowGradient` sa loob ng `drawPlacedLights` (light.js).
+
+### Entry #67 — Naayos: grass1/grass2/grass3 (grass.js) ay TALAGANG NAG-OOVERLAP PA RIN sa puno (hal. pinetree) KAHIT may naunang "order: -2" tie-break fix
+- **File:** `js/grass.js` (`isGrassTuftNearOccludingTree` - bago, `drawGrassTuftsForeground`, `getGrassTuftDrawables`)
+- **Sanhi:** ang naunang fix (`order: -2` sa `getGrassTuftDrawables`, tingnan
+  ang komento doon) ay TAMA lang para sa NORMAL na Y-sort na pagguhit
+  (`drawGrassTuftSpriteWhole`/`Back`) - PERO WALANG epekto ito sa
+  `drawGrassTuftsForeground()`: ang FRONT/TOP na piraso ng isang
+  KASALUKUYANG naaapakang tumpok (player physically standing on that
+  grass tile) ay laging iginuguhit doon nang UNCONDITIONAL, tinatawag
+  PAGKATAPOS ng buong `drawMapObjects()` sa `draw.js` - walang Y-sort,
+  walang comparison laban sa kahit anong puno. Kaya kung ang natatapakang
+  tumpok ay nasa loob/tabi ng canopy ng isang matangkad na puno
+  (pinetree), ang FRONT piece nito ay LAGING lalabas SA IBABAW ng puno
+  - ito ang TALAGANG dahilan kung bakit "still overlapping" kahit may
+  order-based fix na.
+- **Ayos:** bagong `isGrassTuftNearOccludingTree(tuft)` - kinukuha ang
+  BUONG visual bbox ng tumpok (`computeGrassTuftGeometry`) at chinicheck
+  kung nag-o-`isColliding` ito laban sa `getTreeOcclusionBbox` (resources.js,
+  PAREHONG bbox na ginagamit na para sa puno/player see-through occlusion)
+  ng KAHIT ANONG puno sa `resourceNodesCache.trees`. Kung OO:
+  - `drawGrassTuftsForeground()` - LALAKTAWAN na ito, hindi na i-fo-force
+    sa harap.
+  - `getGrassTuftDrawables()` - hindi na ituturing na "currently
+    overlapped" (kahit TALAGANG naaapakan) - babalik sa NORMAL na Y-sort
+    (`drawGrassTuftSpriteWhole`, may `order: -2` tie-break pa rin) sa
+    halip, kaya TALAGANG mananalo/nasa harap ang puno kapag dapat.
+  - Bend/skew animation at leaf particle effect ay HINDI naaapektuhan
+    (hiwalay na state ito sa `grassBendState`/`grassTouchedLastFrame`) -
+    tama pa rin ang "pagyuko" ng damo kahit hindi na siya masi-split.
+- **Para i-adjust:** kung gusto pang mas maluwag/mahigpit ang "malapit sa
+  puno" na check, i-adjust ang 0.9 scale sa loob ng `getTreeOcclusionBbox`
+  (resources.js) - ginagamit din ito ng ibang occlusion logic, kaya
+  mag-ingat sa side-effects.
+
+### Entry #68 — Naayos: puno (lalo na pinetree) ay nagfa-fade/nagiging see-through habang AKTIBONG hinahampas ng axe - "erase the opacity of the pinetree when using axe"
+- **File:** `js/resources.js` (`getResourceDrawables` - `isBeingAxeStruck` branches)
+- **Sanhi:** Entry #? na naunang fix ("gawing likod ng puno ang axe
+  animation") ay nag-fo-force ng `drawSortY = Number.MAX_SAFE_INTEGER`
+  PARA sa puno habang `isBeingAxeStruck` (para lumabas na "nasa likod ng
+  puno" ang kamay/axe ng player) - PERO KASABAY pa rin nito ang normal na
+  `bbox: getTreeOcclusionBbox(...)`. Dahil MAS MALAKI/HARAP na ang
+  sortY ng puno PERO nag-o-overlap pa rin ang bbox nito sa player, ito
+  mismo ang trigger ng `shouldOccludeForPlayer` (map.js) - kaya
+  AWTOMATIKONG nagiging see-through/naka-fade ang PUNO sa BUONG axe
+  swing, hindi lang habang tinatago ng puno ang player.
+- **Ayos:** kapag `isBeingAxeStruck === true`, `bbox: undefined` na ang
+  ipinapasa sa drawable (sa halip na `getTreeOcclusionBbox(...)`) - dahil
+  ang `shouldOccludeForPlayer` ay agad nagre-return ng `false` kapag
+  walang `bbox` ang item (`if (item.isPlayer || !item.bbox) return
+  false`), kaya WALANG fade na mangyayari habang mismong humahampas ang
+  axe - SOLID/opaque ang puno, pero nananatili pa rin sa HARAP
+  (`drawSortY`) kaya tama pa rin ang dating "axe parang nasa likod ng
+  puno" na epekto. Sa sandaling matapos na ang swing
+  (`isBeingAxeStruck` false ulit), bumabalik ang normal na
+  occlusion/fade kapag TALAGANG likod ng puno ang player.
+- **Sakop:** parehong branch - ang pinetree axe-strike-frame (may `hits
+  > 0` na) AT ang normal/idle na drawTreeSprite branch (kapag first
+  swing pa lang, `hits === 0`). Hindi kailangang galawin ang fall-frame
+  branch (`getPinetreeFallProgress`) - hindi na kasabay ng aktibong axe
+  swing ang pagbagsak.
+
+### Entry #69 — Naayos: pinetreecutanimation (pagbagsak ng puno) ay nagfa-fade/nagiging see-through pa rin kahit hindi na aktibong hinahampas ng axe + TINANGGAL na ang lahat ng umiikot na "blackhole" gate visual
+- **Files:** `js/resources.js` (`getResourceDrawables` - fall-frame branch),
+  `js/decor.js`, `js/draw.js`
+- **(a) Pinetree fall animation opacity:**
+  - **Sanhi:** ang Entry #68 fix ay TAMA na para sa AKTIBONG axe swing
+    (`isBeingAxeStruck`) - PERO ang "pagbagsak" na animation frame
+    (`drawPinetreeFallFrame`, tumatakbo na PAGKATAPOS ng ika-7 hit,
+    HINDI na `isBeingAxeStruck`) ay may HIWALAY na drawable na LAGING
+    may `bbox: getTreeOcclusionBbox(...)` (walang guard) - kaya kahit
+    "normal" na (hindi na hinahampas) ang puno habang bumabagsak,
+    puwede pa rin itong mag-fade kung nag-o-overlap ang bbox sa player.
+  - **Ayos:** tinanggal na ang `bbox` sa drawable na ito - WALANG
+    occlusion/fade na mangyayari sa buong "pagbagsak" na animation,
+    LAGING normal/opaque ito.
+- **(b) "Blackhole" gate visual - tinanggal sa lahat:**
+  - **Sanhi:** may umiikot na "blackhole" na ground decal
+    (`blackhole.png`, 6-frame animation) na dating dinadraw sa DALAWANG
+    gate (`drawTownPathGatePatch` sa "town", `drawNewmapReturnGatePatch`
+    sa "grassmap") - purely visual/decorative lang ito, hiwalay sa
+    aktwal na pag-teleport (`DOORS`, worlds.js, sariling
+    area/coordinates).
+  - **Ayos:** tinanggal na ang parehong function, ang lahat ng
+    kaugnay na constants (`TOWN_GATE_BLACKHOLE_*`, `TOWN_PATH_GATE_*`,
+    `NEWMAP_RETURN_GATE_*`), at ang image loader
+    (`townGateBlackholeImage`) sa `decor.js`, pati na ang mga tawag
+    dito sa `draw.js`. HINDI naapektuhan ang aktwal na pag-lipat ng
+    mundo sa pagitan ng "town" at "grassmap" - gumagana pa rin ito
+    nang normal (walang visual na gate/portal na lang na nakikita sa
+    lugar na iyon).
+  - **Hindi tinanggal:** ang `assets/objects/blackhole.png`/
+    `blackhole-sheet.png` na file mismo - naiwan lang ito nang hindi
+    ginagamit, ligtas namang burahin nang manual kung gusto.
+
+### Entry #70 — "still not fix the opacity when strike" - TALAGANG TAMA na pala ang Entry #68/#69 fix, PERO HINDI NAKAKARATING sa browser dahil hindi na-bump ang `?v=` cache-bust ng mga nabagong file
+- **File:** `index.html` (mga `<script src="./js/....js?v=...">` tag)
+- **Sanhi:** dokumentado mismo sa itaas ng file na ito ("Cache-busting:
+  may `?v=<timestamp>` ang bawat script sa index.html") - kailangang
+  I-BUMP ang `?v=` ng ISANG file sa TUWING binabago ito, kundi
+  patuloy na ang LUMANG/CACHED na bersyon ang pinapatakbo ng browser
+  (o ng naka-bundle na WebView sa mobile app), KAHIT TAMA na ang
+  code sa mismong file sa disk. Sa mga naunang round (Entry #68 -
+  "erase the opacity of the pinetree when using axe", Entry #69 -
+  pinetree fall animation opacity + blackhole removal), NABAGO na ang
+  `resources.js`/`decor.js`/`draw.js`/`grass.js` PERO hindi na-bump
+  ang kani-kanilang `?v=` dito sa `index.html` - kaya "still not fix"
+  pa rin ang naramdaman/nakita ng user (LUMANG bersyon pa rin
+  talaga ang tumatakbo).
+- **Ayos:** binump ang `?v=` ng apat na apektadong file:
+  - `resources.js` → `1800000000013`
+  - `decor.js` → `1800000000014`
+  - `grass.js` → `1800000000015`
+  - `draw.js` → `1800000000016`
+- **Para maiwasan ito sa hinaharap:** TUWING may binabago sa isang
+  `.js` file, siguraduhing NAKA-BUMP din ang kaukulang `?v=` nito dito
+  sa `index.html` (mas mataas na numero kaysa sa lahat ng nauna) -
+  kung hindi, hard-refresh/clear-cache man ng user ay HINDI sapat
+  dahil parehong URL (walang pagbabago sa query string) pa rin ang
+  hinihiling ng browser sa network/service-worker cache.
+
+### Entry #71 — "still have opacity, check the video ... i want only the shaking not opacity" - naka-flicker/kumikislap pala ang fade sa PAGITAN ng bawat swing (VERIFIED sa video ng user)
+- **File:** `js/resources.js` (`getResourceDrawables` - naging
+  `suppressFadeForAxe`, dating `isBeingAxeStruck` din ang gamit sa
+  `bbox`)
+- **Sanhi (nakita sa frame-by-frame na pag-inspect ng na-upload na
+  video):** TAMA na ang Entry #68/#69 fix (walang bbox
+  literal na HABANG kumikilos ang swing animation
+  `player.putting && puttingSpriteSet === "axeStrike"`) - PERO ang
+  buong swing ANIMATION ay MAIKLI lang (~350ms, `AXE_STRIKE_FRAME_COUNT`
+  × `AXE_STRIKE_FRAME_SPEED`) kumpara sa `RESOURCE_HIT_COOLDOWN_MS`
+  (1000ms) bago pa man muling makapag-click ang user. Sa ~650ms na
+  PUWANG sa PAGITAN ng dalawang magkasunod na hampas, `player.putting`
+  ay `false` na (tapos na ang isang swing), kaya bumabalik ang NORMAL
+  na occlusion `bbox` doon - PALIT-PALIT/KUMIKISLAP ang opacity ng
+  puno sa BUONG "combo" (opaque habang swinging, faded sa pagitan) sa
+  halip na TULUYANG mawala - ito mismo ang nakita sa video.
+- **Ayos:** hiniwalay ang DALAWANG bagay na dating iisa lang
+  (`isBeingAxeStruck`):
+  - `isSwingingAxeAtThisTree` - PANANATILIHIN, literal na "kumikilos
+    ang swing animation ngayon" - ginagamit LANG para sa `drawSortY`
+    (force sa harap, para tama ang "axe parang nasa likod ng puno").
+  - `suppressFadeForAxe` (BAGO) - `axeStrikeTargetTreeKey === key`
+    (kasalukuyang tinatarget) AT may hampas na naitala sa loob ng
+    bagong `AXE_STRIKE_NO_FADE_GRACE_MS` (1400ms, mas mahaba kaysa sa
+    `RESOURCE_HIT_COOLDOWN_MS` para SAKUP ang buong puwang sa pagitan
+    ng dalawang swing) - ITO na ang gamit sa `bbox` (kapag `true`,
+    `undefined` ang bbox, walang fade) - LAGING solid/opaque ang puno
+    sa BUONG combo, hindi lang sa bawat individual na swing, kaya wala
+    nang "kislap".
+  - Bumabalik lang ang normal na fade sa sandaling TALAGANG tumigil
+    (o lumipat ng ibang target) ang user nang lampas sa grace period.
+- **Cache-bust:** binump ulit ang `?v=` ng `resources.js` sa
+  `index.html` → `1800000000017` (tingnan ang Entry #70 - kailangan
+  ITO sa TUWING may binabago sa isang `.js` file).
+- **Para i-adjust:** kung sobrang tagal/maikli pa rin ang "grace" →
+  `AXE_STRIKE_NO_FADE_GRACE_MS` (resources.js).
+
+### Entry #72 — BAGONG Main Menu (Loading → Play / Load / Settings / Exit) bago mag-umpisa ang laro
+- **Files:** `index.html` (bagong `#main-menu-overlay`), `style.css`
+  (bagong seksyon), `js/map.js` (`beginInitialWorldLoad`, bago),
+  `js/settings-menu.js` (`exitGame`, hiniwalay mula sa click handler),
+  `js/main-menu.js` (BAGONG file)
+- **Context:** una, tinanong ng user kung puwedeng gumawa ng
+  register/login (online account) system - pinili niyang gamitin sana
+  ang Supabase/Firebase, PERO nag-isip-isip ulit at sinabing "wag muna
+  mag online" - sa halip, gusto niya na lang ng isang SIMPLENG main
+  menu (Loading/Play/Load/Settings/Exit) bago pumasok sa laro. Walang
+  backend/account system na ipinatupad - purong client-side/local pa
+  rin ang laro (kagaya ng dati).
+- **Dating gawi:** deretso agad pumapasok ang laro sa huling naka-save
+  na mundo (o DEFAULT_WORLD kung wala pa) sa sandaling ma-parse ang
+  script - walang anumang menu bago noon.
+- **Bagong gawi:**
+  1. Ang dating awtomatikong pagtawag sa `loadWorld()` sa DULO ng
+     `map.js` (naghihintay muna sa `GRASSMAP_RESOURCES_LOADED`) ay
+     inilipat sa loob ng bagong `beginInitialWorldLoad()` function -
+     HINDI na ito awtomatikong tumatakbo.
+  2. Bagong full-screen na `#main-menu-overlay` (index.html,
+     pinakamataas na z-index sa buong laro, 1000) - dalawang estado:
+     - `#main-menu-loading` (default visible) - "Naglo-load..." habang
+       hinihintay ang `GRASSMAP_RESOURCES_LOADED` promise.
+     - `#main-menu-content` (lumalabas sa sandaling tapos na ang
+       paghihintay sa itaas) - 4 na button: **Play**, **Load**,
+       **Settings**, **Exit**.
+  3. `js/main-menu.js` (bago) - ikinakabit ang click listeners:
+     - **Play:** itinatago ang overlay (`hideMainMenuOverlay`), tapos
+       tinatawag ang `beginInitialWorldLoad()` (map.js) - dito lang
+       TALAGA nagsisimula ang laro.
+     - **Load:** tinatawag ang PAREHONG `openLoadSlotsPopup()` na
+       ginagamit na ng in-game na burger-menu "Load" (settings-menu.js,
+       may listahan ng save slots) - pagpili ng slot doon ay
+       nagre-reload ng WHOLE page (existing behavior, hindi ginalaw) -
+       kaya babalik muna sa main menu ito pagkatapos mag-reload
+       (dahil "Play" pa rin ang TANGING nagsisimula ng laro), TALAGANG
+       papasok na sa na-load na save sa kasunod na pagpindot ng "Play".
+     - **Settings:** tinatawag ang existing `openSettingsPanel()`.
+     - **Exit:** tinatawag ang bagong `exitGame()` (settings-menu.js -
+       hiniwalay lang mula sa dating click handler ng in-game na
+       "Exit", PAREHONG lohika/mensahe pa rin - `window.close()` +
+       toast fallback).
+     - "Play"/"Load" ay naka-disable muna habang naghihintay pa sa
+       `GRASSMAP_RESOURCES_LOADED`.
+  4. `style.css` (bagong seksyon "MAIN MENU") + binump ang z-index ng
+     `#settings-panel` (31 → 1010) at `#load-slots-overlay` (45 →
+     1010) - dahil puwede na ngayon itong buksan MULA sa main menu
+     (bago pa man mag-umpisa ang laro), kailangang mas mataas pa sa
+     `#main-menu-overlay` (1000) para talagang makita/ma-click.
+- **Sadyang hindi ginalaw:** ang gameLoop (main.js) ay TULOY-TULOY pa
+  ring tumatakbo (update/draw) kahit habang naka-display pa ang main
+  menu - ligtas lang ito dahil ang halos LAHAT ng subsystem ay may
+  `mapReady`/`currentWorld` guard na (kaparehong-pareho ng paraan ng
+  paggamit nito habang `worldLoading` sa mga door transition) - itim
+  lang/walang laman ang canvas sa likod ng buong-screen na overlay.
+- **Cache-bust:** binump ang `?v=` ng `style.css` (1800000000019),
+  `map.js` (1800000000020), `settings-menu.js` (1800000000021), at
+  bagong `main-menu.js` (1800000000018) sa `index.html` (tingnan ang
+  Entry #70 - kailangan ITO sa TUWING may binabago sa isang file).
+
+### Entry #73 — Naayos: bahagyang "nakikita pa rin" ang laman ng laro (HUD/calendar/burger icon) SA LIKOD ng main menu sa mobile (VERIFIED via Playwright mobile screenshot)
+- **File:** `style.css` (`#main-menu-overlay` background)
+- **Sanhi:** ang radial-gradient na background ng `#main-menu-overlay`
+  ay may alpha na `0.97`/`0.99` (halos-opaque lang, hindi TALAGANG
+  `1`) - kaya sa ilalim ng mobile na screenshot, bahagyang
+  "nagbabakas"/nakikitang malabo pa rin ang HUD (pangalan/health bar),
+  calendar, at burger-menu icon sa likod nito.
+- **Ayos:** ginawang ganap na `1` (opaque) ang parehong alpha stop ng
+  gradient - solid na ngayon ang overlay, wala nang anumang
+  "nagbabakas" mula sa laro sa likod nito.
+- **Cache-bust:** binump ulit ang `?v=` ng `style.css` →
+  `1800000000022`.

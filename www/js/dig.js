@@ -114,6 +114,106 @@ let rakeUnlocked = false;
 let pickaxeInInventory = false;
 let rakeInInventory = false;
 
+// =========================
+// TOOL DURABILITY (BAGONG HILING ng user, kasama ang axe sa resources.js)
+// =========================
+//
+// "may duration na rin kada gamit siguro 50 trees, stones at pag hukay
+// ng lupa max na yung 50 sa tatlo... strictly 1 per item kapag meron
+// ulit another slot siya mapunta" - PANATILIHIN muna sa circle/tool
+// radial ang pickaxe/rake/axe (HINDI sila lalabas sa bag/hotbar bilang
+// item - nanatili ang dating desisyon), pero may LIMITADONG bilang na
+// ngayon ng magagamit na "hits"/gawa (50, HIWALAY na counter bawat isa
+// sa tatlo - hindi shared) bago ito "masira": isang buong puno na
+// naputol (axe) / isang buong batong na-mina (pickaxe) / isang
+// paghukay ng lupa (rake) ang bumabawas ng 1 dito (tingnan ang
+// useToolDurability sa ibaba, at ang mga caller: registerHit sa
+// resources.js para sa axe/pickaxe, digTile/destroyCarrot dito para sa
+// rake). Pagdating sa 0: "SIRA" na ito (breakTool sa ibaba) - bumabalik
+// itong parang hindi pa na-craft (naka-lock ulit sa radial, naka-
+// unequip) - kailangan pang mag-craft ulit ng BAGO (fresh 50 durability
+// ulit - tingnan ang collectCraftOutput, craft.js) bago ito magamit
+// muli. May "broken" toast warning muna bago ito mangyari.
+const TOOL_DURABILITY_MAX = 50;
+
+let pickaxeDurability = 0;
+let rakeDurability = 0;
+// (axeDurability - resources.js, katabi ng axeUnlocked)
+
+// Tinatawag sa TUWING TALAGANG NAGAMIT/nagtagumpay ang isang naka-
+// equip na tool (isang buong puno/bato/paghukay) - "toolId" ay
+// "pickaxe"/"rake"/"axe". Wala itong epekto kung hindi naman naka-
+// unlock ang tool na iyon (hindi dapat mangyari, dahil kailangan munang
+// naka-equip ito bago ito magamit, at kailangan munang naka-unlock bago
+// ito ma-equip - safety net lang).
+function useToolDurability(toolId) {
+  if (toolId === "pickaxe") {
+    if (!pickaxeUnlocked) return;
+
+    pickaxeDurability = Math.max(0, pickaxeDurability - 1);
+
+    if (pickaxeDurability <= 0) breakTool("pickaxe");
+  } else if (toolId === "rake") {
+    if (!rakeUnlocked) return;
+
+    rakeDurability = Math.max(0, rakeDurability - 1);
+
+    if (rakeDurability <= 0) breakTool("rake");
+  } else if (toolId === "axe") {
+    if (typeof axeUnlocked === "undefined" || !axeUnlocked) return;
+
+    axeDurability = Math.max(0, axeDurability - 1);
+
+    if (axeDurability <= 0) breakTool("axe");
+  } else if (toolId === "cutter") {
+    if (typeof cutterUnlocked === "undefined" || !cutterUnlocked) return;
+
+    cutterDurability = Math.max(0, cutterDurability - 1);
+
+    if (cutterDurability <= 0) breakTool("cutter");
+  }
+
+  if (typeof syncHotbarUI === "function") syncHotbarUI();
+}
+
+// Naubos na ang durability ng isang tool - "SIRA" na ito: bumabalik sa
+// naka-lock na estado (parang hindi pa ito na-craft, tingnan ang
+// tool-radial-locked sa tool-radial.js), at kusang naka-unequip (kung
+// kasalukuyang naka-hawak) - kailangan pang mag-craft ulit ng bago.
+function breakTool(toolId) {
+  const label =
+    toolId === "pickaxe"
+      ? "Pickaxe"
+      : toolId === "rake"
+        ? "Rake"
+        : toolId === "cutter"
+          ? "Cutter"
+          : "Axe";
+
+  if (toolId === "pickaxe") {
+    pickaxeUnlocked = false;
+    pickaxeEquipped = false;
+  } else if (toolId === "rake") {
+    rakeUnlocked = false;
+    rakeEquipped = false;
+  } else if (toolId === "axe") {
+    if (typeof axeUnlocked !== "undefined") axeUnlocked = false;
+    if (typeof axeEquipped !== "undefined") axeEquipped = false;
+  } else if (toolId === "cutter") {
+    if (typeof cutterUnlocked !== "undefined") cutterUnlocked = false;
+    if (typeof cutterEquipped !== "undefined") cutterEquipped = false;
+  }
+
+  if (typeof showSettingsToast === "function") {
+    showSettingsToast(
+      "Nasira ang " + label + " mo! Kailangan mo nang mag-craft ulit.",
+    );
+  }
+
+  if (typeof syncToolRadialUI === "function") syncToolRadialUI();
+  if (typeof syncHotbarUI === "function") syncHotbarUI();
+}
+
 // Isa lang sa mga "right hand" na working tool (pickaxe/binhi/rake/
 // axe) ang puwedeng hawak nang sabay - tinatawag ito ng bawat
 // equip* function (dig.js/resources.js) BAGO nito itakda ang sarili
@@ -130,10 +230,22 @@ function clearAllToolEquips() {
   pickaxeEquipped = false;
   rakeEquipped = false;
   axeEquipped = false;
+  if (typeof cutterEquipped !== "undefined") cutterEquipped = false;
 }
 
 function equipPickaxe() {
   if (!pickaxeUnlocked) return; // kailangan munang i-craft
+
+  // BAGO (hiling ng user): "strictly use the pickaxe, axe and rake
+  // only when have bag" - kailangan munang naka-"Use"/naka-suot ang
+  // backpack (bagEquipped, tingnan ang hotbar.js) bago maging
+  // magagamit ang alinman sa 3 "right hand" na working tool na ito.
+  if (typeof bagEquipped !== "undefined" && !bagEquipped) {
+    if (typeof showSettingsToast === "function") {
+      showSettingsToast("Kailangan mo munang isuot ang bag! 🎒");
+    }
+    return;
+  }
 
   const wasEquipped = pickaxeEquipped;
 
@@ -147,6 +259,13 @@ function equipPickaxe() {
 // pang-bato na lang (tingnan ang resources.js).
 function equipRake() {
   if (!rakeUnlocked) return; // kailangan munang i-craft
+
+  if (typeof bagEquipped !== "undefined" && !bagEquipped) {
+    if (typeof showSettingsToast === "function") {
+      showSettingsToast("Kailangan mo munang isuot ang bag! 🎒");
+    }
+    return;
+  }
 
   const wasEquipped = rakeEquipped;
 
@@ -373,9 +492,19 @@ function getRainWetDirtLocalId(col, row) {
 // gaano katagal ito manatiling basa bago matuyo ulit kapag walang tanim
 // (basa -> tuyo), at gaano katagal pagkatapos noon bago ito bumalik sa
 // likas na lupa - niyebe o damo (tuyo -> likas).
-const WET_DIRT_DELAY_MS = 5000;
-const DIRT_AGAIN_DELAY_MS = 10000;
-const GRASS_REVERT_DELAY_MS = 10000;
+//
+// BAGO (hiling ng user): "babalik lang sa dating tile kapag di
+// nakapag tanim ng ilang segundo lang 10sec" - dating 25 segundo
+// (5+10+10) ang BUONG cascade bago bumalik sa damo ang isang
+// hinukay-pero-WALANG-TANIM na tile - pinaikli na sa TOTAL na 10
+// segundo (3+4+3), pareho pa rin ang proporsyon ng bawat stage
+// (tuyo -> basa -> tuyo -> likas). HINDI ito nagbabago kung MAY TANIM
+// na (record.seed) - iyon ay hiwalay na check (tingnan ang
+// updateGroundWeather/drawDugTiles sa ibaba), laging pinapanatili ang
+// itsura ng TALAGANG itinanim hanggang sa maani.
+const WET_DIRT_DELAY_MS = 3000;
+const DIRT_AGAIN_DELAY_MS = 4000;
+const GRASS_REVERT_DELAY_MS = 3000;
 const DUG_REVERT_MS =
   WET_DIRT_DELAY_MS + DIRT_AGAIN_DELAY_MS + GRASS_REVERT_DELAY_MS;
 
@@ -557,7 +686,12 @@ function loadDugTiles() {
   }
 }
 
-function saveDugTiles() {
+// BAGO (hiling ng user: "ayoko na ng auto save") - "force" param,
+// default false - tingnan ang paliwanag sa savePlayerPosition (player.js)
+// para sa buong disenyo nito.
+function saveDugTiles(force = false) {
+  if (!force) return;
+
   try {
     localStorage.setItem(DIG_SAVE_KEY, JSON.stringify(dugTiles));
   } catch (error) {
@@ -676,6 +810,179 @@ function isTileInReach(col, row) {
   return Math.abs(col - playerCol) <= 1 && Math.abs(row - playerRow) <= 1;
 }
 
+// BAGO (hiling ng user): "gusto ko yung character dapat nakaharap sa
+// mismong may mga function lang para ma use" - hindi na sapat na basta
+// ABOT (isTileInReach) - dapat TALAGA ring NAKAHARAP (player.direction)
+// ang player papunta sa tile bago niya ito magamit (stove/crafter/bed
+// - tingnan ang mousedown listener sa ibaba). Gumagamit ng SHARED na
+// helper (isPlayerFacingWorldPoint, collisions.js) - tile CENTER
+// (pixel) ang ipinapasa dito.
+function isPlayerFacingTile(col, row) {
+  if (typeof isPlayerFacingWorldPoint !== "function") return true;
+
+  const targetX = col * TILE_SIZE + TILE_SIZE / 2;
+  const targetY = row * TILE_SIZE + TILE_SIZE / 2;
+
+  return isPlayerFacingWorldPoint(targetX, targetY);
+}
+
+// =========================
+// "E" PARA GAMITIN ANG CRAFTER/STOVE/LIGHT/BED (bagong hiling ng user)
+// =========================
+//
+// "yung pag pindot is dapat e na lang sa crafter, lamp, bed at stove
+// press 'e' na lang" - TINANGGAL na ang left-click bilang paraan ng
+// paggamit ng mga ito (tingnan ang mousedown listener sa ibaba) -
+// kaparehong-pareho na ngayon ito ng gawi ng mga PINTUAN (E, worlds.js
+// - getDoorUnderPlayer/getUsableDoor) - tingnan ang paggamit nito sa
+// update.js.
+//
+// AYOS (hiling ng user): "dapat strictly nakaharap lang yung character
+// sa item tsaka lang ma press e ... kung ano lang laki ng tiles nila
+// like sa crafter is 2 tiles lang so dapat 2 tile lang sakop niya na
+// lilitaw yung e, kung anong pwesto niya dun lang pwede ma-i at
+// nakaharap doon" - dating gumagamit ng generic na 2-TILE na "radius"
+// PALIGID ng player (STRUCTURE_REACH_OFFSETS + isTileInPlacementRange,
+// tingnan sa mismong git history/comment sa ibaba) - masyadong MALUWAG
+// ito: puwede pang gamitin ang isang structure kahit 2 tile pa ang
+// layo AT hindi mismo naka-tapat dito (basta nasa loob ng malawak na
+// 45-degree cone). Ngayon, EKSAKTO na lang sa AKTWAL na footprint ng
+// BAWAT structure mismo (PLACEMENT_FOOTPRINTS, placement.js - hal. 2
+// tile pahalang ang Crafter/Stove) ang sinasakop - KATABI (1 tile lang,
+// hindi na 2) ng ISA sa mga cell nito AT diretsong NAKAHARAP doon
+// (isPlayerFacingTile) - hindi na basta-basta kahit saan sa loob ng
+// isang malawak na bilog/cone sa paligid ng player.
+
+// Katabi lang (1 tile, Chebyshev distance) ba ang player sa partikular
+// na tile na ito - hindi kasama ang MISMONG kinatatayuan niya (0).
+function isPlayerAdjacentToTile(col, row) {
+  const box =
+    typeof getPlayerCollisionBox === "function" ? getPlayerCollisionBox() : null;
+
+  if (!box) return false;
+
+  const playerCol = Math.floor((box.x + box.width / 2) / TILE_SIZE);
+  const playerRow = Math.floor((box.y + box.height / 2) / TILE_SIZE);
+
+  const distance = Math.max(Math.abs(col - playerCol), Math.abs(row - playerRow));
+
+  return distance === 1;
+}
+
+// Puwede bang gamitin (E) ang isang structure na "itemId" na naka-lagay
+// sa (col, row - ang ANCHOR/top-left tile nito, tingnan ang
+// getPlacementFootprintCells) - KATABI AT NAKAHARAP ba ang player sa
+// ISA (kahit alin) sa mga AKTWAL na tile ng buong footprint nito? Kaya
+// eksaktong "sakop" lang ng structure (hal. 2 tile ang Crafter/Stove, 1
+// tile ang Light, 2x3 ang Bed) ang puwedeng pagmulan ng "E" - hindi na
+// lumalampas pa sa isang generic na radius sa paligid ng player.
+function isStructureUsableFromPlayer(itemId, col, row) {
+  const cells =
+    typeof getPlacementFootprintCells === "function"
+      ? getPlacementFootprintCells(itemId, col, row)
+      : [{ col, row }];
+
+  return cells.some(
+    (cell) =>
+      isPlayerAdjacentToTile(cell.col, cell.row) &&
+      isPlayerFacingTile(cell.col, cell.row),
+  );
+}
+
+// Alin (kung meron man) na naka-lagay na Crafter/Stove/Light/Bed ang
+// puwede nang gamitin ngayon gamit ang "E" - { type, target } o null.
+// Tingnan ang paggamit nito sa update.js (eKeyDown, kaparehong-pareho
+// ng getUsableDoor). Dumaraan na ngayon DIRETSO sa mismong listahan ng
+// bawat naka-lagay na structure (placedCrafters/placedStoves/
+// placedLights/placedBeds) sa halip na mag-scan ng isang generic na
+// radius ng mga tile sa paligid ng player (tingnan ang paliwanag sa
+// itaas) - kaya AKTWAL na footprint mismo ng bawat isa (isStructureUsableFromPlayer)
+// ang batayan. Kung MARAMI ang kasabay na "usable" (bihira, magkalapit
+// na structure), ang PINAKAMALAPIT (Chebyshev distance mula sa player
+// papuntang anchor tile) ang mauuna.
+function getUsableStructureUnderPlayer() {
+  if (!currentWorld) return null;
+
+  const box =
+    typeof getPlayerCollisionBox === "function" ? getPlayerCollisionBox() : null;
+
+  if (!box) return null;
+
+  const playerCol = Math.floor((box.x + box.width / 2) / TILE_SIZE);
+  const playerRow = Math.floor((box.y + box.height / 2) / TILE_SIZE);
+
+  const candidates = [];
+
+  if (typeof placedCrafters !== "undefined") {
+    for (const crafter of placedCrafters) {
+      if (crafter.world !== currentWorld) continue;
+      if (isStructureUsableFromPlayer("crafter", crafter.col, crafter.row)) {
+        candidates.push({ type: "crafter", target: crafter, col: crafter.col, row: crafter.row });
+      }
+    }
+  }
+
+  if (typeof placedStoves !== "undefined") {
+    for (const stove of placedStoves) {
+      if (stove.world !== currentWorld) continue;
+      if (isStructureUsableFromPlayer("stove", stove.col, stove.row)) {
+        candidates.push({ type: "stove", target: stove, col: stove.col, row: stove.row });
+      }
+    }
+  }
+
+  if (typeof placedLights !== "undefined") {
+    for (const light of placedLights) {
+      if (light.world !== currentWorld) continue;
+      if (isStructureUsableFromPlayer("light", light.col, light.row)) {
+        candidates.push({ type: "light", target: light, col: light.col, row: light.row });
+      }
+    }
+  }
+
+  if (typeof placedBeds !== "undefined") {
+    for (const bed of placedBeds) {
+      if (bed.world !== currentWorld) continue;
+      if (isStructureUsableFromPlayer("bed", bed.col, bed.row)) {
+        candidates.push({ type: "bed", target: bed, col: bed.col, row: bed.row });
+      }
+    }
+  }
+
+  // AYOS (hiling ng user): "yung sa oldman gusto ko di na clickable
+  // dapat e na rin gamit" - kaparehong-pareho ng gawi ng Crafter/Stove/
+  // Light/Bed sa itaas (katabi AT nakaharap), PERO hindi ito galing sa
+  // PLACEMENT_FOOTPRINTS (1 tile lang siya, hindi rin "placed" ng
+  // player - gumagala siya, isOldManTile/oldManWander - decor.js), kaya
+  // DIRETSO na lang ang tile niya (oldManWander.col/row) ang sinusuri,
+  // hindi dumadaan sa isStructureUsableFromPlayer/getPlacementFootprintCells.
+  if (
+    typeof oldManWander !== "undefined" &&
+    oldManWander &&
+    oldManWander.state !== "gone" &&
+    isPlayerAdjacentToTile(oldManWander.col, oldManWander.row) &&
+    isPlayerFacingTile(oldManWander.col, oldManWander.row)
+  ) {
+    candidates.push({
+      type: "oldman",
+      target: oldManWander,
+      col: oldManWander.col,
+      row: oldManWander.row,
+    });
+  }
+
+  if (candidates.length === 0) return null;
+
+  candidates.sort((a, b) => {
+    const distA = Math.max(Math.abs(a.col - playerCol), Math.abs(a.row - playerRow));
+    const distB = Math.max(Math.abs(b.col - playerCol), Math.abs(b.row - playerRow));
+
+    return distA - distB;
+  });
+
+  return candidates[0];
+}
+
 // =========================
 // MOUSE
 // =========================
@@ -738,6 +1045,22 @@ canvas.addEventListener("contextmenu", (event) => {
 
   if (!tile || !isTileInReach(tile.col, tile.row)) return;
 
+  // BAGONG "bag" na naka-lagay sa mundo - HINDI agad sinisira (hindi
+  // tulad ng Crafter/Stove sa ibaba) - lumalabas muna ang "Use"/"Break"
+  // na menu (hiling ng user), tingnan ang usePlacedBag/breakPlacedBag
+  // (hotbar.js).
+  const bagHere =
+    typeof getPlacedBagAt === "function" ? getPlacedBagAt(tile.col, tile.row) : null;
+
+  if (bagHere && typeof showBagActionMenu === "function") {
+    showBagActionMenu(event.clientX, event.clientY, [
+      { label: "Use", onClick: () => usePlacedBag(bagHere) },
+      { label: "Break", onClick: () => breakPlacedBag(bagHere) },
+    ]);
+
+    return;
+  }
+
   const crafterHere =
     typeof getPlacedCrafterAt === "function" ? getPlacedCrafterAt(tile.col, tile.row) : null;
 
@@ -751,6 +1074,25 @@ canvas.addEventListener("contextmenu", (event) => {
 
   if (stoveHere && typeof breakPlacedStove === "function") {
     breakPlacedStove(stoveHere);
+    return;
+  }
+
+  const lightHere =
+    typeof getPlacedLightAt === "function" ? getPlacedLightAt(tile.col, tile.row) : null;
+
+  if (lightHere && typeof breakPlacedLight === "function") {
+    breakPlacedLight(lightHere);
+    return;
+  }
+
+  // BAGONG naka-lagay na Bed (bed.js, hiling ng user) - kaparehong-pareho
+  // ng gawi ng Crafter/Stove sa itaas, agad na sinisira (walang
+  // "Use"/"Break" na menu).
+  const bedHere =
+    typeof getPlacedBedAt === "function" ? getPlacedBedAt(tile.col, tile.row) : null;
+
+  if (bedHere && typeof breakPlacedBed === "function") {
+    breakPlacedBed(bedHere);
   }
 });
 
@@ -766,47 +1108,34 @@ canvas.addEventListener("mousedown", (event) => {
 
   if (!tile) return;
 
-  // NAKA-LAGAY NA CRAFTER/STOVE (craft.js/stove.js) - PINAKAUNA itong
-  // sinusubukan (bago pa man ang awtomatikong kamay/rake/binhi sa
-  // ibaba) - kung may Crafter/Stove sa tinutukan (at abot ng player),
-  // binubuksan ang kaukulang panel, hindi na tumutuloy sa ibang click
-  // behavior.
+  // AYOS (hiling ng user): "yung sa oldman gusto ko di na clickable
+  // dapat e na rin gamit" - TINANGGAL na ang left-click bilang paraan
+  // ng pagbukas ng tindahan niya (dating dito, openOldManShopPanel) -
+  // "E" na rin ngayon ang gamit (tingnan ang getUsableStructureUnderPlayer
+  // sa ibaba, at ang paggamit nito sa update.js), kaparehong-pareho na
+  // ng Crafter/Stove/Light/Bed. Basta "consumed" na lang ang click na
+  // ito (walang mangyayari) kapag nakatama sa kanya, para hindi ito
+  // bumagsak/mag-fallthrough papunta sa awtomatikong kamay/rake/atbp.
   if (isTileInReach(tile.col, tile.row)) {
-    const crafterHere =
-      typeof getPlacedCrafterAt === "function"
-        ? getPlacedCrafterAt(tile.col, tile.row)
-        : null;
-
-    if (crafterHere) {
-      if (typeof openAdvancedCraftPanel === "function") openAdvancedCraftPanel();
-      return;
-    }
-
-    const stoveHere =
-      typeof getPlacedStoveAt === "function" ? getPlacedStoveAt(tile.col, tile.row) : null;
-
-    if (stoveHere) {
-      if (typeof openStovePanel === "function") openStovePanel();
-      return;
-    }
-
-    // OLDMAN NPC (decor.js) - i-click para buksan ang tindahan niya.
     const oldManHere =
       typeof isOldManTile === "function" && isOldManTile(tile.col, tile.row);
 
-    if (oldManHere) {
-      if (typeof openOldManShopPanel === "function") openOldManShopPanel();
-      return;
-    }
+    if (oldManHere) return;
+  }
 
-    // BED (bed.js) - i-click para matulog hanggang 6am (gabi lang).
-    const bedHere =
-      typeof isBedTile === "function" && isBedTile(tile.col, tile.row);
-
-    if (bedHere) {
-      if (typeof trySleepInBed === "function") trySleepInBed();
-      return;
-    }
+  // NAKA-LAGAY NA CRAFTER/STOVE/LIGHT/BED (craft.js/stove.js/light.js/
+  // bed.js) - HUWAG nang gumawa ng anuman dito sa left-click (kahit
+  // tumama sa tinutukan) - "E" na lang ang paraan (tingnan sa itaas).
+  // Basta "consumed" na lang ang click na ito (walang mangyayari),
+  // para hindi ito bumagsak/mag-fallthrough papunta sa awtomatikong
+  // kamay/rake/atbp. sa ibaba habang nakaturo mismo sa isang structure.
+  if (
+    (typeof getPlacedCrafterAt === "function" && getPlacedCrafterAt(tile.col, tile.row)) ||
+    (typeof getPlacedStoveAt === "function" && getPlacedStoveAt(tile.col, tile.row)) ||
+    (typeof getPlacedLightAt === "function" && getPlacedLightAt(tile.col, tile.row)) ||
+    (typeof getPlacedBedAt === "function" && getPlacedBedAt(tile.col, tile.row))
+  ) {
+    return;
   }
 
   // AWTOMATIKONG "KAMAY" - pagdampot ng nakalapag na item o pag-ani ng
@@ -824,18 +1153,45 @@ canvas.addEventListener("mousedown", (event) => {
 
   // Wala namang maidadampot/maaani dito - kailangan na ngayong may
   // hawak (rake para sa lupa), may stock ng binhi (pagtatanim - LAGING
-  // available basta may stock, tingnan ang canPlantCarrot), o
-  // naka-highlight ang isang Crafter/Stove sa hotbar (tingnan ang
-  // isCrafterSlotSelected/isStoveSlotSelected sa craft.js/stove.js -
-  // kailangan pa ring i-arm/highlight muna ang mga iyon, left-click sa
-  // ground tile para ilagay).
-  const crafterArmed =
-    typeof isCrafterSlotSelected === "function" && isCrafterSlotSelected();
-  const stoveArmed = typeof isStoveSlotSelected === "function" && isStoveSlotSelected();
+  // available basta may stock, tingnan ang canPlantCarrot), o naka-
+  // "Hold" (hold.js, hiling ng user) ang isang Crafter/Stove/Light.
+  //
+  // AYOS (ikatlong round, hiling ng user): "kapag nasa hotbar key na
+  // siya tapos na highlight hindi lalabas yung tiles para ma drop
+  // dapat need muna i hold bago ma drop" - TINANGGAL na ang dating
+  // isCrafterSlotSelected/isStoveSlotSelected/isLightSlotSelected na
+  // check dito (basta na-highlight/selected sa hotbar, "armed" na
+  // dati) - kailangan na TALAGANG "Hold" muna (hindi lang basta
+  // pag-select ng slot) bago gumana ang left-click-to-place.
+  const crafterArmed = typeof isItemHeld === "function" && isItemHeld("crafter");
+  const stoveArmed = typeof isItemHeld === "function" && isItemHeld("stove");
+  const lightArmed = typeof isItemHeld === "function" && isItemHeld("light");
+  const bedArmed = typeof isItemHeld === "function" && isItemHeld("bed");
+  const anyStructureArmed = crafterArmed || stoveArmed || lightArmed || bedArmed;
 
-  if (!rakeEquipped && !canPlantCarrot() && !crafterArmed && !stoveArmed) return;
+  if (
+    !rakeEquipped &&
+    !canPlantCarrot() &&
+    !crafterArmed &&
+    !stoveArmed &&
+    !lightArmed &&
+    !bedArmed
+  )
+    return;
 
-  if (!isTileInReach(tile.col, tile.row)) return;
+  // BAGO (hiling ng user): "nakaharap yung character pero may
+  // pagitan... 1-2 tile pwede niya malagyan, dapat nakaharap parin
+  // siya" - PARA LANG sa PAGLALAGAY ng Crafter/Stove/Light/Bed ang
+  // BAGONG isTileInPlacementRange (placement.js: facing + 1-2 tile) -
+  // ang rake/pagtatanim SA IBABA ay MANATILING gumagamit ng lumang
+  // isTileInReach (1 tile/kahit anong direksyon, walang facing
+  // requirement) - hindi dapat maapektuhan ang mga iyon.
+  const inPlacementRange = anyStructureArmed
+    ? typeof isTileInPlacementRange === "function" &&
+      isTileInPlacementRange(tile.col, tile.row)
+    : isTileInReach(tile.col, tile.row);
+
+  if (!inPlacementRange) return;
 
   if (crafterArmed) {
     if (typeof placeCrafterInWorld === "function") {
@@ -847,6 +1203,20 @@ canvas.addEventListener("mousedown", (event) => {
   if (stoveArmed) {
     if (typeof placeStoveInWorld === "function") {
       placeStoveInWorld(tile.col, tile.row);
+    }
+    return;
+  }
+
+  if (lightArmed) {
+    if (typeof placeLightInWorld === "function") {
+      placeLightInWorld(tile.col, tile.row);
+    }
+    return;
+  }
+
+  if (bedArmed) {
+    if (typeof placeBedInWorld === "function") {
+      placeBedInWorld(tile.col, tile.row);
     }
     return;
   }
@@ -868,6 +1238,9 @@ canvas.addEventListener("mousedown", (event) => {
         lastRakeAt = Date.now();
         destroyCarrot(tile.col, tile.row);
         if (typeof startRakeStrike === "function") startRakeStrike(tile.col, tile.row);
+        // AYOS (hiling ng user): "may duration na rin kada gamit" -
+        // isa ring "gamit" ng rake ito (bumabawas sa durability).
+        if (typeof useToolDurability === "function") useToolDurability("rake");
       }
       return;
     }
@@ -880,6 +1253,10 @@ canvas.addEventListener("mousedown", (event) => {
     lastRakeAt = Date.now();
     digTile(tile.col, tile.row);
     if (typeof startRakeStrike === "function") startRakeStrike(tile.col, tile.row);
+    // AYOS (hiling ng user): "may duration na rin kada gamit... pag
+    // hukay ng lupa" - bumabawas ng 1 sa rake durability kada
+    // paghukay.
+    if (typeof useToolDurability === "function") useToolDurability("rake");
     return;
   }
 
@@ -1112,14 +1489,9 @@ function handleCarrotClick(col, row) {
 
   lastPlantAt = Date.now();
 
-  // Kaparehong "pick" na animation ng pagdampot (player.js) - gumaganap
-  // muna ang player ng pagyuko/pagtanim, saka lang talagang natatanim
-  // ang binhi (tingnan ang startPutting).
-  if (typeof startPutting === "function") {
-    startPutting(col, row, () => plantCarrot(col, row));
-  } else {
-    plantCarrot(col, row);
-  }
+  // BAGO (hiling ng user): tinanggal na ang "put" na animation - agad
+  // na lang natatanim ang binhi, walang pagyuko/paghinto muna.
+  plantCarrot(col, row);
 }
 
 // =========================
@@ -1189,19 +1561,14 @@ function resolveHandClickTile(col, row) {
 
 function handleHandClick(col, row) {
   // Unahin munang subukang damputin ang anumang nakalapag na item dito
-  // (ground-items.js) - bago pa man tingnan kung may aanihin. Hindi
-  // agad-agad ito nadadampot - gumaganap muna ang player ng "putting"
-  // na animation (player.js), saka lang talagang natatanggal ang item
-  // sa lupa at naidaragdag sa bag (tingnan ang startPutting).
+  // (ground-items.js) - bago pa man tingnan kung may aanihin. BAGO
+  // (hiling ng user): tinanggal na ang "put" na animation - agad na
+  // lang nadadampot ang item, walang paghinto/pagyuko muna.
   if (
     typeof getGroundItemsAt === "function" &&
     getGroundItemsAt(col, row).length > 0
   ) {
-    if (typeof startPutting === "function") {
-      startPutting(col, row, () => tryPickupGroundItemsAt(col, row));
-    } else {
-      tryPickupGroundItemsAt(col, row);
-    }
+    tryPickupGroundItemsAt(col, row);
 
     return;
   }
@@ -1220,10 +1587,8 @@ function handleHandClick(col, row) {
       Math.random() * (CARROT_HARVEST_MAX_YIELD - CARROT_HARVEST_MIN_YIELD + 1),
     );
 
-  // Kaparehong-pareho ng gawi ng pagdampot ng nakalapag na item sa
-  // itaas - gumaganap muna ang player ng "putting" na animation
-  // (player.js) BAGO talagang mabunot/maani ang tanim, sa halip na
-  // instant/walang animation.
+  // BAGO (hiling ng user): tinanggal na ang "put" na animation - agad
+  // na lang nabubunot/naaani ang tanim, walang paghinto/pagyuko muna.
   const finishHarvest = () => {
     harvestCarrot(col, row);
 
@@ -1243,11 +1608,7 @@ function handleHandClick(col, row) {
     }
   };
 
-  if (typeof startPutting === "function") {
-    startPutting(col, row, finishHarvest);
-  } else {
-    finishHarvest();
-  }
+  finishHarvest();
 }
 
 // Larawan ng carrot na ginagamit ng ground-items.js para iguhit ang mga
@@ -1405,7 +1766,23 @@ const GRASS_GROW_SECONDS = 120; // gaano katagal mula unang damo hanggang buo
 // Ang FARMING/RAKE mismo (canDigAt, digTile, plantCarrot, atbp.) ay
 // HINDI apektado nito - gumagana pa rin ang mga iyon dito, hiwalay na
 // sistema iyon sa cosmetic na ground weather overlay.
-const WORLDS_WITHOUT_GROUND_WEATHER_OVERLAY = ["village", "town"];
+// AYOS: tinanggal ang "village" (TINANGGAL na rin sa WORLDS, worlds.js)
+// - "town" na lang.
+//
+// AYOS (hiling ng user): "di pa rin natanggal yung niyebe na white sa
+// tiles... puro puti" - ang totoong dahilan: WALANG "Snow.tsx" tileset
+// na naka-load sa grassmap/grassmap2 (sariling larawan lang ang mga
+// ito, hindi generic na dirt/grass tileset), kaya kapag sinubukan ng
+// drawSnowGroundCover (sa ibaba) na maghanap ng "snowGid" dito, laging
+// NABIGO ito - bumabagsak sa FALLBACK na PLAIN WHITE fillRect sa BAWAT
+// tile na dapat sana ay niyebe na (tingnan ang drawSnowGroundCover) -
+// ito mismo ang "puro puting tile" na nakapatong sa buong grassmap.
+// Ngayon (worlds.js), mayroon nang SARILING kumpletong "snow" na
+// bersyon ng buong mapa ang grassmap/grassmap2 (snowgrassmap.tmj/
+// snowgrassmap2.tmj, snowUrl) - PAREHONG-PAREHO ang pattern ng "town"
+// sa itaas - kaya HINDI na rin dapat dito ipinapatong ang generic na
+// dynamic na snow ground cover system.
+const WORLDS_WITHOUT_GROUND_WEATHER_OVERLAY = ["town", "grassmap", "grassmap2"];
 
 function worldHasGroundWeatherOverlay() {
   return !WORLDS_WITHOUT_GROUND_WEATHER_OVERLAY.includes(currentWorld);
@@ -1938,13 +2315,38 @@ function drawDugTiles() {
     const [col, row] = key.split(",").map(Number);
     const record = dug[key];
 
-    // May tanim dito. Bago pa 90% ang tubo (frame 1-3, hindi pa
-    // masyadong mataas), laging iginuguhit ito DITO - laging nasa likod
-    // ng player, kaya hindi na siya mababalot kahit kailan. Sa 90%+
-    // pataas (malapit nang mahinog), doon na lang ito iginuguhit sa
-    // getCarrotDrawables, Y-sorted kasama ang player/puno/bato, para
-    // hindi naman natatabunan ang mataas na dahon nito ng katabing tile.
+    // May tanim dito. BAGO (hiling ng user): dating "continue" agad
+    // dito (walang iginuguhit na dirt/wet-dirt sa ILALIM ng tumutubong
+    // tanim) - kaya nagmumukhang bumalik/nanatiling basta damo ang
+    // lupa sa TINGIN ng manlalaro habang tumutubo pa lang ang carrot,
+    // kahit hindi pa talaga ito naaani/nawawala. AYOS: iginuguhit muna
+    // ang tamang dirt/wet-dirt tile (parehong tuyo->basa->tuyo na
+    // cascade ng isang sariwang hukay, base sa KAILAN ITO ITINANIM -
+    // record.seed.plantedAt), saka lang ang carrot sprite sa ibabaw
+    // nito - kaya TALAGANG "tilled farmland na may tumutubong tanim"
+    // ang itsura, hindi basta plain grass. Hindi na ito babalik pa sa
+    // likas na lupa habang MAY seed pa (tingnan ang updateGroundWeather),
+    // kaya panatag itong ipakita nang tuloy-tuloy anuman ang gawin
+    // (kasama na ang pagpasok/paglabas sa bahay).
     if (record && record.seed) {
+      const plantedAt = record.seed.plantedAt || record.at || now;
+      const elapsedSincePlanted = now - plantedAt;
+      const isWetSincePlanted =
+        elapsedSincePlanted >= WET_DIRT_DELAY_MS &&
+        elapsedSincePlanted < WET_DIRT_DELAY_MS + DIRT_AGAIN_DELAY_MS;
+
+      const plantedGid = getPaintedGroundGid(
+        isWetSincePlanted ? "wet_dirt" : "dirt",
+        col,
+        row,
+      );
+
+      drawTile(
+        plantedGid || (isWetSincePlanted ? gids.wet : gids.dirt),
+        col * TILE_SIZE,
+        row * TILE_SIZE,
+      );
+
       if (!shouldCarrotOverlapPlayer(record.seed)) {
         drawCarrotFrame(getCarrotStageIndex(record.seed), col, row);
       }

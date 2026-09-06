@@ -5,7 +5,6 @@
 // Itinatala ang estado ng "x" key noong NAKARAANG frame - kailangan
 // natin ito para malaman kung "kakaclick lang" ba ito (edge), hindi
 // yung basta naka-hold. Kaya isang beses lang mato-toggle kada pindot.
-let xKeyWasDown = false;
 let eKeyWasDown = false;
 
 // Para sa pag-save ng posisyon. Hindi natin ito ginagawa KADA FRAME -
@@ -52,6 +51,9 @@ function update(deltaMs) {
 
   ensureResourceNodes();
 
+  // PANSAMANTALA - tingnan ang paliwanag sa hotbar.js (syncDebugCoordsHud).
+  if (typeof syncDebugCoordsHud === "function") syncDebugCoordsHud();
+
   // BAGONG 15-minutong (GAME time) respawn ng puno/bato - isa-isa,
   // kada 15 minuto ng game time, SUSUSURIIN (hindi laging mag-
   // spa-spawn) kung may deficit pa (tingnan ang resources.js). Dapat
@@ -59,6 +61,8 @@ function update(deltaMs) {
   // talaga, pero magkatabi lang para sa linaw - parehong "periodic
   // world upkeep" na tawag).
   if (typeof updateResourceRespawns === "function") updateResourceRespawns();
+  if (typeof updateTreeRegrowth === "function") updateTreeRegrowth();
+  if (typeof updateGrassRegrowth === "function") updateGrassRegrowth();
 
   // OLDMAN (decor.js) - MAUNA ito bago ang OAK (sa ibaba), dahil
   // umaasa ang 2 "backdrop" oak (likod niya) sa kung saan siya
@@ -77,6 +81,13 @@ function update(deltaMs) {
   // itaas (para naka-push na ang collision ng mga hindi pa na-chop na
   // oak bago i-resolve ang galaw ng player sa frame na ito).
   if (typeof ensureOakSpots === "function") ensureOakSpots();
+
+  // GRASSMAP - mga hand-placed na puno (decor.js, GRASSMAP_TREE_SPOTS)
+  // - kaparehong dahilan/gawi ng ensureOakSpots sa itaas (para naka-push
+  // na ang collision ng bawat trunk bago i-resolve ang galaw ng player
+  // sa frame na ito). No-op ito sa ibang mundo (may sariling guard sa
+  // loob base sa world.grassmapTrees).
+  if (typeof ensureGrassmapTrees === "function") ensureGrassmapTrees();
 
   // MGA BABOY (pig.js) - sariling random na paglalakad/pagkawala-
   // pagbalik/"health" kada pig, kaparehong dahilan sa itaas.
@@ -134,6 +145,16 @@ function update(deltaMs) {
   if (typeof updateTorchBurnVisual === "function") updateTorchBurnVisual();
   if (typeof updateEatCooldownVisual === "function") updateEatCooldownVisual();
 
+  // FOOD/HUNGER (BAGONG HILING ng user) - tunay na oras din (hindi
+  // apektado ng speedScale), kaparehong dahilan ng updateTorchBurn sa
+  // itaas.
+  if (typeof updateFoodHunger === "function") updateFoodHunger();
+
+  // FLOATING TEXT (BAGONG HILING ng user) - "+health"/"+item" na
+  // lumulutang sa itaas ng ulo (floating-text.js) - tinatanggal dito
+  // ang mga naubusan na ng oras.
+  if (typeof updateFloatingTexts === "function") updateFloatingTexts();
+
   // STOVE (stove.js) - pagluluto/pag-smelt, may DURATION na ngayon
   // (SMELT_COOK_DURATION_MS kada piraso) - tunay na oras (hindi
   // apektado ng speedScale), kaparehong dahilan ng updateTorchBurn sa
@@ -151,16 +172,6 @@ function update(deltaMs) {
   const currentSpeed = (isRunning ? player.runSpeed : player.speed) * speedScale;
 
   player.running = isRunning;
-
-  // --- SIT TOGGLE (isang click lang, hindi need i-hold) ---
-  const xKeyDown = Boolean(keys["x"]);
-
-  if (xKeyDown && !xKeyWasDown && !player.putting) {
-    player.sitting = !player.sitting;
-    player.direction = "down"; // laging naka-harap/"s" kapag umupo o tumayo via "x"
-  }
-
-  xKeyWasDown = xKeyDown;
 
   // --- PINTUAN (E) ---
   // Isang pindot lang, hindi hold - kung hindi, paulit-ulit kang
@@ -183,17 +194,50 @@ function update(deltaMs) {
     const autoDoor = getUsableDoor();
 
     if (autoDoor && autoDoor.auto) {
-      player.sitting = false;
-
       // (Ang blackhole gate ngayon ay newmap<->town na diretso, hindi
       // na dumadaan sa houseInside - kaya wala nang dahilan para
       // mag-overwrite ng "town" dito.)
-      if (autoDoor.to === "houseInside" && autoDoor.returnWorld) {
-        houseReturnWorld = autoDoor.returnWorld;
-        houseReturnSpawn = getDoorExitSpawn(autoDoor);
+      //
+      // AYOS: hindi na dapat "=== 'houseInside'" lang ang tinitignan
+      // dito - dating iisa lang ang interior na mundo (houseInside),
+      // pero ngayon may sarili nang tunay na interior ang grassmap
+      // (grassmapHouse, worlds.js) na gumagamit ng PAREHONG "__return__"
+      // na sistema. Ang "returnWorld" mismo ang sapat nang senyales -
+      // ITO lang ang field na nilalagyan kapag TALAGANG papasok sa
+      // isang interior (tingnan ang DOORS, worlds.js), kaya gagana na
+      // ito kahit anong bagong interior pa ang idagdag sa hinaharap.
+      // AYOS (bug fix): dating IISANG global (houseReturnWorld/
+      // houseReturnSpawn) ang na-uupdate dito, kaya kapag hindi
+      // TALAGANG na-trigger nang tama ang pagpasok sa isang interior
+      // (hal. grassmapHouse), naiiwan ang LUMANG value mula sa IBANG
+      // interior (hal. "newmap" mula sa huling pagpasok sa houseInside)
+      // - kaya doon nagbabalik ang "Exit", hindi sa tamang mundo.
+      // Ngayon, itinatabi ang return info PER INTERIOR (keyed sa
+      // autoDoor.to, ang pangalan ng interior world mismo) - tingnan
+      // ang setInteriorReturnInfo (worlds.js).
+      if (autoDoor.returnWorld) {
+        setInteriorReturnInfo(
+          autoDoor.to,
+          autoDoor.returnWorld,
+          getDoorExitSpawn(autoDoor),
+        );
       }
 
-      loadWorld(autoDoor.to, autoDoor.spawn);
+      // Kapag ang "to" ng auto na pintuan ay "__return__" (hal. ang
+      // "Exit" na pintuan ng grassmapHouse/houseInside), HINDI ito
+      // literal na pangalan ng mundo - kunin ang naka-tabing return
+      // info NG KASALUKUYANG INTERIOR (currentWorld, hal.
+      // "grassmapHouse" mismo), hindi basta autoDoor.to/autoDoor.spawn
+      // (na "__return__"/null - walang ganitong mundo).
+      if (autoDoor.to === "__return__") {
+        const returnInfo =
+          getInteriorReturnInfo(currentWorld) ||
+          getFallbackInteriorReturnInfo(currentWorld);
+
+        loadWorld(returnInfo.world, returnInfo.spawn);
+      } else {
+        loadWorld(autoDoor.to, autoDoor.spawn);
+      }
     }
   }
 
@@ -201,26 +245,60 @@ function update(deltaMs) {
     const door = getUsableDoor();
 
     if (door) {
-      player.sitting = false;
-
       if (door.to === "__return__") {
-        // Ito ang pintuang "Lumabas" ng houseInside - dinamiko kung
-        // saan ka babalik (tingnan ang houseReturnWorld/houseReturnSpawn
-        // sa worlds.js, itinakda noong pumasok ka).
-        loadWorld(houseReturnWorld, houseReturnSpawn);
+        // Ito ang pintuang "Lumabas" ng interior na kinatatayuan mo
+        // ngayon (currentWorld, hal. "houseInside" o "grassmapHouse") -
+        // dinamiko kung saan ka babalik, base sa NAKA-TABING return
+        // info NG MISMONG INTERIOR NA ITO (tingnan ang
+        // getInteriorReturnInfo, worlds.js), itinakda noong pumasok ka.
+        const returnInfo =
+          getInteriorReturnInfo(currentWorld) ||
+          getFallbackInteriorReturnInfo(currentWorld);
+
+        loadWorld(returnInfo.world, returnInfo.spawn);
       } else {
-        // Kapag PUMASOK papuntang houseInside gamit ang pintuang ito,
-        // itabi muna kung saan/anong mundo ka dapat ibalik paglabas -
-        // ang eksaktong POSISYON (dating "door.returnSpawn", hardcoded)
-        // ay kinokompyuta na lang ngayon TALAGA sa harap ng pintuan
-        // mismo (getDoorExitSpawn, worlds.js) - tingnan ang paliwanag
-        // doon (ayos sa bug na "hindi sa mismong pinto napupunta").
-        if (door.to === "houseInside" && door.returnWorld) {
-          houseReturnWorld = door.returnWorld;
-          houseReturnSpawn = getDoorExitSpawn(door);
+        // Kapag PUMASOK papuntang isang interior (houseInside,
+        // grassmapHouse, at kung anupaman pang idagdag sa hinaharap)
+        // gamit ang pintuang ito, itabi muna kung saan/anong mundo ka
+        // dapat ibalik paglabas - ang eksaktong POSISYON (dating
+        // "door.returnSpawn", hardcoded) ay kinokompyuta na lang ngayon
+        // TALAGA sa harap ng pintuan mismo (getDoorExitSpawn, worlds.js)
+        // - tingnan ang paliwanag doon (ayos sa bug na "hindi sa
+        // mismong pinto napupunta"). Itinatabi PER INTERIOR (door.to)
+        // ang return info - tingnan ang paliwanag sa itaas (autoDoor).
+        if (door.returnWorld) {
+          setInteriorReturnInfo(
+            door.to,
+            door.returnWorld,
+            getDoorExitSpawn(door),
+          );
         }
 
         loadWorld(door.to, door.spawn);
+      }
+    } else if (typeof getUsableStructureUnderPlayer === "function") {
+      // BAGO (hiling ng user): "E" na lang ang paraan para gamitin ang
+      // naka-lagay na Crafter/Stove/Light/Bed (dating left-click, dig.js
+      // mousedown - tingnan ang paliwanag sa getUsableStructureUnderPlayer,
+      // dig.js) - kaparehong-pareho ng "isang pindot lang" na gawi ng
+      // pintuan sa itaas (eKeyDown && !eKeyWasDown).
+      const structure = getUsableStructureUnderPlayer();
+
+      if (structure) {
+        if (structure.type === "crafter") {
+          if (typeof openAdvancedCraftPanel === "function") openAdvancedCraftPanel();
+        } else if (structure.type === "stove") {
+          if (typeof openStovePanel === "function") openStovePanel();
+        } else if (structure.type === "light") {
+          if (typeof toggleLight === "function") toggleLight(structure.target);
+        } else if (structure.type === "bed") {
+          if (typeof trySleepInBed === "function") trySleepInBed(structure.target);
+        } else if (structure.type === "oldman") {
+          // AYOS (hiling ng user): "yung sa oldman gusto ko di na
+          // clickable dapat e na rin gamit" - kaparehong-pareho na
+          // ngayon ito ng Crafter/Stove/Light/Bed sa itaas.
+          if (typeof openOldManShopPanel === "function") openOldManShopPanel();
+        }
       }
     }
   }
@@ -240,22 +318,7 @@ function update(deltaMs) {
   // baka makagalaw siya habang wala pang collision data.
   if (worldLoading || !mapReady) return;
 
-  // --- AUTO-STAND kapag pinindot ang WASD/arrow habang nakaupo ---
-  const wantsToMove =
-    keys["w"] ||
-    keys["arrowup"] ||
-    keys["s"] ||
-    keys["arrowdown"] ||
-    keys["a"] ||
-    keys["arrowleft"] ||
-    keys["d"] ||
-    keys["arrowright"];
-
-  if (player.sitting && wantsToMove) {
-    player.sitting = false;
-  }
-
-  if (!player.sitting && !player.putting) {
+  if (!player.putting) {
     let nextX = player.x;
     let nextY = player.y;
 
@@ -325,7 +388,15 @@ function update(deltaMs) {
     player.frame++;
     player.frameTimer = 0;
 
-    if (player.frame >= PLAYER_ANIM_FRAME_COUNT) {
+    // Hindi na "6" palaging hardcoded dito - magkaiba-iba na ang bilang
+    // ng frame kada sprite/direksyon ngayon (idle 7, walk paitaas/
+    // pababa 10, walk pakaliwa/pakanan 7, run 6 pa rin) - tingnan
+    // getPlayerAnimationFrameCount() sa player.js. Kung "6" pa rin ang
+    // gamit dito habang mas marami/kaunti pa ang totoong frame ng
+    // kasalukuyang sprite, "pipiglas"/uulit nang maaga o hihila ng mga
+    // frame mula sa KASUNOD na direksyon/estado na strip (mali/
+    // "kalat" ang lalabas na animation).
+    if (player.frame >= getPlayerAnimationFrameCount()) {
       player.frame = 0;
     }
   }

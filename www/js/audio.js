@@ -31,16 +31,6 @@ const AUDIO_PATHS = {
   bird: "./assets/audio/bird.mp3",
 };
 
-// Punch - TATLONG magkaibang tunog (hiwalay na array, hindi kasama sa
-// AUDIO_PATHS/getSfxTemplate sa itaas dahil "isa sa marami" ang
-// pagpili dito, hindi "isa lang kada key") - tingnan ang playPunchSfx
-// sa ibaba.
-const PUNCH_AUDIO_PATHS = [
-  "./assets/audio/punch/punch1.mp3",
-  "./assets/audio/punch/punc2.mp3",
-  "./assets/audio/punch/punc3.mp3",
-];
-
 const AUDIO_VOLUME = {
   music: 0.32,
   christmasMusic: 1,
@@ -51,7 +41,6 @@ const AUDIO_VOLUME = {
   grass: 0.4,
   put: 0.5,
   thunder: 0.6,
-  punch: 0.55,
 };
 
 // =========================
@@ -308,35 +297,6 @@ function playGrassSfx() {
 
 function playPutSfx() {
   playSfx("put");
-}
-
-// Punch - TATLONG magkaibang tunog (PUNCH_AUDIO_PATHS sa itaas) -
-// random na pipiliin ISA kada tawag, para hindi paulit-ulit/monotonous
-// ang parehong tunog kada suntok. Sariling "template cache" ito
-// (hiwalay sa sfxTemplates/AUDIO_PATHS sa itaas, dahil 3 magkaibang
-// file ito sa iisang "slot" sa halip na isa lang).
-const punchSfxTemplates = [];
-
-function getPunchSfxTemplate(index) {
-  if (!punchSfxTemplates[index]) {
-    const audio = new Audio(PUNCH_AUDIO_PATHS[index]);
-
-    audio.volume = AUDIO_VOLUME.punch;
-    punchSfxTemplates[index] = audio;
-  }
-
-  return punchSfxTemplates[index];
-}
-
-function playPunchSfx() {
-  if (!audioUnlocked) return;
-
-  const index = Math.floor(Math.random() * PUNCH_AUDIO_PATHS.length);
-  const template = getPunchSfxTemplate(index);
-  const instance = template.cloneNode();
-
-  instance.volume = template.volume;
-  instance.play().catch(() => {});
 }
 
 // Kulog - isang beses lang kada TALAGANG pagkidlat (tingnan ang

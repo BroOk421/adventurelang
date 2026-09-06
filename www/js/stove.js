@@ -21,6 +21,11 @@
 // natitira pang PAREHONG ingredient AT fuel - tingnan ang
 // updateStoveCooking, tinatawag kada frame mula sa update.js.
 let cookedmeat = 0;
+
+// AYOS (hiling ng user: "gawin mo siyang parang new player na walang
+// gamit") - 0 na ngayon (dating 99 na "pambubura"/testing default) -
+// tingnan din ang resources.js (woodCollected/stoneCollected) at
+// loadInventoryState (inventory-save.js), parehong dahilan/ayos.
 let charcoalCollected = 0;
 let stovesCollected = 0;
 
@@ -84,8 +89,8 @@ function findMatchingSmeltRecipe() {
 
 // Aktibong may niluluto ba ngayon? (may sapat pang ingredient AT fuel,
 // at may valid na recipe) - ginagamit ito ng updateStoveCooking (baba)
-// para malaman kung dapat tumakbo ang timer, at ng getStoveAnimFrameIndex
-// (ibaba pa) para malaman kung dapat mag-animate ang apoy sa sprite.
+// para malaman kung dapat tumakbo ang timer, at ng drawStoveLight
+// (ibaba pa) para malaman kung dapat magliwanag ang apoy-glow.
 function isStoveActivelyCooking() {
   return (
     Boolean(smeltIngredient) &&
@@ -213,6 +218,16 @@ function placeSmeltItem(slotType, itemId, qty) {
 // STACK (hindi lang 1) - ibinabalik ang { itemId, count } na natanggal
 // (o null kung wala namang laman), para malaman ng caller (hotbar.js)
 // kung ilan/ano ang ilalagay sa mundo/bag.
+//
+// AYOS (hiling ng user, kaparehong-pareho ng ayos sa refundCraftItemAmount
+// sa craft.js): dating adjustGlobalItemCount LANG (RAW/generic counter)
+// ang tinatawag dito kapag refundToBag - kaya "nawawala" ang bakas kung
+// SAAN dating naka-pin/naka-split ang ingredient/fuel bago pa ito
+// nailagay sa stove, basta na lang sa generic/unassigned pool na ito
+// lumalabas. Idinagdag na rin ngayon ang routeCollectedItemIncrease
+// (kaparehong tawag ng collectSmeltOutput sa ibaba) - kung may
+// KASALUKUYANG naka-pin na hotbar slot o naka-split na bag cell ang
+// item type na ito, DOON muna babalik ang bilang.
 function removeSmeltItem(slotType, refundToBag) {
   const slot = slotType === "ingredient" ? smeltIngredient : smeltFuel;
 
@@ -220,8 +235,14 @@ function removeSmeltItem(slotType, refundToBag) {
 
   const removed = { itemId: slot.itemId, count: slot.count };
 
-  if (refundToBag && typeof adjustGlobalItemCount === "function") {
-    adjustGlobalItemCount(removed.itemId, removed.count);
+  if (refundToBag) {
+    if (typeof adjustGlobalItemCount === "function") {
+      adjustGlobalItemCount(removed.itemId, removed.count);
+    }
+
+    if (typeof routeCollectedItemIncrease === "function") {
+      routeCollectedItemIncrease(removed.itemId, removed.count);
+    }
   }
 
   if (slotType === "ingredient") smeltIngredient = null;
@@ -264,8 +285,38 @@ function collectSmeltOutput() {
 // TOGGLE/PAGBUBUKAS NG PANEL
 // =========================
 
+// AYOS (hiling ng user - kaparehong-pareho ng logic ng crafter/craft.js,
+// tingnan ang closeCraftPanel doon): "kapag biglang nasara... babalik
+// yung item na naiwan" - dating basta "nagtatago" lang ang panel
+// (stovePanelOpen = false) kahit may natitira pang HILAW na ingredient/
+// fuel sa mga smelt slot (hindi pa naluluto/nagagamit) - nananatili
+// itong naka-bawas sa stock, "naka-limbo"/nawawala sa paningin kahit
+// hindi naman TALAGANG nagamit. Ngayon, sa SANDALING isinara ang panel,
+// ibinabalik muna ang BUONG laman ng ingredient AT fuel slot (kung
+// meron - HILAW pa naman, hindi pa "nagastos"), AT kinukuha/idinaragdag
+// muna sa stock ang naka-hintay na smeltOutput (kung meron - TUNAY na
+// nagawa/naluto na ito, hindi lang "preview" gaya ng craftOutput sa
+// crafter - kaya hindi ito basta dapat mawala/malimot).
+function closeStovePanel() {
+  if (!stovePanelOpen) return;
+
+  stovePanelOpen = false;
+
+  if (smeltIngredient) removeSmeltItem("ingredient", true);
+  if (smeltFuel) removeSmeltItem("fuel", true);
+  if (smeltOutput) collectSmeltOutput();
+
+  syncStovePanel();
+}
+
 function toggleStovePanel() {
-  stovePanelOpen = !stovePanelOpen;
+  if (stovePanelOpen) {
+    closeStovePanel();
+    return;
+  }
+
+  stovePanelOpen = true;
+
   syncStovePanel();
 }
 
@@ -537,6 +588,9 @@ function isStoveSlotSelected() {
 // espesyal). PERMANENTENG BAGAY ito sa mundo (parang bahay/puno) kapag
 // PINLACE (hindi basta na-drop) - tingnan ang getPlacedStoveAt sa
 // dig.js.
+// BAGO (hiling ng user, kaparehong-pareho ng Crafter): dapat LOOB LANG
+// ng bahay, at LAHAT (hindi kalahati lang) ng 2-tile na footprint nito
+// ay dapat LIBRE - tingnan ang isFootprintPlaceable (placement.js).
 function placeStoveInWorld(col, row) {
   if (stovesCollected <= 0) return;
 
@@ -549,6 +603,13 @@ function placeStoveInWorld(col, row) {
 
   if (!tile) return;
 
+  if (
+    typeof isFootprintPlaceable === "function" &&
+    !isFootprintPlaceable("stove", tile.col, tile.row)
+  ) {
+    return;
+  }
+
   placedStoves.push({
     world: currentWorld,
     col: tile.col,
@@ -558,17 +619,31 @@ function placeStoveInWorld(col, row) {
 
   stovesCollected--;
 
+  // AYOS (hiling ng user): kung ITO ang kasalukuyang naka-hold (ulo ng
+  // player), "mawawala" na rin ito dito - naibigay/nailagay na kasi
+  // (tingnan ang hold.js).
+  if (typeof clearHeldItemIfPlaced === "function") clearHeldItemIfPlaced("stove");
+
   if (typeof syncHotbarUI === "function") syncHotbarUI();
 }
 
-// May naka-lagay bang Stove sa eksaktong cell na ito (sa kasalukuyang
-// mundo)? Tingnan ang paggamit nito sa dig.js (mousedown listener).
+// May naka-lagay bang Stove dito (sa kasalukuyang mundo)? BAGO: 2 tile
+// na ang footprint (placement.js), kaya tinitingnan kung KASAMA ang
+// (col,row) sa buong footprint ng bawat naka-lagay na Stove. Tingnan
+// ang paggamit nito sa dig.js (mousedown listener).
 function getPlacedStoveAt(col, row) {
   return (
-    placedStoves.find(
-      (stove) =>
-        stove.world === currentWorld && stove.col === col && stove.row === row,
-    ) || null
+    placedStoves.find((stove) => {
+      if (stove.world !== currentWorld) return false;
+
+      if (typeof getPlacementFootprintCells !== "function") {
+        return stove.col === col && stove.row === row;
+      }
+
+      return getPlacementFootprintCells("stove", stove.col, stove.row).some(
+        (cell) => cell.col === col && cell.row === row,
+      );
+    }) || null
   );
 }
 
@@ -604,57 +679,43 @@ function breakPlacedStove(stove) {
 // Kaparehong-pareho ng gawi ng getPlacedCrafterCollisionBoxes
 // (craft.js) - "LIVE" na collision, tinatawag ng canMoveTo
 // (collisions.js, player) AT ng canFeetMoveTo (decor.js, oldman/pig).
-const STOVE_COLLISION_SIZE = TILE_SIZE * 0.85;
-
+// BAGO: 2 tile na ngayon ang footprint (placement.js) - sumasakop na
+// ang collision box sa BUONG bounding box ng 2 tile.
 function getPlacedStoveCollisionBoxes() {
   if (placedStoves.length === 0) return [];
 
-  const inset = (TILE_SIZE - STOVE_COLLISION_SIZE) / 2;
-
   return placedStoves
     .filter((stove) => stove.world === currentWorld)
-    .map((stove) => ({
-      x: stove.col * TILE_SIZE + inset,
-      y: stove.row * TILE_SIZE + inset,
-      width: STOVE_COLLISION_SIZE,
-      height: STOVE_COLLISION_SIZE,
-    }));
+    .map((stove) =>
+      typeof getFootprintCollisionBox === "function"
+        ? getFootprintCollisionBox("stove", stove.col, stove.row)
+        : {
+            x: stove.col * TILE_SIZE,
+            y: stove.row * TILE_SIZE,
+            width: TILE_SIZE,
+            height: TILE_SIZE,
+          },
+    );
 }
 
 // =========================
-// SPRITE (assets/objects/stove/stove.png) - 6 frame, magkakapantay na
-// hanay (horizontal strip). Frame 1 (index 0) - "walang laman/wala pang
-// niluluto" (naka-off ang apoy). Frame 2-6 (index 1-5) - umaandar/may
-// apoy - tingnan ang getStoveAnimFrameIndex sa ibaba, kung SAAN ito
-// gina-cycle habang AKTIBONG NAGLULUTO (isStoveActivelyCooking - may
-// sapat pang ingredient AT fuel, tingnan sa itaas) - hindi na basta
-// "may output" lang, dahil puwede nang magpatuloy magluto ng maraming
-// piraso magkakasunod (tingnan ang updateStoveCooking).
+// SPRITE (assets/items/stove.png) - BAGO (hiling ng user): "ibahin mo
+// itsura ng stove... dapat kung ano yung nasa inventory na itsura" -
+// GINAMIT na ang MISMONG icon ng bag/hotbar (BAG_ITEMS, hotbar.js) sa
+// halip na ang lumang animated na sprite (assets/objects/stove/stove.png,
+// 6-frame). Simpleng static na larawan na lang ito, kaya wala nang
+// "cooking animation" - ang APOY/init na ilaw habang naglluto ay
+// hiwalay/nananatili pa rin (drawStoveLight sa ibaba - hindi ito
+// apektado, base pa rin ito sa isStoveActivelyCooking).
 const STOVE_SPRITE_IMAGE = new Image();
 
-STOVE_SPRITE_IMAGE.src = "./assets/objects/stove/stove.png";
-
-const STOVE_SPRITE_FRAME_COUNT = 6;
-
-// Ilang ms bawat frame habang naka-"cook" (umiikot lang sa frame 2-6,
-// hindi na babalik pa sa frame 1 hangga't aktibong naglluto).
-const STOVE_COOK_FRAME_MS = 150;
-
-// index (0-based) ng kasalukuyang dapat ipakitang frame sa sprite sheet -
-// 0 (frame 1) kapag walang niluluto, 1-5 (frame 2-6) na umiikot kapag
-// meron (tingnan ang paliwanag sa itaas).
-function getStoveAnimFrameIndex() {
-  if (typeof isStoveActivelyCooking !== "function" || !isStoveActivelyCooking())
-    return 0;
-
-  const cookFrames = STOVE_SPRITE_FRAME_COUNT - 1; // 5 (frame 2-6)
-  const step = Math.floor(performance.now() / STOVE_COOK_FRAME_MS) % cookFrames;
-
-  return 1 + step;
-}
+STOVE_SPRITE_IMAGE.src = "./assets/items/stove.png";
 
 // Iginuguhit sa PAREHONG layer/oras ng drawPlacedCrafters (draw.js) -
-// world space, sa ilalim ng player.
+// world space, sa ilalim ng player. BAGO: "mali yung tile dapat exact
+// 16x16" - iginuguhit na ito EKSAKTO sa loob ng buong 2-tile na
+// footprint box (2*TILE_SIZE x TILE_SIZE) sa halip na base sa aspect
+// ratio ng larawan (dating puwedeng lumagpas/hindi tumapat sa grid).
 function drawPlacedStoves() {
   if (placedStoves.length === 0) return;
 
@@ -662,11 +723,7 @@ function drawPlacedStoves() {
 
   if (here.length === 0) return;
 
-  // Kapag hindi pa fully-loaded ang sprite (lumaki lang habang pumapasok
-  // ang unang mga frame ng loop), emoji muna bilang fallback - hindi na
-  // ito mangyayari sa madaling panahon (naka-cache na agad ang image
-  // pagka-preload), pero segurado tayong hindi basta "walang laman" ang
-  // makikita.
+  // Kapag hindi pa fully-loaded ang sprite - emoji muna bilang fallback.
   if (!STOVE_SPRITE_IMAGE.complete || STOVE_SPRITE_IMAGE.naturalWidth === 0) {
     ctx.save();
     ctx.font = TILE_SIZE * 0.8 + "px sans-serif";
@@ -676,7 +733,7 @@ function drawPlacedStoves() {
     for (const stove of here) {
       ctx.fillText(
         "🍲",
-        stove.col * TILE_SIZE + TILE_SIZE / 2,
+        stove.col * TILE_SIZE + TILE_SIZE, // gitna ng 2-tile footprint
         stove.row * TILE_SIZE + TILE_SIZE / 2,
       );
     }
@@ -685,30 +742,26 @@ function drawPlacedStoves() {
     return;
   }
 
-  const frameIndex = getStoveAnimFrameIndex();
-  const frameWidth = STOVE_SPRITE_IMAGE.naturalWidth / STOVE_SPRITE_FRAME_COUNT;
-  const frameHeight = STOVE_SPRITE_IMAGE.naturalHeight;
-
-  const drawWidth = TILE_SIZE;
-  const drawHeight = (drawWidth / frameWidth) * frameHeight;
-
   ctx.save();
 
   for (const stove of here) {
-    const centerX = stove.col * TILE_SIZE + TILE_SIZE / 2;
-    const centerY = stove.row * TILE_SIZE + TILE_SIZE / 2;
-
-    ctx.drawImage(
-      STOVE_SPRITE_IMAGE,
-      frameIndex * frameWidth,
-      0,
-      frameWidth,
-      frameHeight,
-      centerX - drawWidth / 2,
-      centerY - drawHeight / 2,
-      drawWidth,
-      drawHeight,
-    );
+    if (typeof drawSpriteFillWidthInBox === "function") {
+      drawSpriteFillWidthInBox(
+        STOVE_SPRITE_IMAGE,
+        stove.col * TILE_SIZE,
+        stove.row * TILE_SIZE,
+        TILE_SIZE * 2, // EKSAKTONG 2 tile (32x16) - hindi lalabas sa grid
+        TILE_SIZE,
+      );
+    } else {
+      ctx.drawImage(
+        STOVE_SPRITE_IMAGE,
+        stove.col * TILE_SIZE,
+        stove.row * TILE_SIZE,
+        TILE_SIZE * 2,
+        TILE_SIZE,
+      );
+    }
   }
 
   ctx.restore();
@@ -727,8 +780,8 @@ function drawPlacedStoves() {
 // nawawalan ng epekto sa liwanag ng araw) - dahil ito mismo ay parang
 // "apoy sa loob ng stove", hindi pangkalahatang panlaban sa dilim.
 // AKTIBO lang ito kapag AKTIBONG NAGLULUTO (isStoveActivelyCooking) -
-// naka-off ang apoy (frame 1, walang liwanag) kapag walang niluluto,
-// kaparehong batayan ng getStoveAnimFrameIndex sa itaas.
+// naka-off ang apoy-glow kapag walang niluluto (walang animation sa
+// sprite mismo ngayon - static na icon na lang ito, tingnan sa itaas).
 const STOVE_LIGHT_RADIUS = 40; // world pixels, hindi pa naka-multiply sa zoom
 const STOVE_LIGHT_COLOR = "255, 160, 60";
 
@@ -760,7 +813,7 @@ function drawStoveLight() {
 
   for (const stove of here) {
     const screenX =
-      (stove.col * TILE_SIZE + TILE_SIZE / 2 - camera.x) * camera.zoom;
+      (stove.col * TILE_SIZE + TILE_SIZE - camera.x) * camera.zoom; // gitna ng 2 tile
     const screenY =
       (stove.row * TILE_SIZE + TILE_SIZE / 2 - camera.y) * camera.zoom;
 
