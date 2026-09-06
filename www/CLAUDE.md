@@ -3498,3 +3498,55 @@ kailangang i-adjust ang mga ito.
   (camera.js). Laki ng USE TOOL button → `#mobile-btn-action` width/
   height (style.css). Tagal ng hold bago mag-radial →
   `LONG_PRESS_MS` (mobile-controls.js).
+
+### Entry #75 — Mobile UI round 2: D-pad (papalit sa analog), tinanggal ang Run button, "E"-interact idinagdag sa hand button, mas maliit/mas mataas na minimap, tinago ang settings button
+- **Files:** `index.html`, `style.css`, `js/mobile-controls.js`
+- **(a) "medyo liitan mo pa yung minimap... itaas mo sa gilid":**
+  - `body.touch-controls-active #minimap` - `110px → 84px`, `top`
+    ngayon ay `max(8px, env(safe-area-inset-top))` (dating
+    `max(56px, ...)` - puwang na iyon dati ay para sa burger button na
+    nasa itaas nito, TINANGGAL na ngayon - tingnan (e) sa ibaba).
+- **(b) "yung 2 button yung run alisin mo na":**
+  - Tinanggal ang `#mobile-btn-run` (HTML/CSS/JS) - lahat ng
+    kaugnay na `.mobile-skill-run`/handlers. Naiwan pa rin ang maliit
+    na "Tools" button (`#mobile-btn-tools`, ngayon nag-iisa na, nasa
+    ITAAS ng malaking hand button).
+- **(c) "yung analog pala palitan mo na pad na up down left and right arrows":**
+  - Pinalitan ang buong `#mobile-joystick` (drag-based analog) ng
+    `#mobile-dpad` - 4 hiwalay na arrow button (▲▼◀▶) nakaayos sa
+    hugis-plus, bawat isa ay simpleng nagtatakda/nag-aalis ng
+    `keys["w"/"a"/"s"/"d"]` sa pointerdown/up (kaparehong mekanismo ng
+    dating Run button) - gumagana pa rin ang diagonal (2 button nang
+    sabay, multi-touch). WALANG "takbo"/run na component - normal
+    speed lang (dating "push-to-edge = run" ng analog, wala nang
+    katumbas na "distance" sa D-pad).
+- **(d) "yung press e is dun na rin sa hand button mag appear ... lamb on/off ... crafter craft ... stove cook":**
+  - `js/mobile-controls.js` - bagong `pressInteractKeyOnce()`, gumagawa
+    ng parehong "rising edge" simulation ng totoong "E" key
+    (`keys["e"] = true` saglit, `false` pagkatapos ~80ms) - GAYA MISMO
+    ng totoong keydown/keyup, kaya awtomatiko nang gumagana ang
+    `getUsableStructureUnderPlayer()`/dispatch sa update.js (Light on/
+    off, Crafter craft, Stove cook, Bed, Oldman) nang walang duplicate
+    na code.
+  - Ang TAP handler ng hand button ay tumatawag na NGAYON sa PAREHONG
+    `pressInteractKeyOnce()` AT `useEquippedToolAtFacingTile()` - LIGTAS
+    silang dalawa (magkaibang uri ng bagay ang hinahanap ng bawat isa,
+    hindi sila nagbabanggaan) kaya hindi na kailangan ng kumplikadong
+    "alin dito ang tamang gagawin" na lohika.
+  - VERIFIED end-to-end (REAL na `placedLights`/`toggleLight`, walang
+    mocking) via Playwright - isang tap = isang tamang toggle
+    (false → true), walang double-toggle.
+- **(e) "medyo usog mo pa sa gilid yung button ng hand same sa padding left ng analog":**
+  - `#mobile-btn-action` - `right: max(18px, env(safe-area-inset-right))`
+    ngayon (EKSAKTONG kaparehong expression ng `#mobile-dpad`'s
+    `left`) - sa halip na yung dating kumplikadong calc base sa
+    (tinanggal nang) skill-cluster width.
+- **(f) "alisin mo na dun sa right top yung settings ... mag back na lang ako dun sa button ng phone ko":**
+  - `body.touch-controls-active #settings-menu-button { display: none; }`
+    - itinatago ang burger button sa touch device - GUMAGANA PA RIN
+    ang phone BACK button (`setupBackButtonSettings`,
+    mobile-controls.js, dati nang existing feature) dahil hindi ito
+    umaasa sa pag-click mismo ng button, tumatawag lang ito ng
+    `setSettingsMenuOpen()` direkta.
+- **Cache-bust:** binump ang `?v=` ng `style.css` (1800000000029) at
+  `mobile-controls.js` (1800000000030).

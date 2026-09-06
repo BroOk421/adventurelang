@@ -1089,7 +1089,7 @@ button.hotbar-slot {
      "spacing") - dagdag ng safe-area-inset (notch/camera cutout,
      lalo na sa LANDSCAPE - doon karaniwang nasa KALIWA/KANAN ang
      cutout, hindi taas/baba) - kaparehong pattern na ginagamit na ng
-     #mobile-joystick sa ibaba. */
+     #mobile-dpad sa ibaba. */
   top: max(14px, env(safe-area-inset-top));
   left: max(14px, env(safe-area-inset-left));
   z-index: 10;
@@ -2412,6 +2412,19 @@ button.hotbar-slot {
   border-color: rgba(255, 255, 255, 0.3);
 }
 
+/* AYOS (hiling ng user): "alisin mo na dun sa right top yung settings
+   bali para ma access naman ang settings is mag back na lang ako dun
+   sa button ng phone ko para mag appear yung settings" - itinatago
+   ang burger BUTTON mismo sa touch device (mas malinis/maluwag ang
+   itaas-kanan ng screen) - PERO gumagana pa rin ang dropdown
+   (#settings-menu-dropdown) mismo, dahil ang phone BACK button
+   (setupBackButtonSettings, mobile-controls.js) ay direktang tumatawag
+   sa setSettingsMenuOpen() - HINDI umaasa sa pag-click mismo ng button
+   na ito. */
+body.touch-controls-active #settings-menu-button {
+  display: none;
+}
+
 #settings-menu-dropdown {
   position: absolute;
   top: calc(100% + 6px);
@@ -2883,43 +2896,108 @@ button.hotbar-slot {
    "touch-controls-active" class sa <body> (touch device lang, hindi
    desktop) - tingnan ang paliwanag sa index.html/mobile-controls.js.
 
-   BAGONG LAYOUT (hiling ng user, MLBB-style): puro BILOG na "skill
-   cluster" sa kanang-ibaba - Tools at Run ay magkatabi. Enter/Exit,
-   Bag, Menu, at Punch na floating button ay TINANGGAL na (auto-door
-   na ang Enter/Exit, hotbar's own bag slot pa rin ang Bag, ang phone
-   BACK button na ang nagbubukas ng Settings sa gitna ng screen -
-   tingnan ang mobile-controls.js - at direktang pag-tap sa
-   mundo/canvas na lang ang paraan para mag-interact, di na kailangan
-   ng Punch button). */
+   BAGONG LAYOUT (hiling ng user): D-pad (kaliwang-ibaba, pinalitan
+   ang dating "analog"/joystick) at malaking "USE TOOL" hand button
+   (kanang-ibaba) - ang maliit na "Tools" ay nag-iisa na ngayon sa
+   itaas nito (TINANGGAL na ang "Run" - hiling ng user). Enter/Exit,
+   Bag, Menu, at Punch na floating button ay TINANGGAL na noon pa
+   (auto-door na ang Enter/Exit, hotbar's own bag slot pa rin ang Bag,
+   ang phone BACK button na ang nagbubukas ng Settings sa gitna ng
+   screen - tingnan ang mobile-controls.js). */
 
-#mobile-joystick,
-#mobile-skill-cluster,
+#mobile-dpad,
+#mobile-btn-tools,
 #mobile-btn-action {
   display: none;
 }
 
-body.touch-controls-active #mobile-joystick {
+body.touch-controls-active #mobile-dpad {
   display: block;
 }
 
-body.touch-controls-active #mobile-skill-cluster {
-  display: block;
+body.touch-controls-active #mobile-btn-tools {
+  display: flex;
 }
 
 body.touch-controls-active #mobile-btn-action {
   display: flex;
 }
 
-/* AYOS (hiling ng user): "malaking button kasing laki ng analog" -
-   108px, EKSAKTONG kasing-laki ng #mobile-joystick-base sa ibaba.
-   Nakaposisyon sa GILID (kaliwa) ng #mobile-skill-cluster (run/tools) -
-   parehong "max(14px, env(safe-area-inset-right))" na expression ng
-   cluster ang ginamit dito bilang batayan (tingnan sa ibaba), tapos
-   dinagdagan pa ng lapad ng cluster (190px) + puwang (14px), para
-   TALAGANG magkatabi sila kahit magbago ang notch/safe-area. */
+/* AYOS (hiling ng user): "yung analog pala palitan mo na pad na up
+   down left and right arrows" - 4 hiwalay na arrow button, nakaayos
+   sa hugis-plus/cross sa loob ng isang 116x116 na container (kasing-
+   laki-laki ng dating joystick base). Bawat button ay simpleng
+   nagtatakda/nag-aalis ng WASD key (mobile-controls.js) sa
+   pointerdown/up - PAREHONG mekanismo ng dating Run button. */
+#mobile-dpad {
+  position: fixed;
+  left: max(18px, env(safe-area-inset-left));
+  bottom: max(66px, calc(66px + env(safe-area-inset-bottom)));
+  z-index: 50;
+
+  width: 116px;
+  height: 116px;
+}
+
+.mobile-dpad-btn {
+  position: absolute;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 40px;
+  height: 40px;
+
+  background: rgba(20, 22, 28, 0.55);
+  border: 2px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+
+  font-size: 18px;
+  font-weight: 700;
+  color: rgba(212, 175, 55, 0.9);
+
+  padding: 0;
+  touch-action: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-dpad-btn:active,
+.mobile-dpad-btn.active {
+  background: rgba(212, 175, 55, 0.3);
+  border-color: rgba(212, 175, 55, 0.85);
+}
+
+#mobile-dpad-up {
+  top: 0;
+  left: 38px;
+}
+
+#mobile-dpad-down {
+  bottom: 0;
+  left: 38px;
+}
+
+#mobile-dpad-left {
+  left: 0;
+  top: 38px;
+}
+
+#mobile-dpad-right {
+  right: 0;
+  top: 38px;
+}
+
+/* AYOS (hiling ng user): "malaking button kasing laki ng analog...
+   medyo usog mo pa sa gilid yung button ng hand same sa padding left
+   ng analog" - PAREHONG "18px" na left-padding ng D-pad (itaas) ang
+   ginamit dito bilang "right" - kaya EKSAKTONG magkatugma ang
+   distansya nila mula sa magkabilang gilid ng screen. 108px pa rin -
+   kasing-laki (medyo mas malaki nga) ng D-pad container. */
 #mobile-btn-action {
   position: fixed;
-  right: calc(max(14px, env(safe-area-inset-right)) + 190px + 14px);
+  right: max(18px, env(safe-area-inset-right));
   bottom: max(66px, calc(66px + env(safe-area-inset-bottom)));
   z-index: 50;
 
@@ -2939,8 +3017,7 @@ body.touch-controls-active #mobile-btn-action {
   user-select: none;
 }
 
-/* Bahagyang naka-highlight habang aktibong pinipindot (tap feedback) -
-   kaparehong-pareho ng .active state ng joystick stick. */
+/* Bahagyang naka-highlight habang aktibong pinipindot (tap feedback). */
 #mobile-btn-action.active {
   background: rgba(212, 175, 55, 0.3);
   border-color: rgba(212, 175, 55, 0.75);
@@ -2960,70 +3037,21 @@ body.touch-controls-active #mobile-btn-action {
   pointer-events: none;
 }
 
-#mobile-joystick {
+/* Maliit na "Tools" button - nag-iisa na ngayon (TINANGGAL na ang
+   "Run"), nakaposisyon sa ITAAS ng malaking hand button, parehong
+   naka-center sa parehong "right" na gilid nito. */
+#mobile-btn-tools {
   position: fixed;
-  left: max(18px, env(safe-area-inset-left));
-  /* Inibaba ng konti (dating 92px) - hiling ng user. */
-  bottom: max(66px, calc(66px + env(safe-area-inset-bottom)));
-  z-index: 50;
-  touch-action: none;
-  -webkit-tap-highlight-color: transparent;
-}
-
-#mobile-joystick-base {
-  position: relative;
-  width: 108px;
-  height: 108px;
-
-  background: rgba(20, 22, 28, 0.55);
-  border: 2px solid rgba(255, 255, 255, 0.16);
-  border-radius: 50%;
-
-  touch-action: none;
-}
-
-#mobile-joystick-stick {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 46px;
-  height: 46px;
-  margin-top: -23px;
-  margin-left: -23px;
-
-  background: rgba(212, 175, 55, 0.55);
-  border: 2px solid rgba(212, 175, 55, 0.85);
-  border-radius: 50%;
-
-  pointer-events: none;
-  will-change: transform;
-}
-
-/* Bahagyang naka-highlight ang stick habang naka-hawak/naka-drag -
-   simpleng visual feedback lang (tingnan ang mobile-controls.js). */
-#mobile-joystick-base.active #mobile-joystick-stick {
-  background: rgba(212, 175, 55, 0.8);
-}
-
-/* --- SKILL CLUSTER (kanang-ibaba) --- */
-
-#mobile-skill-cluster {
-  position: fixed;
-  right: max(14px, env(safe-area-inset-right));
-  bottom: max(66px, calc(66px + env(safe-area-inset-bottom)));
+  right: calc(max(18px, env(safe-area-inset-right)) + 30px);
+  bottom: calc(max(66px, calc(66px + env(safe-area-inset-bottom))) + 108px + 14px);
   z-index: 50;
 
-  width: 190px;
-  height: 150px;
-}
+  width: 48px;
+  height: 48px;
 
-.mobile-skill-btn {
-  position: absolute;
-  border-radius: 50%;
-
-  display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 50%;
 
   background: radial-gradient(circle at 35% 30%, #2c3040, #12141c);
   border: 2px solid rgba(120, 170, 255, 0.55);
@@ -3032,15 +3060,12 @@ body.touch-controls-active #mobile-btn-action {
     inset 0 0 10px rgba(0, 0, 0, 0.45);
 
   padding: 0;
-  font-size: 20px;
-  color: white;
-
   touch-action: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 
-.mobile-skill-btn img {
+#mobile-btn-tools img {
   width: 60%;
   height: 60%;
   object-fit: contain;
@@ -3049,38 +3074,10 @@ body.touch-controls-active #mobile-btn-action {
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
 }
 
-.mobile-skill-btn:active,
-.mobile-skill-btn.active {
+#mobile-btn-tools:active,
+#mobile-btn-tools.active {
   background: radial-gradient(circle at 35% 30%, #3a4058, #1a1c26);
   transform: scale(0.94);
-}
-
-/* Tools - ngayon nasa mismong kanang-ibabang sulok (dating nasa itaas
-   ng Punch button, na TINANGGAL na - hiling ng user). */
-.mobile-skill-tools {
-  width: 54px;
-  height: 54px;
-  right: 16px;
-  bottom: 16px;
-
-  border-color: rgba(160, 200, 255, 0.6);
-}
-
-/* Run - katabi ng Tools, pareho silang nasa kanang-ibabang sulok
-   ngayon. */
-.mobile-skill-run {
-  width: 50px;
-  height: 50px;
-  right: 82px;
-  bottom: 18px;
-
-  border-color: rgba(140, 220, 150, 0.65);
-  background: radial-gradient(circle at 35% 30%, #23361f, #0f180d);
-}
-
-.mobile-skill-run.active {
-  background: radial-gradient(circle at 35% 30%, #2f4a29, #16240f);
-  border-color: rgba(140, 220, 150, 0.95);
 }
 
 /* =========================
@@ -3188,15 +3185,18 @@ body.touch-controls-active #top-right-bar {
   right: max(8px, env(safe-area-inset-right));
 }
 
-/* Minimap - manatiling itaas-kanan (kasunod ng burger button, na
-   nag-iisa na lang sa #top-right-bar sa touch mode dahil inilipat ang
-   calendar-panel sa kaliwa sa ibaba) - bahagyang mas maliit din para
-   hindi masyadong malaki sa maliit na screen. */
+/* Minimap - AYOS (hiling ng user: "medyo liitan mo pa yung minimap...
+   yung minimap is medyo itaas mo sa gilid") - mas MALIIT pa (dating
+   110px) at MAS MALAPIT na sa TALAGANG itaas na gilid (dating
+   "56px" na puwang - para sa burger button na dating nandito, PERO
+   TINANGGAL na ngayon ang burger button sa touch mode - tingnan sa
+   itaas - kaya walang dahilan pang iwanan ang malaking puwang na
+   iyon). */
 body.touch-controls-active #minimap {
-  top: max(56px, calc(56px + env(safe-area-inset-top)));
+  top: max(8px, env(safe-area-inset-top));
   right: max(8px, env(safe-area-inset-right));
-  width: 110px;
-  height: 110px;
+  width: 84px;
+  height: 84px;
 }
 
 /* Calendar/petsa/panahon - INILIPAT na sa ILALIM ng #player-hud
@@ -3229,37 +3229,6 @@ body.touch-controls-active #hotbar {
   max-width: 100vw;
 }
 
-body.touch-controls-active #mobile-joystick-base {
-  width: 116px;
-  height: 116px;
-}
-
-body.touch-controls-active #mobile-joystick-stick {
-  width: 50px;
-  height: 50px;
-  margin-top: -25px;
-  margin-left: -25px;
-}
-
-body.touch-controls-active #mobile-skill-cluster {
-  width: 176px;
-  height: 140px;
-}
-
-body.touch-controls-active .mobile-skill-tools {
-  width: 48px;
-  height: 48px;
-  right: 14px;
-  bottom: 14px;
-}
-
-body.touch-controls-active .mobile-skill-run {
-  width: 44px;
-  height: 44px;
-  right: 74px;
-  bottom: 16px;
-}
-
 /* Sobrang KIPOT na screen (hal. maliit na phone sa PORTRAIT, o
    sobrang liit na window) - konting extra shrink pa. Kasama pa rin
    dapat ang touch-controls-active check, para hindi maapektuhan ang
@@ -3269,27 +3238,36 @@ body.touch-controls-active .mobile-skill-run {
     transform: translateX(-50%) scale(0.7);
   }
 
-  body.touch-controls-active #mobile-joystick {
+  body.touch-controls-active #mobile-dpad {
     left: 12px;
     bottom: max(58px, calc(58px + env(safe-area-inset-bottom)));
   }
 
-  body.touch-controls-active #mobile-skill-cluster {
-    right: 10px;
+  body.touch-controls-active #mobile-btn-action {
+    right: 12px;
     bottom: max(58px, calc(58px + env(safe-area-inset-bottom)));
+  }
+
+  body.touch-controls-active #mobile-btn-tools {
+    right: 42px;
+    bottom: calc(max(58px, calc(58px + env(safe-area-inset-bottom))) + 108px + 14px);
   }
 }
 
 /* Landscape pero MABABANG height (hal. phone na medyo maliit ang
-   screen kahit pahiga na) - itaas nang konti ang joystick/cluster/
-   hotbar para hindi masagasaan ng mababang taas. */
+   screen kahit pahiga na) - itaas nang konti ang D-pad/hand button/
+   tools/hotbar para hindi masagasaan ng mababang taas. */
 @media (orientation: landscape) and (max-height: 520px) {
-  body.touch-controls-active #mobile-joystick {
+  body.touch-controls-active #mobile-dpad {
     bottom: max(48px, calc(48px + env(safe-area-inset-bottom)));
   }
 
-  body.touch-controls-active #mobile-skill-cluster {
+  body.touch-controls-active #mobile-btn-action {
     bottom: max(48px, calc(48px + env(safe-area-inset-bottom)));
+  }
+
+  body.touch-controls-active #mobile-btn-tools {
+    bottom: calc(max(48px, calc(48px + env(safe-area-inset-bottom))) + 108px + 14px);
   }
 
   body.touch-controls-active #hotbar {

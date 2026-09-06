@@ -8,7 +8,7 @@
     />
     <title>Tralala Game</title>
 
-    <link rel="stylesheet" href="./style.css?v=1800000000028" />
+    <link rel="stylesheet" href="./style.css?v=1800000000029" />
   </head>
 
   <body>
@@ -714,66 +714,61 @@
          (tingnan ang mobile-controls.js - nagdadagdag ng
          "touch-controls-active" class sa <body>, hindi ito
          lumalabas/walang epekto sa desktop, keyboard+mouse pa rin ang
-         default doon). Virtual joystick (kaliwang ibaba) - drag mula
-         sa gitna papunta sa gustong direksyon, kumakatawan ito sa
-         WASD (keys["w"/"a"/"s"/"d"] - PAREHONG global na "keys" object
-         na binabasa ng update.js), mas malayo ang hila = tumatakbo
-         (kaparehong Shift). Mga action button (kanang ibaba) - "E"
-         (pintuan) at "V" (tool radial - i-tap para buksan, tapos
-         i-tap ang gustong icon, kaparehong click-to-equip fallback na
-         nasa tool-radial.js na). -->
-    <div id="mobile-joystick">
-      <div id="mobile-joystick-base">
-        <div id="mobile-joystick-stick"></div>
-      </div>
+         default doon).
+         AYOS (hiling ng user): "yung analog pala palitan mo na pad na
+         up down left and right arrows" - PINALITAN na ang dating
+         "virtual joystick" (analog drag) ng isang D-PAD (4 hiwalay na
+         arrow button - up/down/left/right, #mobile-dpad sa ibaba) -
+         kumakatawan pa rin sa WASD (keys["w"/"a"/"s"/"d"] - PAREHONG
+         global na "keys" object na binabasa ng update.js), kaya
+         gumagana pa rin ang diagonal na galaw (2 hawak nang magkasabay,
+         hal. Up+Right, katulad ng 2 keyboard key nang sabay). WALANG
+         "takbo"/run na component (hiwalay na hiling ng user na alisin
+         ang Run button - tingnan pa rin sa ibaba) - lakad/normal speed
+         lang ang D-pad. -->
+    <div id="mobile-dpad">
+      <button type="button" id="mobile-dpad-up" class="mobile-dpad-btn" title="Up (W)">▲</button>
+      <button type="button" id="mobile-dpad-left" class="mobile-dpad-btn" title="Left (A)">◀</button>
+      <button type="button" id="mobile-dpad-right" class="mobile-dpad-btn" title="Right (D)">▶</button>
+      <button type="button" id="mobile-dpad-down" class="mobile-dpad-btn" title="Down (S)">▼</button>
     </div>
 
     <!-- AYOS (hiling ng user): "dapat may malaking button kasing laki
          ng analog na may kamay tapos nag-iiba yung kamay to pickaxe,
          axe, rake or cutter kung anoman ang ma-equip" - bagong
-         MALAKING "USE TOOL" button (108px, kasing-laki ng joystick,
-         #mobile-joystick-base) - TAP = gamitin ang KASALUKUYANG naka-
-         equip na tool (pickaxe/axe/rake/cutter) sa tile na
-         KINAHAHARAPAN ng player (getPlayerFacingTile, kaparehong
-         ginagamit ng "E" para sa item drop) - HAWAK/LONG-PRESS =
-         buksan ang tool radial (parehong showToolRadial() na dating
-         ginagamit ng maliit na "Tools" button sa itaas). Ang icon sa
-         loob (#mobile-btn-action-icon) ay dynamic - nagpapalit
-         papunta sa larawan ng KASALUKUYANG naka-equip na tool
-         (syncMobileActionButtonIcon, mobile-controls.js), o "✋" (kamay)
-         bilang default kapag WALANG naka-equip. Tingnan ang
-         mobile-controls.js para sa buong lohika. -->
+         MALAKING "USE TOOL" button (108px, kasing-laki ng dating
+         joystick base, ngayon kasing-laki rin ng #mobile-dpad) - TAP =
+         gamitin ang KASALUKUYANG naka-equip na tool (pickaxe/axe/rake/
+         cutter - o basta "kamay" kung wala - tingnan ang paliwanag sa
+         loob ng mobile-controls.js) sa tile na KINAHAHARAPAN ng player
+         (getPlayerFacingTile) - PATI NA ang "E" na interaction (lamp
+         on/off, crafter craft, stove cook, bed, atbp - hiling ng user:
+         "yung press e is dun na rin sa hand button mag appear") -
+         HAWAK/LONG-PRESS = buksan ang tool radial. Ang icon sa loob
+         (#mobile-btn-action-icon) ay dynamic. Tingnan ang
+         mobile-controls.js para sa buong lohika.
+         AYOS (hiling ng user): "medyo usog mo pa sa gilid yung button
+         ng hand same sa padding left ng analog" - PAREHONG "padding"
+         (distansya mula sa gilid ng screen) ngayon ang ginagamit ng
+         D-pad (kaliwa) at ng button na ito (kanan) - tingnan
+         style.css. -->
     <button type="button" id="mobile-btn-action" title="Gamitin (Tap) / Tools (Hawak)">
       <span id="mobile-btn-action-icon">✋</span>
     </button>
 
-    <!-- Skill-cluster (kanang-ibaba, puro bilog, MLBB-style) - hiling
-         ng user: Enter/Exit at Bag/Menu na floating button ay
-         TINANGGAL na (Enter/Exit -> auto-door na ngayon, worlds.js;
-         Bag -> hotbar's own bag slot pa rin; Menu -> back-button na
-         ang bahalang magbukas nito, tingnan ang mobile-controls.js).
-         Natitira: Tools at Run - ang Punch button ay TINANGGAL na rin
-         (hiling ng user: "erase the punch function") - direktang
-         pag-tap sa mundo/canvas (real touch, synthetic mousedown) na
-         lang ang paraan para mag-interact sa mobile. -->
-    <div id="mobile-skill-cluster">
-      <button
-        type="button"
-        id="mobile-btn-run"
-        class="mobile-skill-btn mobile-skill-run"
-        title="Run (Shift)"
-      >
-        🏃
-      </button>
-      <button
-        type="button"
-        id="mobile-btn-tools"
-        class="mobile-skill-btn mobile-skill-tools"
-        title="Tools (V)"
-      >
-        <img src="./assets/items/pickaxe.png" alt="Tools" />
-      </button>
-    </div>
+    <!-- Maliit na "Tools" button (buksan ang tool radial - kaparehong
+         showToolRadial() ng long-press sa itaas, iniwan bilang
+         alternatibo/backup) - nag-iisa na lang ito ngayon (TINANGGAL
+         na ang "Run" button, hiling ng user: "yung 2 button yung run
+         alisin mo na"), nakaposisyon sa ITAAS ng malaking hand button
+         (parehong gilid/"kanan"). -->
+    <button
+      type="button"
+      id="mobile-btn-tools"
+      title="Tools (V)"
+    >
+      <img src="./assets/items/pickaxe.png" alt="Tools" />
+    </button>
 
     <script src="./js/canvas.js?v=1800000000024"></script>
     <script src="./js/assets.js?v=1790600000000"></script>
@@ -912,6 +907,6 @@
     <script src="./js/minimap.js?v=1800000000011"></script>
     <script src="./js/draw.js?v=1800000000016"></script>
     <script src="./js/main.js?v=1787160000000"></script>
-    <script src="./js/mobile-controls.js?v=1800000000027"></script>
+    <script src="./js/mobile-controls.js?v=1800000000030"></script>
   </body>
 </html>
