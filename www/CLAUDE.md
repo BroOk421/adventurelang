@@ -3421,3 +3421,80 @@ kailangang i-adjust ang mga ito.
   "nagbabakas" mula sa laro sa likod nito.
 - **Cache-bust:** binump ulit ang `?v=` ng `style.css` →
   `1800000000022`.
+
+### Entry #74 — Mobile UI overhaul: mas malayong camera, bagong malaking "USE TOOL" button (may dynamic na icon), at fullscreen/edge-to-edge fixes
+- **Files:** `js/camera.js`, `index.html`, `style.css`, `js/mobile-controls.js`,
+  `js/canvas.js`, `js/main-menu.js`, `android/app/src/main/java/com/tralala/game/MainActivity.java`
+- **(a) "medyo layuan yung camera" (mobile lang):**
+  - `js/camera.js` - bagong `CAMERA_IS_TOUCH_DEVICE` (hiwalay/duplicate
+    na detection sa `isMobileTouchDevice`, mobile-controls.js - mas
+    maaga kasing mag-load ang camera.js) - default zoom na `2.6`
+    (dating `3.5`) PARA SA TOUCH DEVICE LANG, desktop walang binago.
+- **(b) Bagong malaking "USE TOOL" button (kasing-laki ng joystick):**
+  - `index.html`/`style.css` - `#mobile-btn-action`, 108px na bilog
+    (EKSAKTONG kasing-laki ng `#mobile-joystick-base`), naka-posisyon
+    sa PAGITAN ng joystick at ng run/tools cluster.
+  - `js/mobile-controls.js` (`setupMobileActionButton`):
+    - **Icon:** dynamic - pickaxe/rake/axe/cutter.png (parehong
+      `EQUIP_RIGHT_HAND_ICON_BY_TOOL`, hotbar.js, na batayan) depende
+      sa `pickaxeEquipped`/`rakeEquipped`/`axeEquipped`/`cutterEquipped`
+      - "✋" (kamay) bilang default kapag WALANG naka-equip. Polling
+        (250ms interval) - simple/ligtas kaysa mag-hook sa BAWAT lugar
+        na nagbabago ng mga flag na ito.
+    - **Tap:** "ginagamit" ang naka-equip na tool sa tile na
+      KINAHAHARAPAN ng player (`getPlayerFacingTile`, ground-items.js) -
+      sa halip na gumawa ng bagong duplicate na "gamitin ang tool"
+      logic, SINISIMULATE na lang ang eksaktong "mousedown"+"mouseup"
+      na event sa TAMANG screen-space na posisyon ng tiletemp (kabaligtaran
+      ng getMouseTile) - awtomatiko nang tumatakbo ang LAHAT ng
+      umiiral nang listener (axe/pickaxe/cutter sa resources.js, rake/
+      dig/tanim/crafter/stove sa dig.js, oak sa decor.js) nang walang
+      duplicate code. VERIFIED via Playwright - eksaktong tinatamaan
+      ang facing tile, isang beses lang bawat tap.
+    - **Hold (~450ms):** binubuksan ang tool radial
+      (`showToolRadial()`) - parehong function ng lumang maliit na
+      "Tools" button (naiwan pa rin, HINDI tinanggal, bilang backup).
+    - VERIFIED lahat (icon switch, tap-to-use, long-press-to-radial)
+      via Playwright sa 844x390 LANDSCAPE touch viewport - walang
+      overlap sa joystick/run/tools (naunang beses na sinubukan sa
+      PORTRAIT ay nag-overlap - naayos sa pamamagitan ng tamang
+      landscape-based na positioning).
+- **(c) "dapat i-fullscreen mo na rin sa mobile kasi may spacing pa siya":**
+  - `index.html` - `viewport-fit=cover` sa meta viewport tag.
+  - `style.css` - `100dvh`/`100dvw` (dynamic viewport units, may
+    `100vh`/`100vw` fallback pa rin) sa halip na `100vh`/`100vw` lang -
+    "100vh" sa mobile browser ay batay sa PINAKAMALAKING posibleng
+    sukat (parang nakatago ang address bar), kaya lumalampas ito sa
+    TALAGANG nakikitang lugar kapag TALAGANG buksan pa ang address
+    bar - naiiwan bilang extra scrollable na espasyo (ang
+    "scrollbar"/spacing na nakita sa screenshot ng user).
+  - `js/canvas.js` - gumagamit na ng `window.visualViewport` (kung
+    meron, mas tumpak kaysa `window.innerWidth/innerHeight` sa
+    mobile) - dagdag na listener din sa `visualViewport.resize` at
+    `orientationchange`.
+  - `js/main-menu.js` - awtomatikong `requestFullscreen()` sa pag-tap
+    ng "Play" (touch device lang, dahil kailangan ng tunay na "user
+    gesture" bago pumayag ang Fullscreen API - ito ang unang tunay na
+    gesture).
+  - Safe-area-inset padding idinagdag sa `#player-hud`/`#top-right-bar`/
+    `#hotbar` (dati'y `#mobile-joystick`/`#mobile-skill-cluster` lang
+    ang meron nito).
+  - **`MainActivity.java` (Android native, HINDI web/CSS na fix):**
+    ang black status bar sa itaas ng screenshot ng user ay LITERAL na
+    Android OS status bar (hindi CSS/browser chrome) - walang
+    "immersive"/edge-to-edge config dati ang buong app (plain
+    `BridgeActivity`). Dinagdag ang tunay na "immersive sticky"
+    fullscreen gamit ang `WindowCompat`/`WindowInsetsControllerCompat`
+    (itinatago ang status bar AT navigation bar, `setDecorFitsSystemWindows(false)`),
+    muling tinatawag sa `onCreate`/`onResume`/`onWindowFocusChanged`
+    dahil karaniwang "nabubura" ang immersive mode sa tuwing lumipat
+    ng focus. May fallback pa rin sa mas lumang Android (bago pa man
+    ang API 30) gamit ang lumang `SYSTEM_UI_FLAG_*`.
+- **Cache-bust:** binump ang `?v=` ng `style.css` (1800000000028),
+  `canvas.js` (1800000000024), `camera.js` (1800000000025),
+  `main-menu.js` (1800000000026), `mobile-controls.js`
+  (1800000000027).
+- **Para i-adjust:** default mobile zoom → `CAMERA_DEFAULT_ZOOM`
+  (camera.js). Laki ng USE TOOL button → `#mobile-btn-action` width/
+  height (style.css). Tagal ng hold bago mag-radial →
+  `LONG_PRESS_MS` (mobile-controls.js).

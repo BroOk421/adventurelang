@@ -2,17 +2,36 @@
 // CAMERA
 // =========================
 
+// AYOS (hiling ng user: "yung sa mobile mode is medyo layuan yung
+// camera sana") - mas MALIIT na default zoom (mas "malayo"/mas
+// malawak ang nakikita) PARA SA TOUCH DEVICE LANG - ang desktop
+// (mouse+keyboard) ay nananatili sa dating 3.5. Hiwalay/duplicate na
+// detection ito (hindi na lang inaasa sa isMobileTouchDevice ng
+// mobile-controls.js) dahil MAS MAAGA pa lang mag-load ang camera.js
+// (kailangan agad ang zoom value sa unang pagkakadeklara ng `camera`
+// object sa ibaba) - PAREHONG eksaktong pamantayan pa rin (ontouchstart/
+// maxTouchPoints/pointer:coarse/"?mobileui=1" preview param) para
+// tumugma.
+const CAMERA_IS_TOUCH_DEVICE =
+  new URLSearchParams(window.location.search).get("mobileui") === "1" ||
+  "ontouchstart" in window ||
+  (typeof navigator !== "undefined" && navigator.maxTouchPoints > 0) ||
+  (typeof window.matchMedia === "function" &&
+    window.matchMedia("(pointer: coarse)").matches);
+
+const CAMERA_DEFAULT_ZOOM = CAMERA_IS_TOUCH_DEVICE ? 2.6 : 3.5;
+
 // Hangganan ng zoom - hindi puwedeng lumagpas dito sa magkabilang
 // dulo. Buong numero lang ang bawat baitang (hindi fraction) para
 // manatiling malinaw/crisp ang pixel art kahit anong zoom.
-const CAMERA_MIN_ZOOM = 3.5;
+const CAMERA_MIN_ZOOM = CAMERA_IS_TOUCH_DEVICE ? 2.6 : 3.5;
 const CAMERA_MAX_ZOOM = 8;
 
 const camera = {
   x: 0,
   y: 0,
 
-  zoom: 3.5,
+  zoom: CAMERA_DEFAULT_ZOOM,
 
   follow() {
     const viewWidth = canvas.width / this.zoom;

@@ -8,6 +8,20 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
+  /* AYOS (hiling ng user: "dapat i full screen mo na rin sa mobile
+     kasi may spacing pa siya") - "100vh" (dating gamit lang) sa mobile
+     browser ay batay sa PINAKAMALAKING posibleng sukat ng viewport
+     (parang nakatago na ang address bar), kaya kapag TALAGANG
+     nakikita pa ang address bar/system UI, LUMALAGPAS ang laro sa
+     TALAGANG nakikitang lugar - naiiwan ito bilang extra scrollable
+     na espasyo (kaya may nakitang "scrollbar" sa ibaba sa screenshot
+     ng user). "100dvh" (dynamic viewport height, sinusuportahan na ng
+     mga makabagong mobile browser) ay LAGING TUMUTUGMA sa TALAGANG
+     kasalukuyang nakikitang lugar - "100vh" muna bilang safe fallback
+     sa mga lumang browser na hindi pa nakakaintindi ng "dvh" unit.
+     Pareho itong ginagamit ng canvas sa ibaba. */
+  height: 100vh;
+  height: 100dvh;
 }
 
 body {
@@ -17,7 +31,9 @@ body {
 canvas {
   display: block;
   width: 100vw;
+  width: 100dvw;
   height: 100vh;
+  height: 100dvh;
 
   /* Pigilan ang default touch gestures ng browser (pinch-zoom,
      double-tap zoom, pan/scroll) habang naglalaro sa touch device -
@@ -36,7 +52,10 @@ canvas {
 #hotbar {
   position: fixed;
   left: 50%;
-  bottom: 18px;
+  /* AYOS (hiling ng user: fullscreen sa mobile) - safe-area-inset-
+     bottom (hal. gesture-navigation bar sa Android) idinagdag sa
+     itaas ng dating 18px, para hindi ito matakpan/matabunan. */
+  bottom: max(18px, calc(18px + env(safe-area-inset-bottom)));
   transform: translateX(-50%);
 
   display: flex;
@@ -1066,8 +1085,13 @@ button.hotbar-slot {
    ========================= */
 #player-hud {
   position: fixed;
-  top: 14px;
-  left: 14px;
+  /* AYOS (hiling ng user: fullscreen sa mobile, walang natitirang
+     "spacing") - dagdag ng safe-area-inset (notch/camera cutout,
+     lalo na sa LANDSCAPE - doon karaniwang nasa KALIWA/KANAN ang
+     cutout, hindi taas/baba) - kaparehong pattern na ginagamit na ng
+     #mobile-joystick sa ibaba. */
+  top: max(14px, env(safe-area-inset-top));
+  left: max(14px, env(safe-area-inset-left));
   z-index: 10;
 
   display: flex;
@@ -2306,8 +2330,10 @@ button.hotbar-slot {
 
 #top-right-bar {
   position: fixed;
-  top: 14px;
-  right: 14px;
+  /* AYOS (hiling ng user: fullscreen sa mobile) - parehong safe-area
+     na paliwanag sa #player-hud sa itaas. */
+  top: max(14px, env(safe-area-inset-top));
+  right: max(14px, env(safe-area-inset-right));
 
   display: flex;
   align-items: flex-start;
@@ -2867,7 +2893,8 @@ button.hotbar-slot {
    ng Punch button). */
 
 #mobile-joystick,
-#mobile-skill-cluster {
+#mobile-skill-cluster,
+#mobile-btn-action {
   display: none;
 }
 
@@ -2877,6 +2904,60 @@ body.touch-controls-active #mobile-joystick {
 
 body.touch-controls-active #mobile-skill-cluster {
   display: block;
+}
+
+body.touch-controls-active #mobile-btn-action {
+  display: flex;
+}
+
+/* AYOS (hiling ng user): "malaking button kasing laki ng analog" -
+   108px, EKSAKTONG kasing-laki ng #mobile-joystick-base sa ibaba.
+   Nakaposisyon sa GILID (kaliwa) ng #mobile-skill-cluster (run/tools) -
+   parehong "max(14px, env(safe-area-inset-right))" na expression ng
+   cluster ang ginamit dito bilang batayan (tingnan sa ibaba), tapos
+   dinagdagan pa ng lapad ng cluster (190px) + puwang (14px), para
+   TALAGANG magkatabi sila kahit magbago ang notch/safe-area. */
+#mobile-btn-action {
+  position: fixed;
+  right: calc(max(14px, env(safe-area-inset-right)) + 190px + 14px);
+  bottom: max(66px, calc(66px + env(safe-area-inset-bottom)));
+  z-index: 50;
+
+  width: 108px;
+  height: 108px;
+
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(20, 22, 28, 0.55);
+  border: 2px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+
+  padding: 0;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* Bahagyang naka-highlight habang aktibong pinipindot (tap feedback) -
+   kaparehong-pareho ng .active state ng joystick stick. */
+#mobile-btn-action.active {
+  background: rgba(212, 175, 55, 0.3);
+  border-color: rgba(212, 175, 55, 0.75);
+}
+
+#mobile-btn-action-icon {
+  font-size: 44px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+#mobile-btn-action-icon img {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  pointer-events: none;
 }
 
 #mobile-joystick {

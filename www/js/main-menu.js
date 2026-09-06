@@ -56,6 +56,26 @@ function initMainMenu() {
 
     started = true;
 
+    // AYOS (hiling ng user: "dapat i full screen mo na rin sa mobile
+    // kasi may spacing pa siya") - hindi puwedeng basta i-trigger ang
+    // Fullscreen API nang walang TALAGANG "user gesture" (hahadlangan
+    // ito ng browser) - ang pag-tap sa "Play" mismo ay isang tunay na
+    // gesture, kaya DITO na lang natin ito isinasabay (touch device
+    // lang - walang saysay/nakakaabala kung i-fullscreen pa ang
+    // desktop na hindi naman hinihiling nito). Hindi kritikal kung
+    // ma-reject/walang epekto ito (hal. iOS Safari na walang suporta
+    // dito maliban sa "Add to Home Screen") - tahimik lang itong
+    // babagsak (.catch), tuloy pa rin ang paglo-load ng laro.
+    if (
+      typeof isMobileTouchDevice !== "undefined" &&
+      isMobileTouchDevice &&
+      !document.fullscreenElement
+    ) {
+      document.documentElement.requestFullscreen?.().catch(() => {
+        // Ok lang - hindi lahat ng browser/context ay pumapayag dito.
+      });
+    }
+
     hideMainMenuOverlay();
 
     if (typeof beginInitialWorldLoad === "function") {

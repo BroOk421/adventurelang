@@ -256,6 +256,213 @@ if (isMobileTouchDevice) {
 })();
 
 // =========================
+// (c) MALAKING "USE TOOL" BUTTON (kasing-laki ng joystick)
+// =========================
+//
+// BAGO (hiling ng user): "dapat may malaking button kasing laki ng
+// analog na may kamay tapos nag-iiba yung kamay to pickaxe, axe, rake
+// or cutter kung anoman ang ma-equip" - #mobile-btn-action
+// (index.html), 108px kagaya ng #mobile-joystick-base.
+//
+// (1) ICON: dynamic, sumasalamin sa KASALUKUYANG naka-equip na tool
+//     (pickaxeEquipped/rakeEquipped/axeEquipped/cutterEquipped -
+//     PAREHONG flag na ginagamit na ng EQUIP_RIGHT_HAND_ICON_BY_TOOL,
+//     hotbar.js) - "✋" (kamay) na lang bilang default kapag WALANG
+//     naka-equip. Sinusuri ito kada ilang saglit (polling, hindi
+//     event-based) - mas simple/ligtas kaysa mag-hook sa BAWAT lugar
+//     na nagbabago ng mga flag na ito (maraming file - dig.js/
+//     resources.js/hotbar.js/tool-radial.js).
+//
+// (2) TAP (maikling pindot) - "gamitin" ang kasalukuyang naka-equip na
+//     tool sa tile na KINAHAHARAPAN ng player (getPlayerFacingTile,
+//     ground-items.js - parehong function na ginagamit ng "E" item-
+//     drop) - sa halip na gumawa ng BAGONG hiwalay na "gamitin ang
+//     tool" na logic (na kailangang kopyahin/i-duplicate ang axe/
+//     pickaxe/cutter na sanga sa resources.js AT ang rake/dig/tanim/
+//     crafter/stove na sanga sa dig.js), dito ay SINISIMULATE na lang
+//     ang EKSAKTONG PAREHONG "mousedown" (+ "mouseup") na event na
+//     ginagawa na ng browser mismo kapag TALAGANG tinapik ang mundo
+//     (canvas) sa isang partikular na spot - awtomatiko nang tatakbo
+//     ang LAHAT ng umiiral nang listener (axe/pickaxe/cutter sa
+//     resources.js, rake/dig/tanim/crafter/stove/bed sa dig.js, oak sa
+//     decor.js) nang WALANG anumang duplicate na code, at GARANTISADONG
+//     sumusunod sa PAREHONG mga patakaran (isTileInReach, cooldown,
+//     atbp.) ng totoong pag-tap.
+//
+// (3) HAWAK (long-press, ~450ms) - buksan ang tool radial
+//     (showToolRadial(), tool-radial.js) - PAREHONG function na dating
+//     ginagamit ng maliit na "Tools" button (#mobile-btn-tools, HINDI
+//     tinanggal - naiwan pa rin bilang backup/alternatibong paraan).
+(function setupMobileActionButton() {
+  const btn = document.getElementById("mobile-btn-action");
+  const iconEl = document.getElementById("mobile-btn-action-icon");
+
+  if (!btn || !iconEl) return;
+
+  // "col,row" ng tool -> {img, alt} - pinakamataas na priyoridad ang
+  // pinakauna (kaparehong-pareho ng pagkakasunod-sunod ng
+  // EQUIP_RIGHT_HAND_ICON_BY_TOOL, hotbar.js).
+  const TOOL_ICON_BY_EQUIP = [
+    {
+      equipped: () => typeof pickaxeEquipped !== "undefined" && pickaxeEquipped,
+      html: '<img src="./assets/items/pickaxe.png" alt="Pickaxe">',
+    },
+    {
+      equipped: () => typeof rakeEquipped !== "undefined" && rakeEquipped,
+      html: '<img src="./assets/items/rake.png" alt="Rake">',
+    },
+    {
+      equipped: () => typeof axeEquipped !== "undefined" && axeEquipped,
+      html: '<img src="./assets/items/axe.png" alt="Axe">',
+    },
+    {
+      equipped: () => typeof cutterEquipped !== "undefined" && cutterEquipped,
+      html: '<img src="./assets/items/cutter.png" alt="Cutter">',
+    },
+  ];
+
+  const HAND_ICON_HTML = "✋";
+  let lastIconHTML = null;
+
+  function syncActionButtonIcon() {
+    const match = TOOL_ICON_BY_EQUIP.find((entry) => entry.equipped());
+    const nextHTML = match ? match.html : HAND_ICON_HTML;
+
+    // Iwasan ang paulit-ulit na pagsulat sa innerHTML (maliit na
+    // performance win) - baguhin lang kapag TALAGANG may pagbabago.
+    if (nextHTML === lastIconHTML) return;
+
+    lastIconHTML = nextHTML;
+    iconEl.innerHTML = nextHTML;
+  }
+
+  // Polling (hindi event-based) - tingnan ang paliwanag sa itaas kung
+  // bakit. 250ms - sapat na bilis (halos hindi mapapansin ang delay)
+  // nang hindi masyadong madalas tumatakbo.
+  setInterval(syncActionButtonIcon, 250);
+  syncActionButtonIcon();
+
+  // I-kwenta ang screen-space (canvas-relative) na posisyon ng tile na
+  // KINAHAHARAPAN ng player - KABALIKTARAN ng ginagawa ng getMouseTile
+  // (dig.js): doon, world -> tile; dito, tile -> world -> screen.
+  function getFacingTileScreenPoint() {
+    if (
+      typeof getPlayerFacingTile !== "function" ||
+      typeof camera === "undefined" ||
+      typeof TILE_SIZE === "undefined"
+    ) {
+      return null;
+    }
+
+    const tile = getPlayerFacingTile();
+    const worldX = tile.col * TILE_SIZE + TILE_SIZE / 2;
+    const worldY = tile.row * TILE_SIZE + TILE_SIZE / 2;
+
+    // PAREHONG "snap" formula ng draw.js/getMouseTile - kailangang
+    // eksaktong magkatugma para TALAGANG tumapat sa parehong tile.
+    const snappedCameraX = Math.round(camera.x * camera.zoom) / camera.zoom;
+    const snappedCameraY = Math.round(camera.y * camera.zoom) / camera.zoom;
+
+    return {
+      x: (worldX - snappedCameraX) * camera.zoom,
+      y: (worldY - snappedCameraY) * camera.zoom,
+    };
+  }
+
+  function useEquippedToolAtFacingTile() {
+    if (typeof mapReady === "undefined" || !mapReady) return;
+
+    const point = getFacingTileScreenPoint();
+
+    if (!point) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const clientX = rect.left + point.x;
+    const clientY = rect.top + point.y;
+
+    // Itinatabi muna ang TALAGANG kasalukuyang hover state (kung
+    // meron - baka may totoong mouse sa ibang tab/desktop preview,
+    // ?mobileui=1) - ibabalik pagkatapos, para hindi "nakadikit" doon
+    // ang cursor/highlight kahit hindi na talaga doon ang daliri.
+    const prevMouseOnCanvas = mouseOnCanvas;
+    const prevMouseScreenX = mouseScreenX;
+    const prevMouseScreenY = mouseScreenY;
+
+    mouseScreenX = point.x;
+    mouseScreenY = point.y;
+    mouseOnCanvas = true;
+
+    const eventInit = {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      clientX,
+      clientY,
+    };
+
+    canvas.dispatchEvent(new MouseEvent("mousedown", eventInit));
+    canvas.dispatchEvent(new MouseEvent("mouseup", eventInit));
+
+    mouseOnCanvas = prevMouseOnCanvas;
+    mouseScreenX = prevMouseScreenX;
+    mouseScreenY = prevMouseScreenY;
+  }
+
+  const LONG_PRESS_MS = 450;
+  let pressTimer = null;
+  let longPressFired = false;
+
+  function clearPressTimer() {
+    if (pressTimer !== null) {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+    }
+  }
+
+  btn.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    longPressFired = false;
+    btn.classList.add("active");
+
+    clearPressTimer();
+    pressTimer = setTimeout(() => {
+      longPressFired = true;
+      pressTimer = null;
+
+      if (typeof showToolRadial === "function") showToolRadial();
+    }, LONG_PRESS_MS);
+  });
+
+  function handleRelease(event) {
+    event.preventDefault();
+
+    btn.classList.remove("active");
+    clearPressTimer();
+
+    // Kung TALAGANG nag-open na ng tool radial (long-press), huwag na
+    // ring i-trigger ang "tap" na aksyon sa release - dalawa palang
+    // magkaibang aksyon ang isang pindot kung hindi ito paiiwasan.
+    if (longPressFired) return;
+
+    useEquippedToolAtFacingTile();
+  }
+
+  btn.addEventListener("pointerup", handleRelease);
+
+  btn.addEventListener("pointercancel", () => {
+    btn.classList.remove("active");
+    clearPressTimer();
+  });
+
+  btn.addEventListener("pointerleave", () => {
+    btn.classList.remove("active");
+    clearPressTimer();
+  });
+})();
+
+// =========================
 // (d) PHONE BACK BUTTON -> BUKSAN ANG SETTINGS SA GITNA NG SCREEN
 // =========================
 //

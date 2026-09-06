@@ -2,10 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
     <title>Tralala Game</title>
 
-    <link rel="stylesheet" href="./style.css?v=1800000000022" />
+    <link rel="stylesheet" href="./style.css?v=1800000000028" />
   </head>
 
   <body>
@@ -725,6 +728,25 @@
       </div>
     </div>
 
+    <!-- AYOS (hiling ng user): "dapat may malaking button kasing laki
+         ng analog na may kamay tapos nag-iiba yung kamay to pickaxe,
+         axe, rake or cutter kung anoman ang ma-equip" - bagong
+         MALAKING "USE TOOL" button (108px, kasing-laki ng joystick,
+         #mobile-joystick-base) - TAP = gamitin ang KASALUKUYANG naka-
+         equip na tool (pickaxe/axe/rake/cutter) sa tile na
+         KINAHAHARAPAN ng player (getPlayerFacingTile, kaparehong
+         ginagamit ng "E" para sa item drop) - HAWAK/LONG-PRESS =
+         buksan ang tool radial (parehong showToolRadial() na dating
+         ginagamit ng maliit na "Tools" button sa itaas). Ang icon sa
+         loob (#mobile-btn-action-icon) ay dynamic - nagpapalit
+         papunta sa larawan ng KASALUKUYANG naka-equip na tool
+         (syncMobileActionButtonIcon, mobile-controls.js), o "✋" (kamay)
+         bilang default kapag WALANG naka-equip. Tingnan ang
+         mobile-controls.js para sa buong lohika. -->
+    <button type="button" id="mobile-btn-action" title="Gamitin (Tap) / Tools (Hawak)">
+      <span id="mobile-btn-action-icon">✋</span>
+    </button>
+
     <!-- Skill-cluster (kanang-ibaba, puro bilog, MLBB-style) - hiling
          ng user: Enter/Exit at Bag/Menu na floating button ay
          TINANGGAL na (Enter/Exit -> auto-door na ngayon, worlds.js;
@@ -753,7 +775,7 @@
       </button>
     </div>
 
-    <script src="./js/canvas.js?v=1787160000000"></script>
+    <script src="./js/canvas.js?v=1800000000024"></script>
     <script src="./js/assets.js?v=1790600000000"></script>
     <script src="./js/sprite-crop.js?v=1790600000000"></script>
     <script src="./js/audio.js?v=1787369862288"></script>
@@ -764,7 +786,7 @@
          (advanceGameTime()). -->
     <script src="./js/gametime.js?v=1787160000000"></script>
     <script src="./js/player.js?v=1790600000000"></script>
-    <script src="./js/camera.js?v=1787160000000"></script>
+    <script src="./js/camera.js?v=1800000000025"></script>
     <script src="./js/input.js?v=1787160000000"></script>
     <script src="./js/collisions.js?v=1793600000001"></script>
     <!-- worlds.js ay dapat mauna sa map.js - dun nakalista ang mga mapa
@@ -867,7 +889,7 @@
          beginInitialWorldLoad sa map.js) - kailangang MAUNA ang
          settings-menu.js (openLoadSlotsPopup/openSettingsPanel/
          exitGame) at map.js (beginInitialWorldLoad). -->
-    <script src="./js/main-menu.js?v=1800000000018"></script>
+    <script src="./js/main-menu.js?v=1800000000026"></script>
     <!-- tool-radial.js: ang roulette-style na menu sa gitna ng screen
          habang naka-hold ang "V", kapalit ng dating pickaxe/kamay/axe
          na hiwalay na slots. -->
@@ -890,6 +912,6 @@
     <script src="./js/minimap.js?v=1800000000011"></script>
     <script src="./js/draw.js?v=1800000000016"></script>
     <script src="./js/main.js?v=1787160000000"></script>
-    <script src="./js/mobile-controls.js?v=1787500805555"></script>
+    <script src="./js/mobile-controls.js?v=1800000000027"></script>
   </body>
 </html>
