@@ -8,7 +8,7 @@
     />
     <title>Tralala Game</title>
 
-    <link rel="stylesheet" href="./style.css?v=1800000000029" />
+    <link rel="stylesheet" href="./style.css?v=1800000000035" />
   </head>
 
   <body>
@@ -198,7 +198,23 @@
          "B" key o ang bag slot sa hotbar (walang "X" na close button
          sa buong panel - hilahin lang sa header para ilipat). -->
     <div id="bag-panel" class="hidden">
-      <div id="bag-panel-header"></div>
+      <div id="bag-panel-header">
+        <!-- AYOS (hiling ng user): "yung sa bag, crafter, stove lagyan
+             mo ng 'x' sa top right ng section nila para na eexit" -
+             bagong "X" close button, top-right ng buong card (dating
+             wala talaga, "hilahin lang sa header" bago nito). Naka-
+             "panel-no-drag" (kaparehong pattern ng ibang close button
+             dito) para hindi ito masabay-sabay ng drag-to-move
+             listener ng header. -->
+        <button
+          type="button"
+          id="bag-panel-close"
+          class="panel-no-drag"
+          title="Isara"
+        >
+          ✕
+        </button>
+      </div>
 
       <div id="bag-panel-body">
         <!-- Craft (DOCKED, "basic" 2x2 mode) - UNANG kolum ng
@@ -652,8 +668,58 @@
         <button type="button" id="settings-fullscreen-toggle">
           🖥️ Fullscreen
         </button>
+        <!-- AYOS (hiling ng user): "gusto ko nga gawa ka na lang o add
+             ka feature dun sa settings tapos crontroller tapos edit
+             layout ganyan para ako na nag aadjust ng mga need ayusin
+             mapa scale, opacity ng buttons ganyan" - bagong "Controller"
+             button, touch device lang (walang silbi sa desktop, walang
+             on-screen controller doon) - binubuksan ang
+             #controller-layout-panel sa ibaba. Tingnan ang
+             controller-layout.js. -->
+        <button type="button" id="settings-controller-btn">
+          🎮 Controller
+        </button>
         <button type="button" id="settings-reset-save">
           🗑️ I-reset ang laro (burahin ang save)
+        </button>
+      </div>
+    </div>
+
+    <!-- AYOS (hiling ng user): "gawa ka na lang o add ka feature dun
+         sa settings tapos crontroller tapos edit layout ganyan para
+         ako na nag aadjust ng mga need ayusin mapa scale, opacity ng
+         buttons ganyan" - bagong panel para ma-customize ng user MISMO
+         ang laki/opacity/posisyon ng mga on-screen na control
+         (D-pad/hand button/tools/minimap) - hindi na kailangang
+         mano-manong i-edit ang CSS. Tingnan ang controller-layout.js
+         para sa buong lohika (pag-drag, pag-save sa localStorage). -->
+    <div id="controller-layout-panel" class="hidden">
+      <div id="controller-layout-header">
+        <span id="controller-layout-label">Controller</span>
+        <button type="button" id="controller-layout-close" title="Isara">✕</button>
+      </div>
+
+      <div id="controller-layout-body">
+        <button type="button" id="controller-layout-edit-toggle">
+          ✏️ I-edit ang Posisyon
+        </button>
+        <p id="controller-layout-hint">
+          Kapag naka-edit mode, i-drag ang D-pad/hand button/Tools/minimap sa
+          screen para ilipat sila.
+        </p>
+
+        <label class="controller-layout-slider-row">
+          <span>Laki ng Buttons</span>
+          <input type="range" id="controller-layout-scale" min="0.7" max="1.4" step="0.05" value="1" />
+        </label>
+
+        <label class="controller-layout-slider-row">
+          <span>Opacity</span>
+          <input type="range" id="controller-layout-opacity" min="0.3" max="1" step="0.05" value="1" />
+        </label>
+
+        <button type="button" id="controller-layout-reset">
+          🔄 I-reset ang Layout
         </button>
       </div>
     </div>
@@ -717,20 +783,30 @@
          default doon).
          AYOS (hiling ng user): "yung analog pala palitan mo na pad na
          up down left and right arrows" - PINALITAN na ang dating
-         "virtual joystick" (analog drag) ng isang D-PAD (4 hiwalay na
-         arrow button - up/down/left/right, #mobile-dpad sa ibaba) -
-         kumakatawan pa rin sa WASD (keys["w"/"a"/"s"/"d"] - PAREHONG
-         global na "keys" object na binabasa ng update.js), kaya
-         gumagana pa rin ang diagonal na galaw (2 hawak nang magkasabay,
-         hal. Up+Right, katulad ng 2 keyboard key nang sabay). WALANG
-         "takbo"/run na component (hiwalay na hiling ng user na alisin
-         ang Run button - tingnan pa rin sa ibaba) - lakad/normal speed
-         lang ang D-pad. -->
+         "virtual joystick" (analog drag) ng isang D-PAD - kumakatawan
+         sa WASD (keys["w"/"a"/"s"/"d"] - PAREHONG global na "keys"
+         object na binabasa ng update.js). WALANG "takbo"/run na
+         component (hiwalay na hiling ng user na alisin ang Run
+         button) - lakad/normal speed lang ang D-pad.
+         AYOS (hiling ng user, round 2): "medyo magkakalapit medyo
+         layo mo sa isat isa gusto ko lagyan mo na lang din ng
+         top-left top-right left bottom and right bottom" - 8 button
+         na ngayon (dating 4 lang), nakaayos sa 3x3 GRID (CSS grid,
+         style.css) na may mas malaking puwang sa pagitan - ang 4
+         diagonal na button ay nagtatakda ng DALAWANG key nang sabay
+         (hal. "top-left" = W+A), kaya iisa lang ang kailangang
+         pindutin para sa diagonal na galaw (dagdag/opsyonal na paraan
+         lang ito - gumagana pa rin ang paghawak ng 2 magkatabing
+         cardinal button nang sabay, tingnan ang mobile-controls.js). -->
     <div id="mobile-dpad">
+      <button type="button" id="mobile-dpad-up-left" class="mobile-dpad-btn mobile-dpad-diag" title="Up-Left (W+A)">↖</button>
       <button type="button" id="mobile-dpad-up" class="mobile-dpad-btn" title="Up (W)">▲</button>
+      <button type="button" id="mobile-dpad-up-right" class="mobile-dpad-btn mobile-dpad-diag" title="Up-Right (W+D)">↗</button>
       <button type="button" id="mobile-dpad-left" class="mobile-dpad-btn" title="Left (A)">◀</button>
       <button type="button" id="mobile-dpad-right" class="mobile-dpad-btn" title="Right (D)">▶</button>
+      <button type="button" id="mobile-dpad-down-left" class="mobile-dpad-btn mobile-dpad-diag" title="Down-Left (S+A)">↙</button>
       <button type="button" id="mobile-dpad-down" class="mobile-dpad-btn" title="Down (S)">▼</button>
+      <button type="button" id="mobile-dpad-down-right" class="mobile-dpad-btn mobile-dpad-diag" title="Down-Right (S+D)">↘</button>
     </div>
 
     <!-- AYOS (hiling ng user): "dapat may malaking button kasing laki
@@ -842,7 +918,7 @@
          estado/function ng dig.js/resources.js/ground-items.js
          (pickaxeEquipped, equipPickaxe, axeEquipped,
          dropItemFromSlotIntoWorld, atbp). -->
-    <script src="./js/hotbar.js?v=1799999999001"></script>
+    <script src="./js/hotbar.js?v=1800000000034"></script>
     <!-- craft.js: crafting panel (2x2 basic / 3x3 advanced, parang
          Minecraft) at ang "Crafter" (crafting table) na puwedeng
          ilagay sa mundo - ginagamit nito ang BAG_ITEMS/getItemIconHTML/
@@ -907,6 +983,13 @@
     <script src="./js/minimap.js?v=1800000000011"></script>
     <script src="./js/draw.js?v=1800000000016"></script>
     <script src="./js/main.js?v=1787160000000"></script>
-    <script src="./js/mobile-controls.js?v=1800000000030"></script>
+    <script src="./js/mobile-controls.js?v=1800000000033"></script>
+    <!-- controller-layout.js: Settings > Controller > Edit Layout -
+         hiling ng user na sila na mismo ang mag-aadjust ng
+         posisyon/laki/opacity ng mga on-screen control (D-pad/hand
+         button/tools/minimap), walang kailangang i-edit sa code.
+         Kailangang MAUNA ang mobile-controls.js (isMobileTouchDevice)
+         at settings-menu.js (openSettingsPanel/showSettingsToast). -->
+    <script src="./js/controller-layout.js?v=1800000000031"></script>
   </body>
 </html>

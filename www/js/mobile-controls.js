@@ -73,29 +73,34 @@ if (isMobileTouchDevice) {
 // =========================
 
 (function setupMobileDpad() {
-  // "col,row" -> WASD key, at ang button element mismo - simpleng
+  // "id" -> mga WASD key na itatakda (isa para sa 4 cardinal, DALAWA
+  // para sa 4 diagonal - hal. "up-left" = W+A nang sabay) - simpleng
   // pointerdown/up lang, kaparehong-pareho ng dating Run button.
   const DPAD_BUTTONS = [
-    { id: "mobile-dpad-up", key: "w" },
-    { id: "mobile-dpad-down", key: "s" },
-    { id: "mobile-dpad-left", key: "a" },
-    { id: "mobile-dpad-right", key: "d" },
+    { id: "mobile-dpad-up", keys: ["w"] },
+    { id: "mobile-dpad-down", keys: ["s"] },
+    { id: "mobile-dpad-left", keys: ["a"] },
+    { id: "mobile-dpad-right", keys: ["d"] },
+    { id: "mobile-dpad-up-left", keys: ["w", "a"] },
+    { id: "mobile-dpad-up-right", keys: ["w", "d"] },
+    { id: "mobile-dpad-down-left", keys: ["s", "a"] },
+    { id: "mobile-dpad-down-right", keys: ["s", "d"] },
   ];
 
-  for (const { id, key } of DPAD_BUTTONS) {
+  for (const { id, keys: dpadKeys } of DPAD_BUTTONS) {
     const btn = document.getElementById(id);
 
     if (!btn) continue;
 
     const press = (event) => {
       event.preventDefault();
-      keys[key] = true;
+      for (const key of dpadKeys) keys[key] = true;
       btn.classList.add("active");
     };
 
     const release = (event) => {
       event.preventDefault();
-      keys[key] = false;
+      for (const key of dpadKeys) keys[key] = false;
       btn.classList.remove("active");
     };
 
@@ -109,7 +114,9 @@ if (isMobileTouchDevice) {
   // app) - i-reset lahat, para hindi maiwang "nakadikit" sa isang
   // direksyon magpakailanman.
   window.addEventListener("blur", () => {
-    for (const { key } of DPAD_BUTTONS) keys[key] = false;
+    for (const { keys: dpadKeys } of DPAD_BUTTONS) {
+      for (const key of dpadKeys) keys[key] = false;
+    }
 
     for (const { id } of DPAD_BUTTONS) {
       document.getElementById(id)?.classList.remove("active");
@@ -136,6 +143,19 @@ if (isMobileTouchDevice) {
 
   if (toolsBtn) {
     toolsBtn.addEventListener("pointerdown", (event) => {
+      // AYOS (hiling ng user - "Controller > Edit Layout" na feature,
+      // controller-layout.js): habang aktibong "edit mode" (i-drag ang
+      // mga control papunta sa gustong posisyon), huwag munang buksan
+      // ang tool radial - ang drag listener na ng controller-layout.js
+      // (nasa PAREHONG element na ito) ang dapat bumahala sa
+      // pointerdown na ito.
+      if (
+        typeof controllerEditModeActive !== "undefined" &&
+        controllerEditModeActive
+      ) {
+        return;
+      }
+
       event.preventDefault();
 
       // MAHALAGA: i-stop ang pagbubulusok (bubble) ng event papunta sa
@@ -344,6 +364,18 @@ if (isMobileTouchDevice) {
   }
 
   btn.addEventListener("pointerdown", (event) => {
+    // AYOS (hiling ng user - "Controller > Edit Layout" na feature,
+    // controller-layout.js): habang aktibong "edit mode", huwag
+    // munang gawin ang normal na TAP/HAWAK na aksyon - ang drag
+    // listener na ng controller-layout.js (nasa PAREHONG element na
+    // ito) ang dapat bumahala sa pointerdown na ito.
+    if (
+      typeof controllerEditModeActive !== "undefined" &&
+      controllerEditModeActive
+    ) {
+      return;
+    }
+
     event.preventDefault();
     event.stopPropagation();
 
@@ -360,11 +392,21 @@ if (isMobileTouchDevice) {
   });
 
   function handleRelease(event) {
+    // AYOS (hiling ng user - "Controller > Edit Layout"): kung
+    // AKTIBONG edit mode NGAYON, huwag munang mag-trigger ng
+    // stale/lumang aksyon (baka hindi kagagawa lang ng pointerdown
+    // guard sa itaas, kaya lumang halaga pa rin ang longPressFired).
+    if (
+      typeof controllerEditModeActive !== "undefined" &&
+      controllerEditModeActive
+    ) {
+      return;
+    }
+
     event.preventDefault();
 
     btn.classList.remove("active");
     clearPressTimer();
-
 
     // Kung TALAGANG nag-open na ng tool radial (long-press), huwag na
     // ring i-trigger ang "tap" na aksyon sa release - dalawa palang

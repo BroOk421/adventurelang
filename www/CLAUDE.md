@@ -3550,3 +3550,69 @@ kailangang i-adjust ang mga ito.
     `setSettingsMenuOpen()` direkta.
 - **Cache-bust:** binump ang `?v=` ng `style.css` (1800000000029) at
   `mobile-controls.js` (1800000000030).
+
+### Entry #76 — D-pad: 8-direction + mas malaking gap, "X" close sa bag/crafter/stove, tinanggal na Settings button pero SOBRANG LIIT (10px), at BAGONG "Controller > Edit Layout" na feature (user na mismo nag-aadjust ng posisyon/laki/opacity)
+- **Files:** `index.html`, `style.css`, `js/mobile-controls.js`,
+  `js/hotbar.js`, `js/controller-layout.js` (BAGONG file)
+- **(a) "medyo magkakalapit medyo layo mo... lagyan mo na lang din ng top-left top-right left bottom and right bottom":**
+  - Dinagdagan ang D-pad ng 4 diagonal na button (↖↗↙↘) - 8 button na
+    ngayon, nakaayos sa 3x3 CSS GRID (dating hugis-plus/cross via
+    absolute positioning) na may 10px na gap (dating halos dikit-
+    dikit) - mas malaki na rin ang container (166px, dating 116px).
+  - **BUG na nahanap/naayos:** ang `body.touch-controls-active
+    #mobile-dpad { display: block; }` (class+ID selector) ay MAS
+    MATAAS ang specificity kaysa sa plain `#mobile-dpad { display:
+    grid; }` (ID lang) - kaya TALAGANG nananalo ito sa cascade KAHIT
+    NAUNA pa ito sa file, nagiging normal block stacking na lang
+    (walang grid) ang 8 button - VERIFIED via Playwright bago at
+    pagkatapos ng ayos (screenshot: nakapatong-patong pababa bago,
+    tamang 3x3 grid pagkatapos).
+  - `js/mobile-controls.js` - ang 4 diagonal button ay nagtatakda ng
+    DALAWANG WASD key nang sabay (hal. "up-left" = W+A).
+- **(b) "yung sa bag, crafter, stove lagyan mo ng 'x' sa top right ng section nila":**
+  - `#bag-panel` - dating WALANG close button (hilahin lang bago) -
+    bagong `#bag-panel-close`, top-right ng buong card, tumatawag sa
+    `toggleBagPanel()`.
+  - `#crafter-dock-close` - dating nasa RIGHT-CENTER (vertically
+    centered sa buong card) - inilipat sa TALAGANG top-right corner.
+  - `#stove-panel-close` - VERIFIED na nasa top-right na pala talaga
+    (walang ginalaw).
+- **(c) "balik mo pala yung sa settings button sa top right pero sobrang liit lang parang 10px 10px lang":**
+  - `body.touch-controls-active #settings-menu-button` - dating
+    `display: none` (Entry #75) - ngayon VISIBLE ulit pero `10px x
+    10px` lang (halos parang tuldok), `font-size: 0` (natanggal ang
+    "☰" character, hindi na kasya sa sobrang liit na kahon).
+- **(d) BAGONG "Controller > Edit Layout" na feature:**
+  - Settings panel - bagong "🎮 Controller" button (touch device lang)
+    - binubuksan ang bagong `#controller-layout-panel`.
+  - `js/controller-layout.js` (bagong file) - pinapayagan ng USER MISMO
+    (hindi na kailangang mag-edit ng code):
+    - **I-drag** ang D-pad/hand button/Tools/minimap papunta sa
+      gustong posisyon ("✏️ I-edit ang Posisyon" toggle - gold dashed
+      outline sa mga puwedeng i-drag habang aktibo).
+    - **Scale slider** (0.7x-1.4x) at **Opacity slider** (0.3-1.0) -
+      global, inilalapat sa lahat ng 4 na control.
+    - **Reset** - ibinabalik lahat sa default.
+    - Naka-save sa localStorage (`tralala.controllerLayout.v1`) -
+      nananatili kahit mag-reload.
+  - Teknikal: isang ADDITIONAL na `transform: translate(dx,dy)
+    scale(s)` ang inilalapat SA IBABAW ng orihinal na "base" na fixed
+    na posisyon (hindi na kailangang galawin ang env(safe-area-*) na
+    formula) - `dx/dy` lang ang idinaragdag na offset.
+  - **Edge case na naayos:** ang hand button/tools button ay PAREHONG
+    drag-target AT may sariling normal na tap/long-press na logic sa
+    PAREHONG element - dinagdagan ng guard (`if
+    (controllerEditModeActive) return;`) ang mga listener na iyon sa
+    mobile-controls.js (pointerdown AT handleRelease) para hindi
+    magkasabay/mag-conflict ang "gamitin ang tool" vs "i-drag ang
+    button" habang naka-edit mode. Ang D-pad naman (container vs
+    children) ay ginamitan ng capture-phase na drag listener (hindi na
+    kailangan ng parehong guard, awtomatiko nang na-i-intercept bago pa
+    maabot ng mga anak na button).
+  - VERIFIED via Playwright (buksan ang panel via 10px settings button
+    → Settings → Controller, i-adjust ang scale slider nang live, i-
+    activate ang edit mode, i-drag ang hand button, kumpirmadong na-
+    save sa localStorage at TALAGANG gumalaw ang element sa screen).
+- **Cache-bust:** binump ang `?v=` ng `style.css` (1800000000035),
+  `mobile-controls.js` (1800000000033), `hotbar.js` (1800000000034),
+  bagong `controller-layout.js` (1800000000031).

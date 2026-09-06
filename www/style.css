@@ -291,6 +291,7 @@ button.hotbar-slot {
 }
 
 #bag-panel-header {
+  position: relative;
   flex-shrink: 0;
 
   height: 14px;
@@ -308,6 +309,40 @@ button.hotbar-slot {
 
 #bag-panel-header:active {
   cursor: grabbing;
+}
+
+/* AYOS (hiling ng user): "lagyan mo ng 'x' sa top right ng section
+   nila" - EKSAKTONG top-right ng buong #bag-panel card (hindi lang ng
+   manipis na 14px na header strip - kaya "position: absolute" laban
+   sa #bag-panel-header sa itaas, na "position: relative" na ngayon). */
+#bag-panel-close {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 1;
+
+  width: 16px;
+  height: 16px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 11px;
+  line-height: 1;
+
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.75);
+
+  cursor: pointer;
+  touch-action: auto;
+}
+
+#bag-panel-close:hover {
+  background: rgba(255, 90, 90, 0.35);
+  color: white;
 }
 
 /* Katawan ng panel - equipment sa kaliwa, bag grid sa kanan. */
@@ -480,27 +515,25 @@ button.hotbar-slot {
   color: rgba(255, 210, 90, 0.95);
 }
 
-/* Close ("✕") - naka-circle, naka-overlap mismo sa KANANG GILID/BORDER
-   ng card (hindi na kasama sa normal flex flow ng header, tingnan ang
-   "position: absolute" dito) - "top: 50%" + "transform: translate(50%,
-   -50%)" ay laging naka-CENTER VERTICALLY sa BUONG TAAS ng #crafter-dock
-   mismo (ang RELATIVE na ninuno nito - WALANG "position: relative" ang
-   #crafter-dock-header sa itaas, sadyang tumatagos pataas ang
-   positioning context papunta dito), kaya nasa "right-center" ng buong
-   card ito, hindi lang ng header. Gold ang border (tulad ng ibang
-   bukas na accent sa buong panel), dark ang background para "itago"/
-   i-blend ang linya sa likod nito. z-index para laging nasa ibabaw ng
-   gilid/laman ng card. I-click para isara ang #crafter-dock - tingnan
-   ang #crafter-dock-close listener sa craft.js. */
+/* Close ("✕") - AYOS (hiling ng user: "lagyan mo ng 'x' sa top right
+   ng section nila") - dating nasa "right-center" (vertically centered
+   sa buong TAAS ng card, tingnan ang lumang komento) - inilipat na
+   ngayon sa mismong TOP-RIGHT corner ng #crafter-dock card (WALANG
+   "position: relative" pa rin ang #crafter-dock-header, kaya
+   tumatagos pataas ang positioning context papunta dito, kaparehong-
+   pareho ng dati). Gold ang border (tulad ng ibang bukas na accent sa
+   buong panel), dark ang background para "itago"/i-blend ang linya sa
+   likod nito. z-index para laging nasa ibabaw ng gilid/laman ng card.
+   I-click para isara ang #crafter-dock - tingnan ang
+   #crafter-dock-close listener sa craft.js. */
 #crafter-dock-close {
   position: absolute;
-  top: 50%;
-  right: 0;
-  transform: translate(80%, -50%);
+  top: 4px;
+  right: 4px;
   z-index: 1;
 
   width: 20px;
-  height: 50px;
+  height: 20px;
 
   display: flex;
   align-items: center;
@@ -511,7 +544,7 @@ button.hotbar-slot {
 
   background: rgba(20, 22, 28, 0.95);
   border: 1px solid rgba(212, 175, 55, 0.7);
-  border-radius: 10%;
+  border-radius: 50%;
   color: rgba(255, 255, 255, 0.75);
 
   cursor: pointer;
@@ -2412,17 +2445,31 @@ button.hotbar-slot {
   border-color: rgba(255, 255, 255, 0.3);
 }
 
-/* AYOS (hiling ng user): "alisin mo na dun sa right top yung settings
-   bali para ma access naman ang settings is mag back na lang ako dun
-   sa button ng phone ko para mag appear yung settings" - itinatago
-   ang burger BUTTON mismo sa touch device (mas malinis/maluwag ang
-   itaas-kanan ng screen) - PERO gumagana pa rin ang dropdown
-   (#settings-menu-dropdown) mismo, dahil ang phone BACK button
-   (setupBackButtonSettings, mobile-controls.js) ay direktang tumatawag
-   sa setSettingsMenuOpen() - HINDI umaasa sa pag-click mismo ng button
-   na ito. */
+/* AYOS (hiling ng user, round 1): "alisin mo na dun sa right top yung
+   settings bali para ma access naman ang settings is mag back na lang
+   ako dun sa button ng phone ko para mag appear yung settings" -
+   itinago noon ang buong burger BUTTON sa touch device - gumagana pa
+   rin ang dropdown (#settings-menu-dropdown) mismo dahil ang phone
+   BACK button (setupBackButtonSettings, mobile-controls.js) ay
+   direktang tumatawag sa setSettingsMenuOpen() - HINDI umaasa sa
+   pag-click mismo ng button na ito.
+   AYOS (round 2, hiling ng user): "balik mo pala yung sa settings
+   button sa top right pero sobrang liit lang parang 10px 10px lang" -
+   IBINALIK na ang button (hindi na "display: none"), PERO PINALIIT sa
+   sobra (10x10px, halos parang tuldok/dot na lang) - tinanggal din ang
+   "☰" character sa loob (magiging malabo/hindi kasya sa sobrang liit
+   na kahon) sa pamamagitan ng "font-size: 0" - basta may TAMANG
+   tappable na lugar pa rin (10x10px), kahit walang biswal na
+   sinasabing "ito ang settings button" (sadya, dahil literal na
+   "sobrang liit lang" ang hiling). */
 body.touch-controls-active #settings-menu-button {
-  display: none;
+  width: 10px;
+  height: 10px;
+
+  padding: 0;
+  border-radius: 3px;
+
+  font-size: 0;
 }
 
 #settings-menu-dropdown {
@@ -2589,6 +2636,161 @@ body.touch-controls-active #settings-menu-button {
 #settings-reset-save:hover {
   background: rgba(255, 90, 90, 0.3);
   border-color: rgba(255, 90, 90, 0.5);
+}
+
+/* AYOS (hiling ng user): "settings-controller-btn" - lumalabas LANG
+   sa touch device (walang silbi sa desktop, walang on-screen
+   controller doon para i-edit). */
+#settings-controller-btn {
+  display: none;
+}
+
+body.touch-controls-active #settings-controller-btn {
+  display: block;
+}
+
+/* =========================
+   CONTROLLER LAYOUT PANEL (hiling ng user: "gawa ka na lang o add ka
+   feature dun sa settings tapos crontroller tapos edit layout ganyan
+   para ako na nag aadjust ng mga need ayusin mapa scale, opacity ng
+   buttons ganyan") - pinapayagan ng user na i-drag/i-scale/i-opacity
+   MISMO ang D-pad/hand button/Tools/minimap, nang walang kailangang
+   i-edit ang code. Tingnan ang controller-layout.js.
+   ========================= */
+
+#controller-layout-panel {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+
+  width: 260px;
+
+  display: flex;
+  flex-direction: column;
+
+  background: rgba(20, 22, 28, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+
+  font-family: system-ui, sans-serif;
+  color: white;
+  user-select: none;
+  /* Mas mataas pa sa #main-menu-overlay (1000) - puwede itong buksan
+     mula sa main menu (settings), kaparehong dahilan ng #settings-panel. */
+  z-index: 1010;
+}
+
+#controller-layout-panel.hidden {
+  display: none;
+}
+
+#controller-layout-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+#controller-layout-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+#controller-layout-close {
+  width: 20px;
+  height: 20px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+
+  cursor: pointer;
+}
+
+#controller-layout-close:hover {
+  background: rgba(255, 90, 90, 0.35);
+  color: white;
+}
+
+#controller-layout-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  padding: 12px;
+}
+
+#controller-layout-body button {
+  padding: 9px 10px;
+
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 7px;
+
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  text-align: left;
+
+  cursor: pointer;
+}
+
+#controller-layout-body button:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+#controller-layout-edit-toggle.active {
+  background: rgba(212, 175, 55, 0.3);
+  border-color: rgba(212, 175, 55, 0.75);
+}
+
+#controller-layout-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.controller-layout-slider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.controller-layout-slider-row input[type="range"] {
+  width: 100%;
+}
+
+#controller-layout-reset:hover {
+  background: rgba(255, 90, 90, 0.3);
+  border-color: rgba(255, 90, 90, 0.5);
+}
+
+/* Habang naka-EDIT MODE (i-drag ang mga control) - gold na dashed
+   outline sa bawat na-customize na element, para malinaw kung ANO ang
+   puwedeng hilahin ngayon. */
+.controller-edit-target {
+  outline: 2px dashed rgba(212, 175, 55, 0.85) !important;
+  outline-offset: 3px;
 }
 
 /* BAGO (hiling ng user: "pwede ring export at import ng file para
@@ -2912,7 +3114,15 @@ body.touch-controls-active #settings-menu-button {
 }
 
 body.touch-controls-active #mobile-dpad {
-  display: block;
+  /* AYOS (bug fix): dating "display: block" dito - MAS MATAAS ang
+     specificity nito (class + ID) kaysa sa plain "#mobile-dpad {
+     display: grid; ... }" sa ibaba (ID lang), kaya TALAGANG NANANALO
+     ito sa cascade KAHIT NAUNA pa ito sa file - napapawalang-bisa
+     nito ang buong CSS GRID layout (nagiging normal block flow na
+     lang ang mga anak, kaya NAKA-ISANG COLUMN/nagkakapatong-patong
+     PABABA ang 8 D-pad button sa halip na maayos na 3x3 grid). "grid"
+     na ang tamang halaga dito, hindi "block". */
+  display: grid;
 }
 
 body.touch-controls-active #mobile-btn-tools {
@@ -2924,30 +3134,39 @@ body.touch-controls-active #mobile-btn-action {
 }
 
 /* AYOS (hiling ng user): "yung analog pala palitan mo na pad na up
-   down left and right arrows" - 4 hiwalay na arrow button, nakaayos
-   sa hugis-plus/cross sa loob ng isang 116x116 na container (kasing-
-   laki-laki ng dating joystick base). Bawat button ay simpleng
-   nagtatakda/nag-aalis ng WASD key (mobile-controls.js) sa
-   pointerdown/up - PAREHONG mekanismo ng dating Run button. */
+   down left and right arrows" - 8 button ngayon (4 cardinal + 4
+   diagonal, hiling ng user round 2: "gusto ko lagyan mo na lang din
+   ng top-left top-right left bottom and right bottom"), nakaayos sa
+   isang 3x3 CSS GRID (gitna/center cell WALANG laman) sa loob ng
+   container - AYOS (hiling ng user: "medyo magkakalapit medyo layo mo
+   sa isat isa") - mas malaking "gap" (10px, dating halos dikit-dikit)
+   sa pagitan ng bawat button, kaya mas malaki na rin ang buong
+   container (166px, dating 116px lang). Bawat button ay simpleng
+   nagtatakda/nag-aalis ng isa O DALAWANG WASD key nang sabay
+   (mobile-controls.js, ang 4 diagonal ay dalawang key - hal. "up-left"
+   = W+A) sa pointerdown/up - PAREHONG mekanismo ng dating Run button. */
 #mobile-dpad {
   position: fixed;
   left: max(18px, env(safe-area-inset-left));
   bottom: max(66px, calc(66px + env(safe-area-inset-bottom)));
   z-index: 50;
 
-  width: 116px;
-  height: 116px;
+  display: grid;
+  grid-template-columns: repeat(3, 46px);
+  grid-template-rows: repeat(3, 46px);
+  gap: 10px;
+
+  width: 166px;
+  height: 166px;
 }
 
 .mobile-dpad-btn {
-  position: absolute;
-
   display: flex;
   align-items: center;
   justify-content: center;
 
-  width: 40px;
-  height: 40px;
+  width: 46px;
+  height: 46px;
 
   background: rgba(20, 22, 28, 0.55);
   border: 2px solid rgba(255, 255, 255, 0.16);
@@ -2963,30 +3182,58 @@ body.touch-controls-active #mobile-btn-action {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Diagonal na 4 button - bahagyang mas maliit ang font/mas mababa ang
+   opacity ng kulay (subtle lang), para hindi sila mag-compete sa
+   pansin ng 4 pangunahing cardinal (up/down/left/right) na button. */
+.mobile-dpad-diag {
+  font-size: 15px;
+  color: rgba(212, 175, 55, 0.65);
+}
+
 .mobile-dpad-btn:active,
 .mobile-dpad-btn.active {
   background: rgba(212, 175, 55, 0.3);
   border-color: rgba(212, 175, 55, 0.85);
 }
 
-#mobile-dpad-up {
-  top: 0;
-  left: 38px;
+#mobile-dpad-up-left {
+  grid-column: 1;
+  grid-row: 1;
 }
 
-#mobile-dpad-down {
-  bottom: 0;
-  left: 38px;
+#mobile-dpad-up {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+#mobile-dpad-up-right {
+  grid-column: 3;
+  grid-row: 1;
 }
 
 #mobile-dpad-left {
-  left: 0;
-  top: 38px;
+  grid-column: 1;
+  grid-row: 2;
 }
 
 #mobile-dpad-right {
-  right: 0;
-  top: 38px;
+  grid-column: 3;
+  grid-row: 2;
+}
+
+#mobile-dpad-down-left {
+  grid-column: 1;
+  grid-row: 3;
+}
+
+#mobile-dpad-down {
+  grid-column: 2;
+  grid-row: 3;
+}
+
+#mobile-dpad-down-right {
+  grid-column: 3;
+  grid-row: 3;
 }
 
 /* AYOS (hiling ng user): "malaking button kasing laki ng analog...

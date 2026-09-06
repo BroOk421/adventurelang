@@ -4109,6 +4109,16 @@ function setupDraggablePanel(panelId, headerId) {
 }
 
 setupDraggablePanel("bag-panel", "bag-panel-header");
+
+// AYOS (hiling ng user): "yung sa bag, crafter, stove lagyan mo ng
+// 'x' sa top right ng section nila para na eexit" - bagong close
+// button (dating wala, "hilahin lang sa header" bago nito) - parehong
+// toggleBagPanel() na tinatawag ng "B" key/bag hotbar slot (kaya
+// TALAGANG sarado, kasama na ang crafting panel na "nakadikit" dito -
+// tingnan ang paliwanag sa loob ng toggleBagPanel).
+document.getElementById("bag-panel-close")?.addEventListener("click", () => {
+  if (bagPanelOpen) toggleBagPanel();
+});
 setupDraggablePanel("stove-panel", "stove-panel-header");
 setupDraggablePanel("oldman-shop-panel", "oldman-shop-panel-header");
 
