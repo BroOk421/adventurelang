@@ -1579,11 +1579,26 @@ function drawMapBackground() {
   // drawImage call lang) - GARANTISADONG eksaktong-eksakto ang
   // makikita sa laro laban sa TALAGANG larawan, kahit anong baguhin pa
   // sa Tiled/tileset sa hinaharap.
-  if (currentWorld === "grassmap") {
+  // AYOS (hiling ng user): "yung sa grassmap2 is kita yung guhit ng
+  // tiles pangit tignan dapat gaya sa grassmap na di kita" - dating
+  // "grassmap" LANG (hindi "grassmap2") ang gumagamit ng "direct pixel
+  // crop" na trick na ito - kaya ang grassmap2 ay bumabagsak pa rin sa
+  // GENERIC na tile-by-tile na reconstruction sa ibaba (drawTile per
+  // tile, gamit ang gid/tileset), na may kilalang "seam"/guhit sa
+  // pagitan ng magkatabing tile (karaniwang canvas rendering artifact
+  // kapag paulit-ulit na dinadraw ang magkahiwalay na maliliit na
+  // crop mula sa iisang spritesheet). Sinunod na rin ngayon ng
+  // "grassmap2" ang PAREHONG "direct crop mula sa isang flat na PNG"
+  // na paraan ng "grassmap" (may sarili na ring grassmap2.png/
+  // snowgrassmap2.png na eksaktong tumutugma - VERIFIED, ginagamit na
+  // rin ito ng minimap.js) - GARANTISADONG walang seam dahil IISANG
+  // drawImage call lang ang buong background, hindi na paulit-ulit na
+  // tile-by-tile.
+  if (currentWorld === "grassmap" || currentWorld === "grassmap2") {
     const mapWidthPx = mapData.width * mapData.tilewidth;
     const mapHeightPx = mapData.height * mapData.tileheight;
 
-    drawGrassmapDirectRegion(0, 0, mapWidthPx, mapHeightPx);
+    drawGrassmapDirectRegion(currentWorld, 0, 0, mapWidthPx, mapHeightPx);
     return;
   }
 
@@ -1763,38 +1778,67 @@ function drawDrawableWithOcclusion(item, playerVisualBox, playerSortY) {
 // gumamit ng gid/tileset resolution kahit kailan para dito. VERIFIED
 // (parehong Python simulation) - eksaktong-eksaktong tumutugma ito sa
 // reference na larawan.
-const grassmapDirectImage = new Image();
-grassmapDirectImage.src = "./assets/map/grassmap.png";
+// AYOS (hiling ng user: "yung sa grassmap2 is kita yung guhit ng
+// tiles pangit tignan dapat gaya sa grassmap na di kita") - dating
+// IISANG hardcoded na Image lang ("grassmap.png") ang suportado dito -
+// ngayon, per-WORLD na (grassmap AT grassmap2), PAREHONG-PAREHONG
+// naming convention (parehong ginagamit na rin ng minimap.js -
+// MINIMAP_WORLD_BACKGROUND_PATHS - VERIFIED na ito talaga ang tamang
+// larawan kada mundo).
+const GRASSMAP_DIRECT_IMAGE_SOURCES = {
+  grassmap: {
+    normal: "./assets/map/grassmap.png",
+    snow: "./assets/map/snowgrassmap.png",
+  },
+  grassmap2: {
+    normal: "./assets/map/grassmap2.png",
+    snow: "./assets/map/snowgrassmap2.png",
+  },
+};
+
+const grassmapDirectImages = {};
+
+for (const world in GRASSMAP_DIRECT_IMAGE_SOURCES) {
+  const paths = GRASSMAP_DIRECT_IMAGE_SOURCES[world];
+
+  const normalImg = new Image();
+
+  normalImg.src = paths.normal;
+
+  const snowImg = new Image();
+
+  snowImg.src = paths.snow;
+
+  grassmapDirectImages[world] = { normal: normalImg, snow: snowImg };
+}
 
 // AYOS (hiling ng user: "di mo nilapat yung snowgrassmap sa grassmap")
 // - ang totoong dahilan: itong drawGrassmapDirectRegion (ginagamit ng
 // BUONG background NG grassmap, kasama pa ang mga puno/bato overlap
 // instance sa ibaba) ay direktang gumuguhit mula sa IISANG hardcoded
-// na Image (grassmapDirectImage, laging "grassmap.png") - kaya kahit
-// matagumpay namang na-swap ng loadWorld() (map.js) ang .tmj papuntang
-// snowgrassmap.tmj kapag snow weather, WALANG epekto ito sa TALAGANG
-// nakikita sa screen, dahil hindi naman dito ginagamit ang loaded na
-// tileset image - dito lang palagi, sa grassmap.png, kumukuha ng pixel
-// ang function na ito. (Ito rin ang dahilan kung bakit gumana ang
-// snowgrassmap2 - walang katulad na hardcoded na shortcut ang
-// "grassmap2", normal na drawTile()/tileset system pa rin ang gamit
-// doon.) AYOS: dagdag na "snow" na bersyon ng parehong Image - dito na
-// pipiliin (batay mismo sa isSnowWeather(), kaparehong basehan ng
-// snowhouseImage/houseImage sa itaas) kung alin sa dalawang larawan
-// ang gagamitin, sa BAWAT tawag sa drawGrassmapDirectRegion.
-const grassmapDirectSnowImage = new Image();
-grassmapDirectSnowImage.src = "./assets/map/snowgrassmap.png";
+// na Image (dating "grassmapDirectImage", laging "grassmap.png") - kaya
+// kahit matagumpay namang na-swap ng loadWorld() (map.js) ang .tmj
+// papuntang snowgrassmap.tmj kapag snow weather, WALANG epekto ito sa
+// TALAGANG nakikita sa screen, dahil hindi naman dito ginagamit ang
+// loaded na tileset image - dito lang palagi, sa grassmap.png,
+// kumukuha ng pixel ang function na ito. AYOS: pumipili na ngayon ng
+// "snow" na bersyon (batay sa isSnowWeather(), kaparehong basehan ng
+// snowhouseImage/houseImage sa itaas) PARA SA TAMANG mundo (world
+// parameter, tingnan sa ibaba).
+function getGrassmapDirectImage(world) {
+  const entry = grassmapDirectImages[world];
 
-function getGrassmapDirectImage() {
+  if (!entry) return null;
+
   const snowing = typeof isSnowWeather === "function" && isSnowWeather();
 
-  return snowing ? grassmapDirectSnowImage : grassmapDirectImage;
+  return snowing ? entry.snow : entry.normal;
 }
 
-function drawGrassmapDirectRegion(x, y, width, height) {
-  const image = getGrassmapDirectImage();
+function drawGrassmapDirectRegion(world, x, y, width, height) {
+  const image = getGrassmapDirectImage(world);
 
-  if (!image.complete || image.naturalWidth === 0) {
+  if (!image || !image.complete || image.naturalWidth === 0) {
     return;
   }
 
@@ -2086,15 +2130,22 @@ function drawMapObjects() {
           return;
         }
 
-        // GRASSMAP: kaparehong dahilan/paraan ng itaas - ang tileset na
-        // ginagamit ng "trees"/"rocks" na overlap layer dito ay SIRA
-        // (tingnan ang paliwanag sa itaas ng drawGrassmapDirectRegion),
-        // kaya sa halip na `drawTile(tile.gid, ...)` (gid-based, mali
-        // ang crop), direkta na lang kunin ang tamang pixel content sa
-        // PAREHONG (x,y) na posisyon mismo mula sa grassmap.png.
-        if (currentWorld === "grassmap") {
+        // GRASSMAP/GRASSMAP2: kaparehong dahilan/paraan ng itaas - ang
+        // tileset na ginagamit ng "trees"/"rocks" na overlap layer dito
+        // ay SIRA (tingnan ang paliwanag sa itaas ng
+        // drawGrassmapDirectRegion), kaya sa halip na
+        // `drawTile(tile.gid, ...)` (gid-based, mali ang crop), direkta
+        // na lang kunin ang tamang pixel content sa PAREHONG (x,y) na
+        // posisyon mismo mula sa grassmap.png/grassmap2.png.
+        if (currentWorld === "grassmap" || currentWorld === "grassmap2") {
           for (const tile of instance.tiles) {
-            drawGrassmapDirectRegion(tile.x, tile.y, TILE_SIZE, TILE_SIZE);
+            drawGrassmapDirectRegion(
+              currentWorld,
+              tile.x,
+              tile.y,
+              TILE_SIZE,
+              TILE_SIZE,
+            );
           }
           return;
         }

@@ -40,10 +40,17 @@ const CONTROLLER_LAYOUT_SAVE_KEY = "tralala.controllerLayout.v2";
 // dapat mag appear") - dinagdagan ng "hotbar" (dating 4 lang: D-pad/
 // hand button/Tools/minimap).
 const CONTROLLER_LAYOUT_TARGETS = [
-  { id: "mobile-dpad", label: "D-pad" },
+  { id: "mobile-joystick", label: "Joystick" },
   { id: "mobile-btn-action", label: "Hand button" },
   { id: "mobile-btn-tools", label: "Tools button" },
   { id: "minimap", label: "Minimap" },
+  // AYOS (hiling ng user round 4): "isama mo sa pag edit ng layout
+  // yung health, mana food section tapos weather tapos yung settings
+  // tapos yung minimap" - dinagdagan ng 3 pang HUD element (dating 4
+  // lang na "control button": joystick/hand/tools/minimap).
+  { id: "player-hud", label: "Health/Stamina/Food" },
+  { id: "calendar-panel", label: "Weather/Petsa" },
+  { id: "settings-menu-button", label: "Settings button" },
   // AYOS: ang #hotbar ay may sarili nang "translateX(-50%)" sa CSS
   // (kailangan para sa pag-center nito, dahil "left: 50%" ang batayan
   // ng posisyon nito) - kung basta "translate(dx,dy) scale(s)" LANG

@@ -3724,3 +3724,63 @@ kailangang i-adjust ang mga ito.
 - **Cache-bust:** binump ang `?v=` ng `style.css` (1800000000040),
   `camera.js` (1800000000041), `mobile-controls.js` (1800000000042),
   `controller-layout.js` (1800000000043).
+
+### Entry #78 — Round 4: ibinalik ang analog joystick, naayos ang seams ng grassmap2, dagdag na HUD sa Edit Layout, random na wood/stone clusters, at bagong tool-specific na damage sa pagpatay ng baboy (tinanggal ang punch)
+- **Files:** `index.html`, `style.css`, `js/mobile-controls.js`,
+  `js/camera.js`, `js/controller-layout.js`, `js/map.js`,
+  `js/resources.js`, `js/pig.js`
+- **(a) "balik mo na lang pala ulit sa analog yung dpad mas ok analog":**
+  - Ibinalik ang buong virtual joystick (`#mobile-joystick`, analog
+    drag mula sa gitna) - TINANGGAL ang D-pad/8-direction na
+    eksperimento (mga naunang round). VERIFIED via Playwright - drag
+    papunta sa kanan nagtatakda ng `keys.d`.
+- **(b) "yung sa grassmap2 is kita yung guhit ng tiles pangit":**
+  - **Sanhi:** `grassmap` LANG (hindi `grassmap2`) ang may special na
+    "direct pixel crop mula sa isang flat na PNG" na paraan
+    (`drawGrassmapDirectRegion`) - ang `grassmap2` ay bumabagsak pa rin
+    sa generic na tile-by-tile na reconstruction (may seams).
+  - **Ayos:** ginawang PER-WORLD na ang `drawGrassmapDirectRegion`/
+    `getGrassmapDirectImage` (dating "grassmap.png" lang, hardcoded) -
+    sinusunod na rin ngayon ng "grassmap2" ang parehong paraan, gamit
+    ang `grassmap2.png`/`snowgrassmap2.png` (VERIFIED na tama/existing
+    na assets, ginagamit na rin ng minimap.js). VERIFIED via Playwright
+    screenshot - walang visible seams na ngayon sa grassmap2.
+- **(c) "isama mo sa pag edit ng layout yung health, mana food section tapos weather tapos yung settings":**
+  - Dinagdag sa `CONTROLLER_LAYOUT_TARGETS` (controller-layout.js):
+    `player-hud` (Health/Stamina/Food), `calendar-panel` (Weather/
+    Petsa), `settings-menu-button`. VERIFIED - lahat ng 3 ay
+    na-se-select nang tama sa Playwright test.
+- **(d) "magkalat ka ng mga woods at stones... tag 5 pcs... 50% lang":**
+  - Bagong "bonus cluster" na random spawning sa loob ng
+    `generateResourceNodes()` (resources.js) - TANGING sa "grassmap"/
+    "grassmap2" - 12 candidate na puwesto, 50% tsansa bawat isa na
+    TALAGANG lumabas, kung lumabas ay 1-5 piraso (puno O bato, random)
+    ang nakakalat sa maliit na bilog. SEEDED (deterministic, hindi
+    nagbabago sa reload). Gumagamit ng PAREHONG `isValidTile`/
+    `occupied`/`nextRandom` na infrastructure ng existing na
+    `placeNodes` - walang duplicate na validation logic.
+- **(e) "pag katay ng baboy ... axe -5 ... pickaxe -7 ... rake -3 cutter -2 ... tanggalin ang punch":**
+  - `pig.js` - dating gumagana ang basic click KAHIT WALANG naka-equip
+    ("punch"/kamao), IISANG flat na damage (`PIG_HIT_DAMAGE = 150`)
+    laban sa 550 max HP.
+  - Ngayon: KAILANGAN na munang may naka-equip na isa sa 4 (axe/
+    pickaxe/rake/cutter) bago tumama ang click - WALANG mangyayari kung
+    wala ("punch" removed). Bawat tool may SARILING damage
+    (`PIG_DAMAGE_BY_TOOL`: axe 5, pickaxe 7, rake 3, cutter 2).
+  - **Assumption na ginawa** (hindi eksplisitong sinabi ng user):
+    binaba ang `PIG_MAX_HP` mula 550 papuntang **20** at `PIG_DEFENSE`
+    mula 50 papuntang **0** - kailangan dahil ang mga bagong damage
+    value (2-7) ay masyadong maliit laban sa lumang 550 HP/50 defense
+    (hindi kailanman mamamatay ang pig, o aabot ng daan-daang hit) -
+    20 HP ay nagbibigay ng makatwirang bilang ng hit bawat tool (axe
+    ~4, pickaxe ~3, rake ~7, cutter ~10). Ligtas na i-adjust pa ang
+    `PIG_MAX_HP` kung gusto ng ibang balanse.
+  - VERIFIED via Playwright: (1) direktang unit test ng
+    `registerPigHit()` - eksaktong -5 (axe) at -7 (pickaxe); (2) buong
+    end-to-end click test sa totoong pig - PUNCH (walang tool) = walang
+    epekto (20→20), AXE click = 20→15, PICKAXE click = 15→8 - lahat
+    tama.
+- **Cache-bust:** binump ang `?v=` ng `style.css` (1800000000050),
+  `map.js` (1800000000051), `resources.js` (1800000000052), `pig.js`
+  (1800000000053), `mobile-controls.js` (1800000000054),
+  `controller-layout.js` (1800000000055).

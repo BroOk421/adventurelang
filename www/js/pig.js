@@ -110,27 +110,48 @@ const PIG_IDLE_MAX_MS = 8000;
 //
 // Bagong SARILING "stats" ang pig (dating "hits"-based lang, apat na
 // click kahit ano man ang tama, walang tunay na HP/defense) - ngayon
-// may TALAGANG max HP at defense stat, kaparehong konsepto ng RPG:
-// ang aktwal na nababawas sa HP kada hit ay ang base damage MINUS ang
-// defense (hindi bababa sa 1, para hindi "immune" kahit gaano
-// kalaki ang defense laban sa damage).
-const PIG_MAX_HP = 550;
-const PIG_DEFENSE = 50;
+// may TALAGANG max HP, kaparehong konsepto ng RPG.
+//
+// AYOS (hiling ng user): "yung pag katay ng baboy is pwedeng gawin mong
+// axe -5 health sa baboy or pickaxe -7 health tapos rake -3 cutter -2
+// yung sa punch function tanggalin mo na dun yun na lang gamit para
+// pumatay ng baboy rake, pickaxe, axe at cutter" - TINANGGAL na ang
+// dating "PIG_HIT_DAMAGE" na iisang flat na damage LANG (gumagana
+// dati kahit anong naka-equip o WALA MAN - "punch"/kamao) - apat na
+// magkakaibang tool na LANG ang puwede (axe/pickaxe/rake/cutter),
+// bawat isa may SARILING eksaktong damage (PIG_DAMAGE_BY_TOOL sa
+// ibaba) - WALANG defense/reduction na factor na ginagamit pa
+// (PIG_DEFENSE = 0 na ngayon, dahil TALAGANG eksaktong halaga na mismo
+// ang binigay ng user, hindi na dapat bawasan pa).
+//
+// PIG_MAX_HP: hindi eksplisitong sinabi ng user, pero kailangang
+// i-adjust pababa mula sa dating 550 (dahil ang PINAKAMALAKING bagong
+// damage, pickaxe -7, ay masyadong maliit laban dito - aabot ng
+// daan-daang hit bago mamatay ang pig). Pinili ang 20 - sapat na
+// mataas para hindi isang-hit-patay agad ang pickaxe (~3 hits),
+// habang makatwiran pa rin ang bilang ng hit ng ibang tool (axe ~4,
+// rake ~7, cutter ~10) - ligtas namang i-adjust pa balang araw kung
+// gusto ng ibang balanse.
+const PIG_MAX_HP = 20;
+const PIG_DEFENSE = 0;
 
-// "Damage" ng isang basic na hit (click/suntok, kahit anong naka-
-// equip o wala man - tingnan ang mousedown handler sa ibaba) - walang
-// hiwalay pang "weapon damage" system ang buong laro (click-based pa
-// rin ang combat), kaya iisa lang muna itong constant. I-adjust ito
-// (o gawing per-weapon balang araw) kung gustong mabago ang bilis ng
-// "pagpatay" sa pig.
-const PIG_HIT_DAMAGE = 150;
+// "Damage" base sa TALAGANG naka-equip na tool - kahit alin sa 4 puwede
+// (axe/pickaxe/rake/cutter), WALANG "punch"/kamao na opsyon (tingnan
+// ang mousedown handler sa ibaba - kailangan MUNANG may naka-equip na
+// isa sa 4 na ito, bago pa man tumama ang click sa pig).
+const PIG_DAMAGE_BY_TOOL = {
+  axe: 5,
+  pickaxe: 7,
+  rake: 3,
+  cutter: 2,
+};
 
 // Para sa BACKWARD-COMPATIBLE na health bar ratio lang (visual) -
-// hindi na ito ang batayan ng "kailan mamamatay" (HP/defense na ang
-// gamit doon), pero ginagamit pa rin ito bilang display kung ilang
-// click (pinaka-mabagal, defense factored in) bago maubos ang 550 HP.
+// hindi na ito ang batayan ng "kailan mamamatay" (per-tool damage na
+// ang gamit doon), pero ginagamit pa rin ito bilang display kung ilang
+// click (ANG PINAKAMABAGAL na tool, cutter, -2) bago maubos ang HP.
 const PIG_REQUIRED_HITS = Math.ceil(
-  PIG_MAX_HP / Math.max(1, PIG_HIT_DAMAGE - PIG_DEFENSE),
+  PIG_MAX_HP / Math.max(1, PIG_DAMAGE_BY_TOOL.cutter - PIG_DEFENSE),
 );
 
 // Pagitan ng bawat "hit" - IISA lang itong cooldown (hindi per-pig),
@@ -507,15 +528,16 @@ function placePigAt(pig, spot) {
 // HIT / PAGPATAY / RESPAWN
 // =========================
 
-function registerPigHit(pig) {
-  // Tunay na HP/defense na ang batayan ngayon (dating "bilang ng
-  // click LANG" - walang defense stat) - ang aktwal na nababawas sa
-  // HP ay ang base hit damage MINUS ang defense ng pig (hindi
-  // bababa sa 1, para hindi "immune" ang pig kahit gaano kalaki ang
-  // defense niya laban sa damage).
-  const damage = Math.max(1, PIG_HIT_DAMAGE - (pig.defense ?? PIG_DEFENSE));
+function registerPigHit(pig, damage) {
+  // AYOS (hiling ng user): "axe -5 health sa baboy or pickaxe -7
+  // health tapos rake -3 cutter -2" - ang caller (mousedown handler
+  // sa ibaba) na ang bahalang pumili ng TAMANG damage base sa
+  // TALAGANG naka-equip na tool (PIG_DAMAGE_BY_TOOL) - dito, basta
+  // gamitin na lang ito nang direkta (walang defense/reduction pa,
+  // PIG_DEFENSE = 0 na - eksaktong halaga na mismo ang ibinigay).
+  const appliedDamage = Math.max(1, damage - (pig.defense ?? PIG_DEFENSE));
 
-  pig.hp = Math.max(0, (pig.hp ?? pig.maxHp ?? PIG_MAX_HP) - damage);
+  pig.hp = Math.max(0, (pig.hp ?? pig.maxHp ?? PIG_MAX_HP) - appliedDamage);
   pig.hits = (pig.hits || 0) + 1; // display/flash lang, hindi na batayan ng kamatayan
   pig.hitFlashUntil = performance.now() + 180; // saglit na "flash" reaction
 
@@ -709,8 +731,17 @@ function getPigDrawables() {
 }
 
 // =========================
-// PAG-CLICK (i-hit ang pig - kahit anong naka-equip, o wala man)
+// PAG-CLICK (i-hit ang pig - KAILANGAN ng naka-equip na tool)
 // =========================
+//
+// AYOS (hiling ng user): "yung sa punch function tanggalin mo na dun
+// yun na lang gamit para pumatay ng baboy rake, pickaxe, axe at
+// cutter" - dating GUMAGANA ang basic click KAHIT WALANG naka-equip
+// (bare-hand/"punch") - TINANGGAL na ito, kailangan na MUNANG may
+// naka-equip na isa sa 4 na tool (axe/pickaxe/rake/cutter) bago
+// TALAGANG tumama ang click sa isang pig. Ang eksaktong DAMAGE ay
+// depende rin kung ALIN sa 4 ang naka-equip (PIG_DAMAGE_BY_TOOL,
+// itaas).
 
 canvas.addEventListener("mousedown", (event) => {
   if (event.button !== 0) return;
@@ -725,7 +756,26 @@ canvas.addEventListener("mousedown", (event) => {
 
   if (!pig) return;
 
+  // Alin sa 4 na tool ang naka-equip - kung WALA (dating "punch"),
+  // walang mangyayari sa pig (return agad, walang cooldown/hit).
+  // Pinakamataas na priyoridad ang unang tumugma (kaparehong
+  // pagkakasunod-sunod ng ibang "alin ang naka-equip" na check sa
+  // buong laro - axe/pickaxe/cutter, resources.js).
+  let damage = null;
+
+  if (typeof axeEquipped !== "undefined" && axeEquipped) {
+    damage = PIG_DAMAGE_BY_TOOL.axe;
+  } else if (typeof pickaxeEquipped !== "undefined" && pickaxeEquipped) {
+    damage = PIG_DAMAGE_BY_TOOL.pickaxe;
+  } else if (typeof rakeEquipped !== "undefined" && rakeEquipped) {
+    damage = PIG_DAMAGE_BY_TOOL.rake;
+  } else if (typeof cutterEquipped !== "undefined" && cutterEquipped) {
+    damage = PIG_DAMAGE_BY_TOOL.cutter;
+  }
+
+  if (damage === null) return;
+
   lastPigHitAt = Date.now();
 
-  registerPigHit(pig);
+  registerPigHit(pig, damage);
 });

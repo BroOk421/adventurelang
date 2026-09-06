@@ -1233,13 +1233,110 @@ function generateResourceNodes() {
       }))
     : [];
 
+  // BAGO (hiling ng user): "magkalat ka ng mga woods at stones kahit
+  // tag 5 pcs lang sa random map grassmap at grassmap2 pero yung pag
+  // random niya is minsan lang like 50% lang pero max na yung tag
+  // 5pcs" - HIWALAY na "bonus cluster" na random spawning, LABAS sa
+  // fixedTrees/fixedStones (na eksakto/pare-parehong lugar palagi) -
+  // TANGING sa "grassmap"/"grassmap2" lang ito gumagana. Ilang
+  // "candidate" na puwesto (BONUS_CLUSTER_ATTEMPTS_PER_WORLD) ang
+  // sinusubukan, may 50% (BONUS_CLUSTER_SPAWN_CHANCE) na TSANSA LANG
+  // na TALAGANG lumabas ang isang cluster doon ("minsan lang") - kung
+  // lumabas, 1-5 piraso (BONUS_CLUSTER_MAX_PIECES, random - "max na
+  // yung tag 5pcs") ng PUNO O BATO (random pipiliin kung alin) ang
+  // nakakalat sa isang MALIIT na bilog sa paligid ng puwestong iyon.
+  // SEEDED pa rin ito (parehong "nextRandom"/"isValidTile"/"occupied"
+  // na ginagamit na rin ng placeNodes sa itaas) - kaya PAREHO PALAGI
+  // (hindi nagbabago sa bawat reload) para sa parehong mundo.
+  const BONUS_CLUSTER_WORLDS = new Set(["grassmap", "grassmap2"]);
+  const BONUS_CLUSTER_ATTEMPTS_PER_WORLD = 12;
+  const BONUS_CLUSTER_SPAWN_CHANCE = 0.5;
+  const BONUS_CLUSTER_MAX_PIECES = 5;
+  const BONUS_CLUSTER_RADIUS_TILES = 2;
+
+  function generateBonusResourceClusters() {
+    const bonusTrees = [];
+    const bonusStones = [];
+
+    if (!BONUS_CLUSTER_WORLDS.has(currentWorld)) {
+      return { trees: bonusTrees, stones: bonusStones };
+    }
+
+    for (let i = 0; i < BONUS_CLUSTER_ATTEMPTS_PER_WORLD; i++) {
+      // "minsan lang like 50% lang" - kalahati lang ng mga candidate
+      // na ito ang TALAGANG magkakaroon ng cluster.
+      if (nextRandom() > BONUS_CLUSTER_SPAWN_CHANCE) continue;
+
+      // Hanapin ang GITNA ng cluster na ito - mabilis lang na
+      // ilang subok (hindi kasing-tiyaga ng buong "attempt loop" ng
+      // placeNodes sa itaas), ok lang laktawan kung walang mahanap na
+      // magandang puwesto.
+      let centerCol = null;
+      let centerRow = null;
+
+      for (let tries = 0; tries < 30; tries++) {
+        const col = 1 + Math.floor(nextRandom() * (mapData.width - 2));
+        const row = 1 + Math.floor(nextRandom() * (mapData.height - 2));
+
+        if (isValidTile(col, row)) {
+          centerCol = col;
+          centerRow = row;
+          break;
+        }
+      }
+
+      if (centerCol === null) continue;
+
+      const isTreeCluster = nextRandom() < 0.5;
+      const pieceCount =
+        1 + Math.floor(nextRandom() * BONUS_CLUSTER_MAX_PIECES);
+      const variantCount = isTreeCluster
+        ? getActiveTreeVariantPaths().length
+        : getActiveStoneVariantPaths().length;
+
+      let placed = 0;
+
+      for (
+        let pieceTries = 0;
+        pieceTries < pieceCount * 6 && placed < pieceCount;
+        pieceTries++
+      ) {
+        const span = BONUS_CLUSTER_RADIUS_TILES * 2 + 1;
+        const col = centerCol + Math.floor(nextRandom() * span) - BONUS_CLUSTER_RADIUS_TILES;
+        const row = centerRow + Math.floor(nextRandom() * span) - BONUS_CLUSTER_RADIUS_TILES;
+
+        if (!isValidTile(col, row)) continue;
+
+        if (!isTreeCluster && hasOccupiedOrthogonalNeighbor(col, row, occupied)) {
+          continue;
+        }
+
+        const node = { col, row, variant: Math.floor(nextRandom() * variantCount) };
+
+        if (isTreeCluster) {
+          bonusTrees.push(node);
+        } else {
+          bonusStones.push(node);
+          stoneTiles.add(col + "," + row);
+        }
+
+        occupied.add(col + "," + row);
+        placed++;
+      }
+    }
+
+    return { trees: bonusTrees, stones: bonusStones };
+  }
+
+  const bonusClusters = generateBonusResourceClusters();
+
   // Isinasama na ngayon ang mga EXTRA na node (mula sa respawn system)
   // sa dulo ng listahan - ang parehong "harvested" filtering (tingnan
   // ang ensureResourceNodes/getResourceDrawables) ay gumagana pareho
   // sa dalawa, dahil "col,row" key lang ang batayan nito.
   return {
-    trees: seededTrees.concat(testTrees, extra.trees),
-    stones: seededStones.concat(testStones, extra.stones),
+    trees: seededTrees.concat(testTrees, extra.trees, bonusClusters.trees),
+    stones: seededStones.concat(testStones, extra.stones, bonusClusters.stones),
   };
 }
 

@@ -8,7 +8,7 @@
     />
     <title>Tralala Game</title>
 
-    <link rel="stylesheet" href="./style.css?v=1800000000040" />
+    <link rel="stylesheet" href="./style.css?v=1800000000050" />
   </head>
 
   <body>
@@ -690,16 +690,20 @@
          ako na nag aadjust ng mga need ayusin mapa scale, opacity ng
          buttons ganyan" - bagong panel para ma-customize ng user MISMO
          ang laki/opacity/posisyon ng LAHAT ng on-screen na control
-         (D-pad/hand button/Tools/minimap/hotbar) - hindi na
+         (joystick/hand button/Tools/minimap/hotbar) - hindi na
          kailangang mano-manong i-edit ang CSS. AYOS (round 3, hiling
          ng user): "dapat individual kapag click ko sa isang button is
          dapat mag highlight yon tapos lalabas yung size at opacity
          nun" - PER-TARGET na ngayon ang scale/opacity (dating global/
          iisa lang para sa lahat) - ang slider ay nagbabago depende
          kung ANO ang kasalukuyang na-select (i-tap ang gustong control
-         habang naka-edit mode). Tingnan ang controller-layout.js para
-         sa buong lohika (pag-select, pag-drag, pag-save sa
-         localStorage). -->
+         habang naka-edit mode). AYOS (round 4, hiling ng user): "isama
+         mo sa pag edit ng layout yung health, mana food section tapos
+         weather tapos yung settings tapos yung minimap" - dinagdagan
+         ng 3 pang HUD element: player-hud (health/stamina/food),
+         calendar-panel (weather/petsa), settings-menu-button. Tingnan
+         ang controller-layout.js para sa buong lohika (pag-select,
+         pag-drag, pag-save sa localStorage). -->
     <div id="controller-layout-panel" class="hidden">
       <div id="controller-layout-header">
         <span id="controller-layout-label">Controller</span>
@@ -711,10 +715,10 @@
           ✏️ I-edit ang Posisyon/Laki
         </button>
         <p id="controller-layout-hint">
-          Kapag naka-edit mode, i-TAP ang gustong button (D-pad/hand
-          button/Tools/minimap/hotbar) sa screen para ma-highlight/piliin
-          ito - lalabas dito ang sarili nitong Laki/Opacity. I-drag ito
-          para ilipat.
+          Kapag naka-edit mode, i-TAP ang gustong button/HUD (joystick/hand
+          button/Tools/minimap/hotbar/health-stamina-food/weather/settings)
+          sa screen para ma-highlight/piliin ito - lalabas dito ang sarili
+          nitong Laki/Opacity. I-drag ito para ilipat.
         </p>
 
         <p id="controller-layout-empty-hint">
@@ -799,39 +803,28 @@
          "touch-controls-active" class sa <body>, hindi ito
          lumalabas/walang epekto sa desktop, keyboard+mouse pa rin ang
          default doon).
-         AYOS (hiling ng user): "yung analog pala palitan mo na pad na
-         up down left and right arrows" - PINALITAN na ang dating
-         "virtual joystick" (analog drag) ng isang D-PAD - kumakatawan
-         sa WASD (keys["w"/"a"/"s"/"d"] - PAREHONG global na "keys"
-         object na binabasa ng update.js). WALANG "takbo"/run na
-         component (hiwalay na hiling ng user na alisin ang Run
-         button) - lakad/normal speed lang ang D-pad.
-         AYOS (hiling ng user, round 2): "medyo magkakalapit medyo
-         layo mo sa isat isa gusto ko lagyan mo na lang din ng
-         top-left top-right left bottom and right bottom" - 8 button
-         na ngayon (dating 4 lang), nakaayos sa 3x3 GRID (CSS grid,
-         style.css) na may mas malaking puwang sa pagitan - ang 4
-         diagonal na button ay nagtatakda ng DALAWANG key nang sabay
-         (hal. "top-left" = W+A), kaya iisa lang ang kailangang
-         pindutin para sa diagonal na galaw (dagdag/opsyonal na paraan
-         lang ito - gumagana pa rin ang paghawak ng 2 magkatabing
-         cardinal button nang sabay, tingnan ang mobile-controls.js). -->
-    <div id="mobile-dpad">
-      <button type="button" id="mobile-dpad-up-left" class="mobile-dpad-btn mobile-dpad-diag" title="Up-Left (W+A)">↖</button>
-      <button type="button" id="mobile-dpad-up" class="mobile-dpad-btn" title="Up (W)">▲</button>
-      <button type="button" id="mobile-dpad-up-right" class="mobile-dpad-btn mobile-dpad-diag" title="Up-Right (W+D)">↗</button>
-      <button type="button" id="mobile-dpad-left" class="mobile-dpad-btn" title="Left (A)">◀</button>
-      <button type="button" id="mobile-dpad-right" class="mobile-dpad-btn" title="Right (D)">▶</button>
-      <button type="button" id="mobile-dpad-down-left" class="mobile-dpad-btn mobile-dpad-diag" title="Down-Left (S+A)">↙</button>
-      <button type="button" id="mobile-dpad-down" class="mobile-dpad-btn" title="Down (S)">▼</button>
-      <button type="button" id="mobile-dpad-down-right" class="mobile-dpad-btn mobile-dpad-diag" title="Down-Right (S+D)">↘</button>
+         AYOS (hiling ng user, round 4): "balik mo na lang pala ulit sa
+         analog yung dpad mas ok analog" - IBINALIK sa dating "virtual
+         joystick" (analog drag mula sa gitna) - TINANGGAL na ang
+         D-pad/8-direction na eksperimento (mga naunang round). Drag
+         mula sa gitna papunta sa gustong direksyon, kumakatawan sa
+         WASD (keys["w"/"a"/"s"/"d"] - PAREHONG global na "keys" object
+         na binabasa ng update.js) - gumagana ang diagonal na galaw
+         (2 direksyon nang sabay, depende sa anggulo ng hila). Mas
+         malayo ang hila (malapit sa gilid) = "takbo" (keys["shift"] =
+         true, kaparehong Shift key) - awtomatiko na ito (walang Run
+         button, tinanggal na sa naunang round). -->
+    <div id="mobile-joystick">
+      <div id="mobile-joystick-base">
+        <div id="mobile-joystick-stick"></div>
+      </div>
     </div>
 
     <!-- AYOS (hiling ng user): "dapat may malaking button kasing laki
          ng analog na may kamay tapos nag-iiba yung kamay to pickaxe,
          axe, rake or cutter kung anoman ang ma-equip" - bagong
          MALAKING "USE TOOL" button (108px, kasing-laki ng dating
-         joystick base, ngayon kasing-laki rin ng #mobile-dpad) - TAP =
+         joystick base) - TAP =
          gamitin ang KASALUKUYANG naka-equip na tool (pickaxe/axe/rake/
          cutter - o basta "kamay" kung wala - tingnan ang paliwanag sa
          loob ng mobile-controls.js) sa tile na KINAHAHARAPAN ng player
@@ -882,7 +875,7 @@
          at pintuan, at ginagamit agad ito ng map.js pagka-load. -->
     <script src="./js/worlds.js?v=1793300000000"></script>
     <script src="./js/footprints.js?v=1788105286987"></script>
-    <script src="./js/map.js?v=1800000000020"></script>
+    <script src="./js/map.js?v=1800000000051"></script>
     <!-- dig.js: paghukay ng niyebe gamit ang mouse. Pagkatapos ng
          map.js dahil ginagamit nito ang drawTile at flattenTileLayers. -->
     <script src="./js/dig.js?v=1800000000004"></script>
@@ -892,7 +885,7 @@
          ang syncHotbarUI() sa sarili nitong script (hindi lang sa
          keydown/click), kaya kailangang existing na ang axeEquipped
          (idineklara dito) bago pa man tumakbo ang hotbar.js. -->
-    <script src="./js/resources.js?v=1800000000017"></script>
+    <script src="./js/resources.js?v=1800000000052"></script>
     <!-- decor.js: purong palamuti - random na oak trees at ang oldman
          NPC malapit sa bahay (may sarili na siyang random na
          paglalakad/pagkawala-pagbalik ngayon). May click/interaction
@@ -905,7 +898,7 @@
          muli). Umaasa sa isFreeWanderTile/randomBetween (decor.js) at
          sa mismong canvas mousedown pattern ng resources.js - kaya
          DAPAT SUMUNOD ito agad pagkatapos ng decor.js. -->
-    <script src="./js/pig.js?v=1787242410868"></script>
+    <script src="./js/pig.js?v=1800000000053"></script>
     <script src="./js/grass.js?v=1800000000015"></script>
     <!-- bed.js: BAGO (hiling ng user) - hindi na "libre"/laging naroroon
          sa bawat bahay - kaparehong-pareho na ito ngayon sa Crafter/
@@ -1001,13 +994,13 @@
     <script src="./js/minimap.js?v=1800000000011"></script>
     <script src="./js/draw.js?v=1800000000016"></script>
     <script src="./js/main.js?v=1787160000000"></script>
-    <script src="./js/mobile-controls.js?v=1800000000042"></script>
+    <script src="./js/mobile-controls.js?v=1800000000054"></script>
     <!-- controller-layout.js: Settings > Controller > Edit Layout -
          hiling ng user na sila na mismo ang mag-aadjust ng
          posisyon/laki/opacity ng mga on-screen control (D-pad/hand
          button/tools/minimap), walang kailangang i-edit sa code.
          Kailangang MAUNA ang mobile-controls.js (isMobileTouchDevice)
          at settings-menu.js (openSettingsPanel/showSettingsToast). -->
-    <script src="./js/controller-layout.js?v=1800000000043"></script>
+    <script src="./js/controller-layout.js?v=1800000000055"></script>
   </body>
 </html>

@@ -1,5 +1,5 @@
 // =========================
-// MOBILE/TOUCH CONTROLS (D-pad + on-screen buttons)
+// MOBILE/TOUCH CONTROLS (virtual joystick + on-screen buttons)
 // =========================
 //
 // Ang buong laro ay dating keyboard+mouse LANG (WASD/arrow para
@@ -10,18 +10,22 @@
 // touch-friendly na paraan, HINDI pagpapalit sa keyboard/mouse (parehong
 // gumagana pa rin sila sa desktop, walang binago doon).
 //
-// (a) D-PAD (kaliwang ibaba, hiling ng user: "yung analog pala
-//     palitan mo na pad na up down left and right arrows" - PINALITAN
-//     ang dating "virtual joystick"/analog drag) - 4 hiwalay na arrow
-//     button, bawat isa ay direktang minamanipula ang PAREHONG global
-//     na `keys` object (input.js) na binabasa ng update.js
-//     (keys["w"/"a"/"s"/"d"]) - kaya AWTOMATIKO itong gumagana nang
-//     walang binabagong code sa update.js/player.js, kasama na ang
-//     diagonal na galaw (2 button nang sabay - hal. Up+Right - kaya ng
-//     multi-touch, kaparehong-pareho ng epekto ng talagang paghawak ng
-//     2 keyboard key nang sabay). WALANG "takbo"/run na component
-//     dito (hiling ng user na tinanggal ang Run button - tingnan ang
-//     malaking "USE TOOL" button sa ibaba) - lakad/normal speed lang.
+// AYOS (hiling ng user, round 4): "balik mo na lang pala ulit sa
+// analog yung dpad mas ok analog" - IBINALIK sa "virtual joystick"
+// (analog drag mula sa gitna) - TINANGGAL ang D-pad/8-direction na
+// eksperimento (naunang round).
+//
+// (a) VIRTUAL JOYSTICK (kaliwang ibaba) - i-drag mula sa gitna ng
+//     bilog papunta sa gustong direksyon. Sa halip na gumawa ng bagong
+//     hiwalay na "movement system", dito na lang DIREKTA
+//     minamanipula ang PAREHONG global na `keys` object (input.js) na
+//     binabasa ng update.js (keys["w"/"a"/"s"/"d"]) - kaya AWTOMATIKO
+//     itong gumagana nang walang binabagong code sa update.js/player.js,
+//     kasama na ang diagonal na galaw (2 direksyon nang sabay,
+//     kaparehong-pareho ng epekto ng talagang paghawak ng 2 keyboard
+//     key nang sabay). Mas malayo ang hila (malapit sa gilid) = "takbo"
+//     (keys["shift"] = true, kaparehong Shift key) - awtomatiko na ito
+//     (walang Run button, tinanggal na sa naunang round).
 //
 // (b) MALAKING "USE TOOL"/hand button (kanang ibaba) - TAP = gamitin
 //     ang naka-equip na tool O "E"-interact (lamp/crafter/stove/bed) sa
@@ -81,87 +85,94 @@ if (isMobileTouchDevice) {
 }
 
 // =========================
-// (a) D-PAD
+// (a) VIRTUAL JOYSTICK
 // =========================
 
-// AYOS (hiling ng user round 3): "gusto ko sa d-pad is slide na kapag
-// diniinan ko sa ibat ibang direction ng d-pad is nagbabago yung
-// direksyon di lang left halimbawa na diinan ko sa left is kapag na
-// nakadiin parin tapos nalagay ko sa bottom is dapat mapunta siya sa
-// bottom" - dating hiwalay/independent na pointerdown/up listener ang
-// bawat isa sa 8 button (kaya kailangan MUNANG bitawan ang daliri bago
-// makapili ng IBANG direksyon) - ngayon, IISANG "pointer capture" na
-// listener na lang sa BUONG container (#mobile-dpad) ang bahala:
-// hinuhuli/kino-capture ang pointer sa UNANG pagkakadikit (kahit
-// anong button), tapos SUSUBAYBAYAN ang MISMONG posisyon ng daliri
-// (pointermove) laban sa bounding box ng BAWAT button - kung
-// TALAGANG lumipat na ito sa ibang button (kahit hindi binitawan ang
-// daliri), doon awtomatikong lumilipat/nagbabago ang direksyon
-// (setActiveDpadEntry) - "slide" na epekto, gaya ng hiling ng user.
-(function setupMobileDpad() {
-  const container = document.getElementById("mobile-dpad");
+(function setupMobileJoystick() {
+  const base = document.getElementById("mobile-joystick-base");
+  const stick = document.getElementById("mobile-joystick-stick");
 
-  if (!container) return;
+  if (!base || !stick) return;
 
-  // "id" -> mga WASD key na itatakda (isa para sa 4 cardinal, DALAWA
-  // para sa 4 diagonal - hal. "up-left" = W+A nang sabay).
-  const DPAD_BUTTONS = [
-    { id: "mobile-dpad-up", keys: ["w"] },
-    { id: "mobile-dpad-down", keys: ["s"] },
-    { id: "mobile-dpad-left", keys: ["a"] },
-    { id: "mobile-dpad-right", keys: ["d"] },
-    { id: "mobile-dpad-up-left", keys: ["w", "a"] },
-    { id: "mobile-dpad-up-right", keys: ["w", "d"] },
-    { id: "mobile-dpad-down-left", keys: ["s", "a"] },
-    { id: "mobile-dpad-down-right", keys: ["s", "d"] },
-  ];
+  // Pinakamalayong puwedeng ilayo ang stick mula sa gitna (piksel) -
+  // dito rin batay ang "takbo" na threshold sa ibaba.
+  const MAX_RADIUS_PX = 38;
 
-  const entries = DPAD_BUTTONS.map(({ id, keys: dpadKeys }) => ({
-    id,
-    keys: dpadKeys,
-    el: document.getElementById(id),
-  })).filter((entry) => entry.el);
+  // Napakaliit na galaw (baka aksidenteng dokot lang) - huwag pang
+  // ituring na "gustong gumalaw".
+  const DEAD_ZONE_PX = 6;
+
+  // Gaano kalapit dapat sa gilid (bahagdan ng MAX_RADIUS_PX) bago
+  // ituring na "gustong tumakbo" (kaparehong Shift key).
+  const RUN_THRESHOLD_RATIO = 0.72;
 
   let activePointerId = null;
-  let activeEntry = null;
 
-  function setActiveEntry(nextEntry) {
-    if (activeEntry === nextEntry) return;
+  function setDirectionKeys(dx, dy, distRatio) {
+    // 0° = pakanan, dumadagdag PABABA (screen space, +Y = pababa) -
+    // kino-convert papunta sa 8 octant, para puwedeng magsabay ang 2
+    // direksyon (diagonal) - PAREHONG "keys" object (input.js) na
+    // binabasa mismo ng update.js, kaya walang ibang code na
+    // kailangang baguhin doon.
+    const deg = (Math.atan2(dy, dx) * 180) / Math.PI;
 
-    if (activeEntry) {
-      for (const key of activeEntry.keys) keys[key] = false;
-      activeEntry.el.classList.remove("active");
-    }
+    keys["d"] = deg > -67.5 && deg < 67.5;
+    keys["a"] = deg > 112.5 || deg < -112.5;
+    keys["s"] = deg > 22.5 && deg < 157.5;
+    keys["w"] = deg < -22.5 && deg > -157.5;
 
-    activeEntry = nextEntry;
-
-    if (activeEntry) {
-      for (const key of activeEntry.keys) keys[key] = true;
-      activeEntry.el.classList.add("active");
-    }
+    // AYOS: TINANGGAL na ang dating "Run" button (naunang round) -
+    // awtomatiko na lang ang "takbo" base sa distansya ng hila
+    // (walang dahilan pang mag-check ng button na wala na naman).
+    keys["shift"] = distRatio > RUN_THRESHOLD_RATIO;
   }
 
-  // Alin sa 8 button (kung meron man) ang TALAGANG sakop ng (x,y) na
-  // ito (screen/client coordinates) - ginagamit sa PAREHONG
-  // pointerdown (unang pagkadikit) AT pointermove (pag-slide).
-  function findEntryAtPoint(x, y) {
-    for (const entry of entries) {
-      const rect = entry.el.getBoundingClientRect();
-
-      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-        return entry;
-      }
-    }
-
-    return null;
+  function clearDirectionKeys() {
+    keys["w"] = false;
+    keys["a"] = false;
+    keys["s"] = false;
+    keys["d"] = false;
+    keys["shift"] = false;
   }
 
-  container.addEventListener("pointerdown", (event) => {
+  function updateFromClientPoint(clientX, clientY) {
+    const rect = base.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    const rawDx = clientX - centerX;
+    const rawDy = clientY - centerY;
+    const dist = Math.hypot(rawDx, rawDy);
+
+    const clampedDist = Math.min(dist, MAX_RADIUS_PX);
+    const angle = Math.atan2(rawDy, rawDx);
+
+    const stickX = Math.cos(angle) * clampedDist;
+    const stickY = Math.sin(angle) * clampedDist;
+
+    stick.style.transform = "translate(" + stickX + "px, " + stickY + "px)";
+
+    if (dist < DEAD_ZONE_PX) {
+      clearDirectionKeys();
+      return;
+    }
+
+    setDirectionKeys(rawDx, rawDy, clampedDist / MAX_RADIUS_PX);
+  }
+
+  function resetJoystick() {
+    activePointerId = null;
+    stick.style.transform = "translate(0px, 0px)";
+    base.classList.remove("active");
+    clearDirectionKeys();
+  }
+
+  base.addEventListener("pointerdown", (event) => {
     // AYOS (hiling ng user - "Controller > Edit Layout" na feature,
     // controller-layout.js): habang aktibong "edit mode", huwag
-    // munahin ang D-pad slide tracking - ang drag listener na ng
-    // controller-layout.js (nasa PAREHONG element na ito) ang dapat
-    // bumahala sa pointerdown na ito.
+    // munahin ang normal na joystick input - ang drag listener na ng
+    // controller-layout.js (nasa ANCESTOR na #mobile-joystick, may
+    // capture:true) ang dapat bumahala sa pointerdown na ito.
     if (
       typeof controllerEditModeActive !== "undefined" &&
       controllerEditModeActive
@@ -169,54 +180,45 @@ if (isMobileTouchDevice) {
       return;
     }
 
-    if (activePointerId !== null) return; // isa lang sa isang pagkakataon
-
-    const entry = findEntryAtPoint(event.clientX, event.clientY);
-
-    if (!entry) return;
-
-    event.preventDefault();
+    // Isa lang sa isang pagkakataon (unang daliring dumokot) - iwasan
+    // ang ibang sabay-sabay na touch (hal. habang naka-drag na sa bag)
+    // na "umagaw" sa joystick.
+    if (activePointerId !== null) return;
 
     activePointerId = event.pointerId;
+    base.classList.add("active");
 
     try {
-      container.setPointerCapture(event.pointerId);
-    } catch (error) {
+      base.setPointerCapture(event.pointerId);
+    } catch (err) {
       // Ok lang - ilang browser/device ay hindi sumusuporta dito,
       // pointermove pa rin ang bahalang sumunod sa daliri.
     }
 
-    setActiveEntry(entry);
-  });
-
-  container.addEventListener("pointermove", (event) => {
-    if (event.pointerId !== activePointerId) return;
-
+    updateFromClientPoint(event.clientX, event.clientY);
     event.preventDefault();
-
-    // "null" kung talagang lumabas na ang daliri sa BUONG D-pad
-    // (walang button ang saklaw) - tumitigil na rin ang paggalaw sa
-    // sandaling iyon, gaya ng inaasahan.
-    setActiveEntry(findEntryAtPoint(event.clientX, event.clientY));
   });
 
-  function endPointer(event) {
+  base.addEventListener("pointermove", (event) => {
     if (event.pointerId !== activePointerId) return;
 
-    activePointerId = null;
-    setActiveEntry(null);
+    updateFromClientPoint(event.clientX, event.clientY);
+    event.preventDefault();
+  });
+
+  function handlePointerEnd(event) {
+    if (event.pointerId !== activePointerId) return;
+
+    resetJoystick();
   }
 
-  container.addEventListener("pointerup", endPointer);
-  container.addEventListener("pointercancel", endPointer);
+  base.addEventListener("pointerup", handlePointerEnd);
+  base.addEventListener("pointercancel", handlePointerEnd);
 
-  // Kung mawala ang focus ng window habang naka-hawak (hal. lumipat ng
-  // app) - i-reset lahat, para hindi maiwang "nakadikit" sa isang
+  // Kung mawala ang focus ng window habang naka-drag (hal. lumipat ng
+  // app) - i-reset na lang, para hindi maiwang "nakadikit" sa isang
   // direksyon magpakailanman.
-  window.addEventListener("blur", () => {
-    activePointerId = null;
-    setActiveEntry(null);
-  });
+  window.addEventListener("blur", resetJoystick);
 })();
 
 // =========================
@@ -274,7 +276,7 @@ if (isMobileTouchDevice) {
 // BAGO (hiling ng user): "dapat may malaking button kasing laki ng
 // analog na may kamay tapos nag-iiba yung kamay to pickaxe, axe, rake
 // or cutter kung anoman ang ma-equip" - #mobile-btn-action
-// (index.html), 108px kagaya ng #mobile-dpad.
+// (index.html), 108px kagaya ng #mobile-joystick-base.
 //
 // (1) ICON: dynamic, sumasalamin sa KASALUKUYANG naka-equip na tool
 //     (pickaxeEquipped/rakeEquipped/axeEquipped/cutterEquipped -

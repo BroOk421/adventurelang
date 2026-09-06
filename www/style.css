@@ -1122,7 +1122,7 @@ button.hotbar-slot {
      "spacing") - dagdag ng safe-area-inset (notch/camera cutout,
      lalo na sa LANDSCAPE - doon karaniwang nasa KALIWA/KANAN ang
      cutout, hindi taas/baba) - kaparehong pattern na ginagamit na ng
-     #mobile-dpad sa ibaba. */
+     #mobile-joystick sa ibaba. */
   top: max(14px, env(safe-area-inset-top));
   left: max(14px, env(safe-area-inset-left));
   z-index: 10;
@@ -3172,22 +3172,14 @@ body.touch-controls-active #settings-controller-btn {
    ang phone BACK button na ang nagbubukas ng Settings sa gitna ng
    screen - tingnan ang mobile-controls.js). */
 
-#mobile-dpad,
+#mobile-joystick,
 #mobile-btn-tools,
 #mobile-btn-action {
   display: none;
 }
 
-body.touch-controls-active #mobile-dpad {
-  /* AYOS (bug fix): dating "display: block" dito - MAS MATAAS ang
-     specificity nito (class + ID) kaysa sa plain "#mobile-dpad {
-     display: grid; ... }" sa ibaba (ID lang), kaya TALAGANG NANANALO
-     ito sa cascade KAHIT NAUNA pa ito sa file - napapawalang-bisa
-     nito ang buong CSS GRID layout (nagiging normal block flow na
-     lang ang mga anak, kaya NAKA-ISANG COLUMN/nagkakapatong-patong
-     PABABA ang 8 D-pad button sa halip na maayos na 3x3 grid). "grid"
-     na ang tamang halaga dito, hindi "block". */
-  display: grid;
+body.touch-controls-active #mobile-joystick {
+  display: block;
 }
 
 body.touch-controls-active #mobile-btn-tools {
@@ -3198,134 +3190,60 @@ body.touch-controls-active #mobile-btn-action {
   display: flex;
 }
 
-/* AYOS (hiling ng user): "yung analog pala palitan mo na pad na up
-   down left and right arrows" - 8 button ngayon (4 cardinal + 4
-   diagonal, hiling ng user round 2: "gusto ko lagyan mo na lang din
-   ng top-left top-right left bottom and right bottom"), nakaayos sa
-   isang 3x3 CSS GRID (gitna/center cell WALANG laman) sa loob ng
-   container - AYOS (hiling ng user: "medyo magkakalapit medyo layo mo
-   sa isat isa") - mas malaking "gap" (10px, dating halos dikit-dikit)
-   sa pagitan ng bawat button, kaya mas malaki na rin ang buong
-   container (166px, dating 116px lang). Bawat button ay simpleng
-   nagtatakda/nag-aalis ng isa O DALAWANG WASD key nang sabay
-   (mobile-controls.js, ang 4 diagonal ay dalawang key - hal. "up-left"
-   = W+A) sa pointerdown/up - PAREHONG mekanismo ng dating Run button. */
-#mobile-dpad {
+/* AYOS (hiling ng user, round 4): "balik mo na lang pala ulit sa
+   analog yung dpad mas ok analog" - IBINALIK ang virtual joystick
+   (analog drag) - TINANGGAL ang buong D-pad/8-direction na
+   eksperimento (mga naunang round). */
+#mobile-joystick {
   position: fixed;
   left: max(18px, env(safe-area-inset-left));
   bottom: max(66px, calc(66px + env(safe-area-inset-bottom)));
   z-index: 50;
-
-  /* AYOS (bug fix, hiling ng user: "yung sa dpad niya is di dapat mag
-     appear sa desktop mode") - dating may "display: grid" din DITO
-     (unconditional, walang "touch-controls-active" guard) - dahil
-     PAREHONG specificity ito ng hiding rule sa itaas (#mobile-dpad,
-     ... { display: none; }, parehong plain ID selector) at NAUNA pa
-     ito sa cascade (mas huli sa file = mas mataas ang priyoridad sa
-     tie), TALAGANG NANANALO ito laban sa "display: none" - kaya
-     LAGING nakikita ang D-pad KAHIT DESKTOP (walang touch-controls-
-     active class). Ang grid-template-columns/rows/gap sa ibaba ay
-     TULOY-TULOY namang gumagana (hindi kailangan ang "display: grid"
-     dito mismo) dahil ang TALAGANG nagtatakda ng "display: grid" ay
-     ang `body.touch-controls-active #mobile-dpad` sa itaas na lang -
-     mas mataas ang specificity niyan (class+ID) kaysa sa dalawang
-     plain-ID na rule na ito, kaya ito ang TALAGANG huling nagdedesisyon. */
-  grid-template-columns: repeat(3, 46px);
-  grid-template-rows: repeat(3, 46px);
-  /* AYOS (hiling ng user round 3): "yung d-pad ok na pala nung una na
-     medyo dikit" - IBINALIK sa mas MAIKSING gap (dating pinalaki sa
-     10px sa round 2 na hiling, pero sabi ng user OK na pala talaga
-     ang orihinal na medyo magkadikit). */
-  gap: 4px;
-
-  width: 146px;
-  height: 146px;
-
   touch-action: none;
-}
-
-.mobile-dpad-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  width: 46px;
-  height: 46px;
-
-  background: rgba(20, 22, 28, 0.55);
-  border: 2px solid rgba(255, 255, 255, 0.16);
-  border-radius: 8px;
-
-  font-size: 18px;
-  font-weight: 700;
-  color: rgba(212, 175, 55, 0.9);
-
-  padding: 0;
-  touch-action: none;
-  user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Diagonal na 4 button - bahagyang mas maliit ang font/mas mababa ang
-   opacity ng kulay (subtle lang), para hindi sila mag-compete sa
-   pansin ng 4 pangunahing cardinal (up/down/left/right) na button. */
-.mobile-dpad-diag {
-  font-size: 15px;
-  color: rgba(212, 175, 55, 0.65);
+#mobile-joystick-base {
+  position: relative;
+  width: 108px;
+  height: 108px;
+
+  background: rgba(20, 22, 28, 0.55);
+  border: 2px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+
+  touch-action: none;
 }
 
-.mobile-dpad-btn:active,
-.mobile-dpad-btn.active {
-  background: rgba(212, 175, 55, 0.3);
-  border-color: rgba(212, 175, 55, 0.85);
+#mobile-joystick-stick {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 46px;
+  height: 46px;
+  margin-top: -23px;
+  margin-left: -23px;
+
+  background: rgba(212, 175, 55, 0.55);
+  border: 2px solid rgba(212, 175, 55, 0.85);
+  border-radius: 50%;
+
+  pointer-events: none;
+  will-change: transform;
 }
 
-#mobile-dpad-up-left {
-  grid-column: 1;
-  grid-row: 1;
-}
-
-#mobile-dpad-up {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-#mobile-dpad-up-right {
-  grid-column: 3;
-  grid-row: 1;
-}
-
-#mobile-dpad-left {
-  grid-column: 1;
-  grid-row: 2;
-}
-
-#mobile-dpad-right {
-  grid-column: 3;
-  grid-row: 2;
-}
-
-#mobile-dpad-down-left {
-  grid-column: 1;
-  grid-row: 3;
-}
-
-#mobile-dpad-down {
-  grid-column: 2;
-  grid-row: 3;
-}
-
-#mobile-dpad-down-right {
-  grid-column: 3;
-  grid-row: 3;
+/* Bahagyang naka-highlight ang stick habang naka-hawak/naka-drag -
+   simpleng visual feedback lang (tingnan ang mobile-controls.js). */
+#mobile-joystick-base.active #mobile-joystick-stick {
+  background: rgba(212, 175, 55, 0.8);
 }
 
 /* AYOS (hiling ng user): "malaking button kasing laki ng analog...
    medyo usog mo pa sa gilid yung button ng hand same sa padding left
-   ng analog" - PAREHONG "18px" na left-padding ng D-pad (itaas) ang
+   ng analog" - PAREHONG "18px" na left-padding ng joystick (itaas) ang
    ginamit dito bilang "right" - kaya EKSAKTONG magkatugma ang
    distansya nila mula sa magkabilang gilid ng screen. 108px pa rin -
-   kasing-laki (medyo mas malaki nga) ng D-pad container. */
+   kasing-laki ng joystick base. */
 #mobile-btn-action {
   position: fixed;
   right: max(18px, env(safe-area-inset-right));
@@ -3569,7 +3487,7 @@ body.touch-controls-active #hotbar {
     transform: translateX(-50%) scale(0.7);
   }
 
-  body.touch-controls-active #mobile-dpad {
+  body.touch-controls-active #mobile-joystick {
     left: 12px;
     bottom: max(58px, calc(58px + env(safe-area-inset-bottom)));
   }
@@ -3589,7 +3507,7 @@ body.touch-controls-active #hotbar {
    screen kahit pahiga na) - itaas nang konti ang D-pad/hand button/
    tools/hotbar para hindi masagasaan ng mababang taas. */
 @media (orientation: landscape) and (max-height: 520px) {
-  body.touch-controls-active #mobile-dpad {
+  body.touch-controls-active #mobile-joystick {
     bottom: max(48px, calc(48px + env(safe-area-inset-bottom)));
   }
 
