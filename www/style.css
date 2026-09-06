@@ -3151,7 +3151,20 @@ body.touch-controls-active #mobile-btn-action {
   bottom: max(66px, calc(66px + env(safe-area-inset-bottom)));
   z-index: 50;
 
-  display: grid;
+  /* AYOS (bug fix, hiling ng user: "yung sa dpad niya is di dapat mag
+     appear sa desktop mode") - dating may "display: grid" din DITO
+     (unconditional, walang "touch-controls-active" guard) - dahil
+     PAREHONG specificity ito ng hiding rule sa itaas (#mobile-dpad,
+     ... { display: none; }, parehong plain ID selector) at NAUNA pa
+     ito sa cascade (mas huli sa file = mas mataas ang priyoridad sa
+     tie), TALAGANG NANANALO ito laban sa "display: none" - kaya
+     LAGING nakikita ang D-pad KAHIT DESKTOP (walang touch-controls-
+     active class). Ang grid-template-columns/rows/gap sa ibaba ay
+     TULOY-TULOY namang gumagana (hindi kailangan ang "display: grid"
+     dito mismo) dahil ang TALAGANG nagtatakda ng "display: grid" ay
+     ang `body.touch-controls-active #mobile-dpad` sa itaas na lang -
+     mas mataas ang specificity niyan (class+ID) kaysa sa dalawang
+     plain-ID na rule na ito, kaya ito ang TALAGANG huling nagdedesisyon. */
   grid-template-columns: repeat(3, 46px);
   grid-template-rows: repeat(3, 46px);
   gap: 10px;

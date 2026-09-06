@@ -3616,3 +3616,28 @@ kailangang i-adjust ang mga ito.
 - **Cache-bust:** binump ang `?v=` ng `style.css` (1800000000035),
   `mobile-controls.js` (1800000000033), `hotbar.js` (1800000000034),
   bagong `controller-layout.js` (1800000000031).
+
+### Entry #77 — Naayos: LAGING nakikita ang D-pad kahit sa DESKTOP (hindi dapat)
+- **File:** `style.css` (`#mobile-dpad`)
+- **Sanhi:** nang idagdag ang 8-direction grid layout (Entry #76), may
+  natirang `display: grid;` sa DALAWANG lugar - (1) sa loob ng
+  `body.touch-controls-active #mobile-dpad { ... }` (TAMA, dapat lang
+  ito ang nagtatakda ng display), AT (2) sa loob ng unconditional
+  `#mobile-dpad { position: fixed; ... }` block (MALI - hindi dapat
+  dito). Dahil PAREHONG "plain ID selector" ang specificity ng (2) AT
+  ng ORIHINAL na "hiding" rule (`#mobile-dpad, ... { display: none;
+  }`), at (2) ay MAS HULI sa file (mas mataas ang priyoridad sa tie),
+  TALAGANG nananalo ang `display: grid` ng (2) laban sa `display:
+  none` - kaya LAGING nakikita ang buong D-pad kahit desktop (walang
+  `touch-controls-active` class sa body).
+- **Ayos:** tinanggal ang `display: grid;` sa loob ng unconditional
+  block (2) - ang grid-template-columns/rows/gap doon ay TULOY-TULOY
+  pa ring gumagana (hindi nangangailangan ng sariling "display:
+  grid"), dahil ang TALAGANG nagpapasya kung "grid" o "none" ang
+  gagamitin ay ang `body.touch-controls-active #mobile-dpad` na lang
+  (mas mataas ang specificity nito - class+ID - kaysa sa dalawang
+  natitirang plain-ID na rule).
+- VERIFIED via Playwright: `display: none` sa desktop context (walang
+  touch), `display: grid` sa touch/mobile context - dalawang
+  magkaibang browser context, screenshot ng bawat isa.
+- **Cache-bust:** binump ang `?v=` ng `style.css` → `1800000000036`.
