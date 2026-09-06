@@ -306,7 +306,7 @@ const DOORS = [
     world: "grassmap",
     area: { x: 75, y: 635, width: 50, height: 50 },
     to: "town",
-    spawn: { x: 390, y: 10 },
+    spawn: { x: 375, y: 20 },
     label: "Town",
     auto: true,
   },
