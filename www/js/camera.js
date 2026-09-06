@@ -9,15 +9,13 @@
 // detection ito (hindi na lang inaasa sa isMobileTouchDevice ng
 // mobile-controls.js) dahil MAS MAAGA pa lang mag-load ang camera.js
 // (kailangan agad ang zoom value sa unang pagkakadeklara ng `camera`
-// object sa ibaba) - PAREHONG eksaktong pamantayan pa rin (ontouchstart/
-// maxTouchPoints/pointer:coarse/"?mobileui=1" preview param) para
-// tumugma.
+// object sa ibaba) - PAREHONG eksaktong pamantayan pa rin
+// ("(hover: none) and (pointer: coarse)"/"?mobileui=1" preview param,
+// tingnan ang buong paliwanag sa mobile-controls.js) para tumugma.
 const CAMERA_IS_TOUCH_DEVICE =
   new URLSearchParams(window.location.search).get("mobileui") === "1" ||
-  "ontouchstart" in window ||
-  (typeof navigator !== "undefined" && navigator.maxTouchPoints > 0) ||
   (typeof window.matchMedia === "function" &&
-    window.matchMedia("(pointer: coarse)").matches);
+    window.matchMedia("(hover: none) and (pointer: coarse)").matches);
 
 const CAMERA_DEFAULT_ZOOM = CAMERA_IS_TOUCH_DEVICE ? 2.6 : 3.5;
 

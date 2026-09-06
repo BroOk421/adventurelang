@@ -2461,8 +2461,27 @@ button.hotbar-slot {
    na kahon) sa pamamagitan ng "font-size: 0" - basta may TAMANG
    tappable na lugar pa rin (10x10px), kahit walang biswal na
    sinasabing "ito ang settings button" (sadya, dahil literal na
-   "sobrang liit lang" ang hiling). */
+   "sobrang liit lang" ang hiling).
+   AYOS (round 3, bug fix - hiling ng user: "yung sa settings na button
+   sa top right di pa nag appear dapat nandun na tabi ng minimap"):
+   SANHI - normal na flex child pa rin ito ng #settings-menu/#top-
+   right-bar (top:14px/right:14px), PERO ang #minimap sa touch mode ay
+   INILIPAT na rin sa HALOS PAREHONG sulok (top:8px/right:8px, 84x84px,
+   tingnan sa ibaba) - kaya TALAGANG NATATABUNAN/nasa ILALIM ng
+   mas-malaking bilog ng minimap ang miniscule na 10x10 na button
+   (parehong z-index:10, PERO mas huli sa DOM ang minimap kaysa dito,
+   kaya ito ang panalo sa stacking) - "nawawala"/hindi na-click ang
+   button. AYOS: ginawang "position: fixed" na ito MISMO (hindi na
+   umaasa sa flex layout ng magulang nito - parehong pattern ng
+   #calendar-panel, gumagana pa rin ang fixed positioning kahit
+   nested pa rin ito sa markup), inilagay sa TALAGANG KATABI (kaliwa)
+   ng minimap, hindi na nag-o-overlap. */
 body.touch-controls-active #settings-menu-button {
+  position: fixed;
+  top: calc(max(8px, env(safe-area-inset-top)) + 37px);
+  right: calc(max(8px, env(safe-area-inset-right)) + 84px + 6px);
+  z-index: 50;
+
   width: 10px;
   height: 10px;
 
@@ -2766,6 +2785,42 @@ body.touch-controls-active #settings-controller-btn {
   color: rgba(255, 255, 255, 0.6);
 }
 
+/* AYOS (hiling ng user round 3 - "dapat individual kapag click ko sa
+   isang button is dapat mag highlight yon tapos lalabas yung size at
+   opacity nun"): mensaheng lumalabas kapag WALANG NA-SELECT pa - at
+   ang wrapper ng mga slider (Laki/Opacity) na LUMALABAS lang kapag may
+   na-select. Tingnan ang syncControllerSelectionUI, controller-layout.js. */
+#controller-layout-empty-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+#controller-layout-empty-hint.hidden,
+#controller-layout-sliders.hidden {
+  display: none;
+}
+
+#controller-layout-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  padding: 10px;
+  background: rgba(212, 175, 55, 0.08);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 8px;
+}
+
+#controller-layout-selected-name {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: rgba(255, 210, 90, 0.95);
+}
+
 .controller-layout-slider-row {
   display: flex;
   flex-direction: column;
@@ -2787,10 +2842,20 @@ body.touch-controls-active #settings-controller-btn {
 
 /* Habang naka-EDIT MODE (i-drag ang mga control) - gold na dashed
    outline sa bawat na-customize na element, para malinaw kung ANO ang
-   puwedeng hilahin ngayon. */
+   puwedeng i-TAP/i-drag ngayon. */
 .controller-edit-target {
-  outline: 2px dashed rgba(212, 175, 55, 0.85) !important;
+  outline: 2px dashed rgba(212, 175, 55, 0.6) !important;
   outline-offset: 3px;
+}
+
+/* AYOS (hiling ng user round 3): ang KASALUKUYANG NA-SELECT na
+   control (i-tap ito habang naka-edit mode) - MAS MATINGKAD/SOLID na
+   outline (hindi na lang dashed) + bahagyang glow, para malinaw na
+   ITO ang kasalukuyang ina-adjust (Laki/Opacity sa panel). */
+.controller-edit-selected {
+  outline: 3px solid rgba(255, 210, 90, 0.95) !important;
+  outline-offset: 3px;
+  box-shadow: 0 0 16px rgba(255, 210, 90, 0.6) !important;
 }
 
 /* BAGO (hiling ng user: "pwede ring export at import ng file para
@@ -3167,10 +3232,16 @@ body.touch-controls-active #mobile-btn-action {
      plain-ID na rule na ito, kaya ito ang TALAGANG huling nagdedesisyon. */
   grid-template-columns: repeat(3, 46px);
   grid-template-rows: repeat(3, 46px);
-  gap: 10px;
+  /* AYOS (hiling ng user round 3): "yung d-pad ok na pala nung una na
+     medyo dikit" - IBINALIK sa mas MAIKSING gap (dating pinalaki sa
+     10px sa round 2 na hiling, pero sabi ng user OK na pala talaga
+     ang orihinal na medyo magkadikit). */
+  gap: 4px;
 
-  width: 166px;
-  height: 166px;
+  width: 146px;
+  height: 146px;
+
+  touch-action: none;
 }
 
 .mobile-dpad-btn {

@@ -37,12 +37,26 @@
 // kaya awtomatiko itong "gumagana" na sa touch nang hindi na
 // kailangang galawin pa.
 
-// Touch device lang ba ito (hindi puro-mouse na desktop)? Kumbinasyon
-// ng ilang signal - "ontouchstart" (pinaka-karaniwan), maxTouchPoints
-// (mas bago/tamang paraan, sinusuportahan pati ilang touch-laptop),
-// at "pointer: coarse" media query (malaki/hindi eksaktong "daliri" ang
-// pangunahing input, hindi "mouse"-precise) - kahit isa dito, ituring
-// nang "touch".
+// Touch device lang ba ito (hindi puro-mouse na desktop)? AYOS (hiling
+// ng user: "yung sa dpad niya is di dapat mag appear sa desktop mode")
+// - ang DATING pamantayan ("ontouchstart" in window || maxTouchPoints >
+// 0 || pointer:coarse - KAHIT ISA dito) ay MADALING mag-FALSE POSITIVE
+// sa isang desktop/laptop na may TOUCHSCREEN (hal. Windows 2-in-1,
+// touchscreen monitor) - kahit mouse/keyboard pa rin ang TALAGANG
+// ginagamit na PANGUNAHING input doon, "ontouchstart"/"maxTouchPoints"
+// ay MAGIGING TRUE PA RIN dahil TEKNIKAL na kayang tanggapin ng
+// hardware/browser ang touch, kaya MALING naituturing itong "mobile"
+// kahit hindi naman totoo.
+//
+// AYOS: gamitin na lang ang "(hover: none) and (pointer: coarse)" bilang
+// TANGING/pangunahing pamantayan - "hover: none" ay TALAGANG TRUE LANG
+// kung ang PANGUNAHING input mechanism mismo ay HINDI kayang mag-hover
+// (totoo ito sa totoong touchscreen phone/tablet, PERO HINDI totoo sa
+// isang desktop/laptop na may touchscreen PERO mouse pa rin ang
+// pangunahing input - doon, "hover: hover" pa rin dahil mouse pa rin
+// ang PANGUNAHING pointer). Mas tumpak/tamang paraan ito (modern best
+// practice) kaysa sa basta pagsusuri kung MERON lang ba ng touch
+// support ang device.
 //
 // BAGONG "?mobileui=1" na URL param - PARA LANG SA PAG-PREVIEW ng
 // touch UI sa DESKTOP (walang totoong phone, gusto lang makita ang
@@ -59,10 +73,8 @@ const forceMobileUIPreview =
 
 const isMobileTouchDevice =
   forceMobileUIPreview ||
-  "ontouchstart" in window ||
-  (typeof navigator !== "undefined" && navigator.maxTouchPoints > 0) ||
   (typeof window.matchMedia === "function" &&
-    window.matchMedia("(pointer: coarse)").matches);
+    window.matchMedia("(hover: none) and (pointer: coarse)").matches);
 
 if (isMobileTouchDevice) {
   document.body.classList.add("touch-controls-active");
@@ -72,10 +84,27 @@ if (isMobileTouchDevice) {
 // (a) D-PAD
 // =========================
 
+// AYOS (hiling ng user round 3): "gusto ko sa d-pad is slide na kapag
+// diniinan ko sa ibat ibang direction ng d-pad is nagbabago yung
+// direksyon di lang left halimbawa na diinan ko sa left is kapag na
+// nakadiin parin tapos nalagay ko sa bottom is dapat mapunta siya sa
+// bottom" - dating hiwalay/independent na pointerdown/up listener ang
+// bawat isa sa 8 button (kaya kailangan MUNANG bitawan ang daliri bago
+// makapili ng IBANG direksyon) - ngayon, IISANG "pointer capture" na
+// listener na lang sa BUONG container (#mobile-dpad) ang bahala:
+// hinuhuli/kino-capture ang pointer sa UNANG pagkakadikit (kahit
+// anong button), tapos SUSUBAYBAYAN ang MISMONG posisyon ng daliri
+// (pointermove) laban sa bounding box ng BAWAT button - kung
+// TALAGANG lumipat na ito sa ibang button (kahit hindi binitawan ang
+// daliri), doon awtomatikong lumilipat/nagbabago ang direksyon
+// (setActiveDpadEntry) - "slide" na epekto, gaya ng hiling ng user.
 (function setupMobileDpad() {
+  const container = document.getElementById("mobile-dpad");
+
+  if (!container) return;
+
   // "id" -> mga WASD key na itatakda (isa para sa 4 cardinal, DALAWA
-  // para sa 4 diagonal - hal. "up-left" = W+A nang sabay) - simpleng
-  // pointerdown/up lang, kaparehong-pareho ng dating Run button.
+  // para sa 4 diagonal - hal. "up-left" = W+A nang sabay).
   const DPAD_BUTTONS = [
     { id: "mobile-dpad-up", keys: ["w"] },
     { id: "mobile-dpad-down", keys: ["s"] },
@@ -87,40 +116,106 @@ if (isMobileTouchDevice) {
     { id: "mobile-dpad-down-right", keys: ["s", "d"] },
   ];
 
-  for (const { id, keys: dpadKeys } of DPAD_BUTTONS) {
-    const btn = document.getElementById(id);
+  const entries = DPAD_BUTTONS.map(({ id, keys: dpadKeys }) => ({
+    id,
+    keys: dpadKeys,
+    el: document.getElementById(id),
+  })).filter((entry) => entry.el);
 
-    if (!btn) continue;
+  let activePointerId = null;
+  let activeEntry = null;
 
-    const press = (event) => {
-      event.preventDefault();
-      for (const key of dpadKeys) keys[key] = true;
-      btn.classList.add("active");
-    };
+  function setActiveEntry(nextEntry) {
+    if (activeEntry === nextEntry) return;
 
-    const release = (event) => {
-      event.preventDefault();
-      for (const key of dpadKeys) keys[key] = false;
-      btn.classList.remove("active");
-    };
+    if (activeEntry) {
+      for (const key of activeEntry.keys) keys[key] = false;
+      activeEntry.el.classList.remove("active");
+    }
 
-    btn.addEventListener("pointerdown", press);
-    btn.addEventListener("pointerup", release);
-    btn.addEventListener("pointercancel", release);
-    btn.addEventListener("pointerleave", release);
+    activeEntry = nextEntry;
+
+    if (activeEntry) {
+      for (const key of activeEntry.keys) keys[key] = true;
+      activeEntry.el.classList.add("active");
+    }
   }
+
+  // Alin sa 8 button (kung meron man) ang TALAGANG sakop ng (x,y) na
+  // ito (screen/client coordinates) - ginagamit sa PAREHONG
+  // pointerdown (unang pagkadikit) AT pointermove (pag-slide).
+  function findEntryAtPoint(x, y) {
+    for (const entry of entries) {
+      const rect = entry.el.getBoundingClientRect();
+
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+        return entry;
+      }
+    }
+
+    return null;
+  }
+
+  container.addEventListener("pointerdown", (event) => {
+    // AYOS (hiling ng user - "Controller > Edit Layout" na feature,
+    // controller-layout.js): habang aktibong "edit mode", huwag
+    // munahin ang D-pad slide tracking - ang drag listener na ng
+    // controller-layout.js (nasa PAREHONG element na ito) ang dapat
+    // bumahala sa pointerdown na ito.
+    if (
+      typeof controllerEditModeActive !== "undefined" &&
+      controllerEditModeActive
+    ) {
+      return;
+    }
+
+    if (activePointerId !== null) return; // isa lang sa isang pagkakataon
+
+    const entry = findEntryAtPoint(event.clientX, event.clientY);
+
+    if (!entry) return;
+
+    event.preventDefault();
+
+    activePointerId = event.pointerId;
+
+    try {
+      container.setPointerCapture(event.pointerId);
+    } catch (error) {
+      // Ok lang - ilang browser/device ay hindi sumusuporta dito,
+      // pointermove pa rin ang bahalang sumunod sa daliri.
+    }
+
+    setActiveEntry(entry);
+  });
+
+  container.addEventListener("pointermove", (event) => {
+    if (event.pointerId !== activePointerId) return;
+
+    event.preventDefault();
+
+    // "null" kung talagang lumabas na ang daliri sa BUONG D-pad
+    // (walang button ang saklaw) - tumitigil na rin ang paggalaw sa
+    // sandaling iyon, gaya ng inaasahan.
+    setActiveEntry(findEntryAtPoint(event.clientX, event.clientY));
+  });
+
+  function endPointer(event) {
+    if (event.pointerId !== activePointerId) return;
+
+    activePointerId = null;
+    setActiveEntry(null);
+  }
+
+  container.addEventListener("pointerup", endPointer);
+  container.addEventListener("pointercancel", endPointer);
 
   // Kung mawala ang focus ng window habang naka-hawak (hal. lumipat ng
   // app) - i-reset lahat, para hindi maiwang "nakadikit" sa isang
   // direksyon magpakailanman.
   window.addEventListener("blur", () => {
-    for (const { keys: dpadKeys } of DPAD_BUTTONS) {
-      for (const key of dpadKeys) keys[key] = false;
-    }
-
-    for (const { id } of DPAD_BUTTONS) {
-      document.getElementById(id)?.classList.remove("active");
-    }
+    activePointerId = null;
+    setActiveEntry(null);
   });
 })();
 

@@ -3641,3 +3641,86 @@ kailangang i-adjust ang mga ito.
   touch), `display: grid` sa touch/mobile context - dalawang
   magkaibang browser context, screenshot ng bawat isa.
 - **Cache-bust:** binump ang `?v=` ng `style.css` → `1800000000036`.
+
+### Entry #77 — D-pad: hindi na dapat lumabas sa desktop (mas tumpak na touch detection) + "slide" na paglipat ng direksyon, ayos sa settings button na natatabunan ng minimap, at bagong PER-ELEMENT na Controller > Edit Layout (select+highlight+sariling laki/opacity kada button)
+- **Files:** `js/mobile-controls.js`, `js/camera.js`, `style.css`,
+  `js/controller-layout.js` (buong ulit na sulat)
+- **(a) "yung sa dpad niya is di dapat mag appear sa desktop mode":**
+  - **Sanhi:** ang dating `isMobileTouchDevice` (mobile-controls.js) at
+    `CAMERA_IS_TOUCH_DEVICE` (camera.js) ay nagiging `true` sa SANDALING
+    MAY kahit ISANG touch-related signal (`"ontouchstart" in window`,
+    `navigator.maxTouchPoints > 0`, o `pointer: coarse`) - MADALING
+    mag-FALSE POSITIVE ito sa isang desktop/laptop na may TOUCHSCREEN
+    (Windows 2-in-1, touchscreen monitor) kahit mouse/keyboard pa rin
+    ang TALAGANG ginagamit na pangunahing input doon.
+  - **Ayos:** ginawang `(hover: none) and (pointer: coarse)` na lang
+    ang pamantayan (TANGGAL na ang standalone na
+    `ontouchstart`/`maxTouchPoints` bilang sapat na dahilan) - "hover:
+    none" ay TALAGANG totoo LANG kung ang PANGUNAHING input mismo ay
+    hindi kayang mag-hover (totoong touch device) - sa isang
+    touchscreen na desktop/laptop na mouse pa rin ang pangunahing
+    input, "hover: hover" pa rin ito, kaya HINDI na ito mali-link.
+    VERIFIED via Playwright (plain desktop context, walang
+    `has_touch`) - `display: none` at walang `touch-controls-active`
+    class.
+- **(b) "d-pad ok na pala nung una na medyo dikit... gusto ko sa d-pad is slide":**
+  - Ibinalik ang gap sa 4px (dating pinalaki sa 10px sa round 2).
+  - **Bagong "slide" na pag-uusap ng direksyon:** dating hiwalay/
+    independent na pointerdown/up listener ang bawat isa sa 8 button
+    (kailangan munang bitawan bago pumili ng ibang direksyon) - ngayon
+    IISANG "pointer capture" na listener na lang sa BUONG `#mobile-dpad`
+    container - kino-capture ang pointer sa unang pagkadikit, tapos
+    SUSUBAYBAYAN ang MISMONG posisyon ng daliri (pointermove) laban sa
+    bounding box ng bawat button - kung lumipat ito sa ibang button
+    (kahit hindi binitawan), doon awtomatikong lumilipat ang direksyon.
+    VERIFIED via Playwright (press LEFT, slide papuntang DOWN nang
+    walang binibitawan - `a` naging `false`, `s` naging `true`
+    awtomatiko).
+- **(c) "yung sa settings na button sa top right di pa nag appear":**
+  - **Sanhi:** dating normal flex child pa rin ng `#top-right-bar`
+    (top:14px/right:14px) ang 10x10 na settings button, PERO ang
+    `#minimap` sa touch mode ay INILIPAT na rin sa HALOS PAREHONG
+    sulok (top:8px/right:8px, 84x84px) - kaya TALAGANG natatabunan ng
+    mas-malaking bilog ng minimap (mas huli sa DOM, parehong z-index)
+    ang miniscule na button - "nawawala"/hindi na-click.
+  - **Ayos:** ginawang `position: fixed` na ito MISMO (independiyente
+    sa flex layout ng magulang, parehong pattern ng `#calendar-panel`),
+    inilagay sa TALAGANG KATABI (kaliwa) ng minimap. VERIFIED - walang
+    horizontal overlap sa pagitan nila.
+- **(d) BAGONG PER-ELEMENT na Controller > Edit Layout (round 3):**
+  - Dating GLOBAL lang ang scale/opacity (isang slider para sa LAHAT).
+    Ngayon, SARILI ng BAWAT target (D-pad/hand button/Tools/minimap/
+    **hotbar** - dinagdag) ang scale/opacity/posisyon
+    (`tralala.controllerLayout.v2`).
+  - **I-TAP ang isang control** habang naka-edit mode -> agad itong
+    "na-se-select" (solid gold outline + glow, `.controller-edit-selected`)
+    - lumalabas ang PANEL na may PANGALAN nito + SARILI nitong Laki/
+    Opacity slider (dating wala/di makilala kung alin ang kasalukuyang
+    ina-adjust).
+  - Mga HINDI pa na-se-select (pero naka-edit mode) - manipis na dashed
+    outline pa rin (`.controller-edit-target`) bilang senyales na
+    puwede silang i-tap/i-drag.
+  - **Bug na inayos bago pa mag-live:** ang `#hotbar` ay may sariling
+    `translateX(-50%)` sa CSS (kailangan para sa centering, "left:50%"
+    ang batayan) - kung basta "translate(dx,dy) scale(s)" LANG
+    (walang -50%) ang ilalagay bilang inline style, MAWAWALA ang
+    centering (mas prayoridad ang inline style). Ayos: bagong
+    `getComposedTransform()` na naglalagay ng `baseTransform`
+    ("translateX(-50%) ") BAGO ang dx/dy/scale, SPECIFIC sa hotbar
+    entry lang.
+  - **2nd na bug na inayos:** kung basta laging inilalagay ang inline
+    `transform`/`opacity` KAHIT DEFAULT pa rin (walang customization),
+    MAPAPAWALANG-BISA nito ang sariling responsive na "scale(0.82)"
+    default ng `#hotbar` sa mobile CSS. Ayos: bagong
+    `isDefaultTargetLayout()` check - "" (blangko, walang override) na
+    lang ang ilalagay kung TALAGANG default pa rin ang isang target,
+    manatili munang sumunod sa normal na CSS hangga't walang
+    TALAGANG customization.
+  - VERIFIED via Playwright (buksan ang panel, i-on ang edit mode,
+    i-tap ang hotbar -> na-select + tamang sliders, i-adjust ang scale
+    -> tamang "translateX(-50%) translate(0px,0px) scale(1.4)" na
+    transform - centering PRESERVED; i-tap ang hand button -> na-select
+    nang HINDI nag-trigger ng normal na tool-use action).
+- **Cache-bust:** binump ang `?v=` ng `style.css` (1800000000040),
+  `camera.js` (1800000000041), `mobile-controls.js` (1800000000042),
+  `controller-layout.js` (1800000000043).

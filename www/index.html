@@ -8,7 +8,7 @@
     />
     <title>Tralala Game</title>
 
-    <link rel="stylesheet" href="./style.css?v=1800000000036" />
+    <link rel="stylesheet" href="./style.css?v=1800000000040" />
   </head>
 
   <body>
@@ -689,10 +689,17 @@
          sa settings tapos crontroller tapos edit layout ganyan para
          ako na nag aadjust ng mga need ayusin mapa scale, opacity ng
          buttons ganyan" - bagong panel para ma-customize ng user MISMO
-         ang laki/opacity/posisyon ng mga on-screen na control
-         (D-pad/hand button/tools/minimap) - hindi na kailangang
-         mano-manong i-edit ang CSS. Tingnan ang controller-layout.js
-         para sa buong lohika (pag-drag, pag-save sa localStorage). -->
+         ang laki/opacity/posisyon ng LAHAT ng on-screen na control
+         (D-pad/hand button/Tools/minimap/hotbar) - hindi na
+         kailangang mano-manong i-edit ang CSS. AYOS (round 3, hiling
+         ng user): "dapat individual kapag click ko sa isang button is
+         dapat mag highlight yon tapos lalabas yung size at opacity
+         nun" - PER-TARGET na ngayon ang scale/opacity (dating global/
+         iisa lang para sa lahat) - ang slider ay nagbabago depende
+         kung ANO ang kasalukuyang na-select (i-tap ang gustong control
+         habang naka-edit mode). Tingnan ang controller-layout.js para
+         sa buong lohika (pag-select, pag-drag, pag-save sa
+         localStorage). -->
     <div id="controller-layout-panel" class="hidden">
       <div id="controller-layout-header">
         <span id="controller-layout-label">Controller</span>
@@ -701,25 +708,36 @@
 
       <div id="controller-layout-body">
         <button type="button" id="controller-layout-edit-toggle">
-          ✏️ I-edit ang Posisyon
+          ✏️ I-edit ang Posisyon/Laki
         </button>
         <p id="controller-layout-hint">
-          Kapag naka-edit mode, i-drag ang D-pad/hand button/Tools/minimap sa
-          screen para ilipat sila.
+          Kapag naka-edit mode, i-TAP ang gustong button (D-pad/hand
+          button/Tools/minimap/hotbar) sa screen para ma-highlight/piliin
+          ito - lalabas dito ang sarili nitong Laki/Opacity. I-drag ito
+          para ilipat.
         </p>
 
-        <label class="controller-layout-slider-row">
-          <span>Laki ng Buttons</span>
-          <input type="range" id="controller-layout-scale" min="0.7" max="1.4" step="0.05" value="1" />
-        </label>
+        <p id="controller-layout-empty-hint">
+          Wala pang napipiling button - i-on muna ang edit mode sa itaas,
+          tapos i-tap ang gustong i-adjust sa screen.
+        </p>
 
-        <label class="controller-layout-slider-row">
-          <span>Opacity</span>
-          <input type="range" id="controller-layout-opacity" min="0.3" max="1" step="0.05" value="1" />
-        </label>
+        <div id="controller-layout-sliders" class="hidden">
+          <div id="controller-layout-selected-name">-</div>
+
+          <label class="controller-layout-slider-row">
+            <span>Laki</span>
+            <input type="range" id="controller-layout-scale" min="0.5" max="1.8" step="0.05" value="1" />
+          </label>
+
+          <label class="controller-layout-slider-row">
+            <span>Opacity</span>
+            <input type="range" id="controller-layout-opacity" min="0.2" max="1" step="0.05" value="1" />
+          </label>
+        </div>
 
         <button type="button" id="controller-layout-reset">
-          🔄 I-reset ang Layout
+          🔄 I-reset ang Lahat
         </button>
       </div>
     </div>
@@ -857,7 +875,7 @@
          (advanceGameTime()). -->
     <script src="./js/gametime.js?v=1787160000000"></script>
     <script src="./js/player.js?v=1790600000000"></script>
-    <script src="./js/camera.js?v=1800000000025"></script>
+    <script src="./js/camera.js?v=1800000000041"></script>
     <script src="./js/input.js?v=1787160000000"></script>
     <script src="./js/collisions.js?v=1793600000001"></script>
     <!-- worlds.js ay dapat mauna sa map.js - dun nakalista ang mga mapa
@@ -983,13 +1001,13 @@
     <script src="./js/minimap.js?v=1800000000011"></script>
     <script src="./js/draw.js?v=1800000000016"></script>
     <script src="./js/main.js?v=1787160000000"></script>
-    <script src="./js/mobile-controls.js?v=1800000000033"></script>
+    <script src="./js/mobile-controls.js?v=1800000000042"></script>
     <!-- controller-layout.js: Settings > Controller > Edit Layout -
          hiling ng user na sila na mismo ang mag-aadjust ng
          posisyon/laki/opacity ng mga on-screen control (D-pad/hand
          button/tools/minimap), walang kailangang i-edit sa code.
          Kailangang MAUNA ang mobile-controls.js (isMobileTouchDevice)
          at settings-menu.js (openSettingsPanel/showSettingsToast). -->
-    <script src="./js/controller-layout.js?v=1800000000031"></script>
+    <script src="./js/controller-layout.js?v=1800000000043"></script>
   </body>
 </html>
