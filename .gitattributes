@@ -1,0 +1,10 @@
+# AYOS: nasira ang GitHub Actions build ("./gradlew: cannot execute:
+# required file not found") dahil naka-CRLF (Windows) ang line endings
+# ng android/gradlew nang ma-commit ito - sira ang shebang line
+# (#!/bin/sh + hidden \r) sa Linux runner. Ang buong proyekto ay
+# gumagamit ng CRLF bilang default (walang .gitattributes dati), kaya
+# posibleng mangyari ulit ito balang araw kung ma-edit/ma-save ulit ang
+# gradlew sa isang Windows editor. Pinipilit dito ang LF LAGI para sa
+# mga shell script, kahit ano pa ang OS/editor na ginamit sa pag-commit.
+gradlew text eol=lf
+*.sh text eol=lf
