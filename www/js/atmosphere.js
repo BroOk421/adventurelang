@@ -212,6 +212,70 @@ function getTorchPulseFactor() {
   return 1 + Math.sin(Date.now() / 450) * 0.1;
 }
 
+// AYOS (hiling ng user: "ang concern about lightray was not working" -
+// hindi na lumalabas ang liwanag ng bintana sa GABI): SANHI - dating
+// dito iginuguhit ang lightray SA HULI (screen space, PAGKATAPOS ng
+// multiply-dilim ng drawDayNight sa ibaba), kaya "lighter"/additive
+// itong nakapatong sa IBABAW ng dilim, tama ang liwanag. NANG lumipat
+// ito papuntang WORLD SPACE at MAS MAAGA sa buong frame (draw.js -
+// bago pa man ang drawGrass/drawMapObjects, para TALAGANG ma-occlude
+// ng damo/puno/player, tingnan ang paliwanag sa drawGrassmapHouseLightray
+// sa ibaba) - naging MAS MAAGA na rin ito kaysa sa drawDayNight, kaya
+// ang parehong "multiply"-dilim na iyon (na dumadaan sa BUONG canvas)
+// ay TUMATAKBO na PAGKATAPOS ng ray - ni-nunullify/pinapadilim nito
+// pabalik ang bright na "lighter" glow ng ray (parang walang nangyari),
+// kahit gabi na at naka-ON ang Light sa loob. AYOS: kaparehong
+// "hole-punch" na trick na ginagamit na ng torch (offscreen tint
+// canvas + destination-out) - BUTASAN din ang eksaktong hugis/posisyon
+// ng ray (gamit ang PAREHONG naka-mask na canvas ng ray mismo, hindi
+// lang basta parisukat) sa loob ng dayNightTintCanvas BAGO ito i-multiply
+// sa TALAGANG frame - kaya ang lugar na iyon ay HINDI na dumadaan sa
+// dilim/multiply, PANATILI ang liwanag na naiguhit na doon kanina pa
+// (habang PARIN naka-occlude ang RAY mismo ng damo/puno/player, dahil
+// hindi naman ito nagbabago - ang na-punch lang na butas ay ang
+// PAGDILIM sa IBABAW nito, hindi ang ray/occlusion mismo).
+function getGrassmapHouseLightrayHoleInfo() {
+  if (typeof currentWorld === "undefined" || currentWorld !== "grassmap") {
+    return null;
+  }
+
+  if (
+    typeof hasLitPlacedLightInWorld !== "function" ||
+    !hasLitPlacedLightInWorld(LIGHTRAY_GRASSMAPHOUSE_INTERIOR_WORLD)
+  ) {
+    return null;
+  }
+
+  const maskedSurface =
+    typeof getGrassmapHouseLightrayMaskedSurface === "function"
+      ? getGrassmapHouseLightrayMaskedSurface()
+      : null;
+
+  if (!maskedSurface) return null;
+
+  const alpha = typeof getNightAmount === "function" ? getNightAmount() : 0;
+
+  if (alpha <= 0.05) return null;
+
+  return { maskedSurface, alpha };
+}
+
+// Binubutas ang "tintCtx" (offscreen dayNightTintCanvas) sa EKSAKTONG
+// hugis/posisyon ng lightray (screen space, base sa camera/zoom
+// ngayon) - tingnan ang paliwanag sa itaas ng getGrassmapHouseLightrayHoleInfo.
+function punchGrassmapHouseLightrayHole(tintCtx, hole) {
+  const screenX = (LIGHTRAY_GRASSMAPHOUSE_WORLD_X - camera.x) * camera.zoom;
+  const screenY = (LIGHTRAY_GRASSMAPHOUSE_WORLD_Y - camera.y) * camera.zoom;
+  const screenWidth = hole.maskedSurface.width * camera.zoom;
+  const screenHeight = hole.maskedSurface.height * camera.zoom;
+
+  tintCtx.save();
+  tintCtx.globalCompositeOperation = "destination-out";
+  tintCtx.globalAlpha = hole.alpha;
+  tintCtx.drawImage(hole.maskedSurface, screenX, screenY, screenWidth, screenHeight);
+  tintCtx.restore();
+}
+
 function drawDayNight() {
   if (
     typeof isIndoors === "function" &&
@@ -284,10 +348,11 @@ function drawDayNight() {
     "rgb(" + Math.round(red) + ", " + Math.round(green) + ", " + Math.round(blue) + ")";
 
   const torchOn = typeof torchEquipped !== "undefined" && torchEquipped;
+  const lightrayHole = getGrassmapHouseLightrayHoleInfo();
 
-  if (!torchOn) {
-    // Walang naka-equip na torch - direkta sa TALAGANG canvas, walang
-    // hole/butas - PANTAY na dilim kahit saan.
+  if (!torchOn && !lightrayHole) {
+    // Walang naka-equip na torch AT walang kailangang butasin (lightray) -
+    // direkta sa TALAGANG canvas, walang hole/butas.
     ctx.save();
     ctx.globalCompositeOperation = "multiply";
     ctx.fillStyle = tintColor;
@@ -296,15 +361,26 @@ function drawDayNight() {
     return;
   }
 
-  // May naka-equip na torch - gumamit ng off-screen buffer para
-  // makapag-"butas" (smooth radial gradient), ITINAPAT sa mismong
-  // APOY ng torch (hindi na sa gitna ng player mismo), at may
-  // "PULSE"/paghinga (unti-unting lumalaki-liliit) - tingnan ang
-  // getTorchFlamePosition/getTorchPulseFactor sa ibaba.
+  // May naka-equip na torch AT/O may kailangang butasin (lightray) -
+  // gumamit ng off-screen buffer para makapag-"butas" (smooth radial
+  // gradient para sa torch, eksaktong hugis ng ray para sa lightray),
+  // ITINAPAT sa mismong APOY ng torch (hindi na sa gitna ng player
+  // mismo), at may "PULSE"/paghinga (unti-unting lumalaki-liliit) -
+  // tingnan ang getTorchFlamePosition/getTorchPulseFactor sa ibaba.
   const tintCtx = getDayNightTintSurface();
 
   tintCtx.fillStyle = tintColor;
   tintCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+  if (lightrayHole) punchGrassmapHouseLightrayHole(tintCtx, lightrayHole);
+
+  if (!torchOn) {
+    ctx.save();
+    ctx.globalCompositeOperation = "multiply";
+    ctx.drawImage(dayNightTintCanvas, 0, 0);
+    ctx.restore();
+    return;
+  }
 
   const flame = getTorchFlamePosition();
 

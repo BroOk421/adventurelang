@@ -1156,6 +1156,61 @@ const OLDMAN_TOP_RIGHT_MARGIN_TILES = 4;
 let oldManSpotCache = null;
 let oldManSpotValidatedFor = null;
 
+// =========================
+// TAHANANG MUNDO NG OLDMAN (iisang mundo lang siya lumalabas)
+// =========================
+//
+// AYOS (hiling ng user): "i want him only in one map like grassmap or
+// grassmap2 he only spawn once in grassmap or grassmap2" - dating
+// kahit anong "world.outdoor" na mundo (town, grassmap, grassmap2...)
+// ay may SARILI/HIWALAY na oldman (nag-re-reset/nagbabagong-buo ang
+// oldManSpotCache/oldManWander kada bagong currentWorld sa
+// ensureOldManSpot sa ibaba) - kaya PARANG magkakaibang oldman (o
+// parehong tao na sabay-sabay nasa dalawang lugar) ang lumalabas kada
+// pumasok ka sa ibang outdoor world. MALI - dapat IISA lang talaga
+// siya, sa IISANG mundo lang.
+//
+// AYOS: random na pumipili (ISANG BESES lang, tapos NAKA-SAVE na sa
+// localStorage - kaya PAREHO PALAGI kahit mag-reload) ng ISA sa
+// "grassmap"/"grassmap2" bilang TAHANANG mundo niya - doon LANG siya
+// lalabas (kabilang na ang random na paglabas-masok niya via
+// vanishOldMan/reappearOldMan, tingnan sa ibaba). Sa LAHAT ng ibang
+// mundo (kasama na ang "town"), WALANG oldman - tingnan ang guard sa
+// ensureOldManSpot.
+const OLDMAN_HOME_WORLD_SAVE_KEY = "tralala.oldManHomeWorld";
+const OLDMAN_POSSIBLE_HOME_WORLDS = ["grassmap", "grassmap2"];
+
+let oldManHomeWorldCache = null;
+
+function getOldManHomeWorld() {
+  if (oldManHomeWorldCache) return oldManHomeWorldCache;
+
+  try {
+    const saved = localStorage.getItem(OLDMAN_HOME_WORLD_SAVE_KEY);
+
+    if (OLDMAN_POSSIBLE_HOME_WORLDS.includes(saved)) {
+      oldManHomeWorldCache = saved;
+      return oldManHomeWorldCache;
+    }
+  } catch (error) {
+    // Hindi kritikal - dadaan na lang sa bagong random na pagpili sa ibaba.
+  }
+
+  oldManHomeWorldCache =
+    OLDMAN_POSSIBLE_HOME_WORLDS[
+      Math.floor(Math.random() * OLDMAN_POSSIBLE_HOME_WORLDS.length)
+    ];
+
+  try {
+    localStorage.setItem(OLDMAN_HOME_WORLD_SAVE_KEY, oldManHomeWorldCache);
+  } catch (error) {
+    // Hindi kritikal - gagana pa rin ang session na ito, babalik lang
+    // sa panibagong random na pagpili sa susunod na reload.
+  }
+
+  return oldManHomeWorldCache;
+}
+
 // Hinahanap ang pinakamalapit na BAKANTENG tile sa paligid ng isang
 // anchor point (world pixels), gumagalaw papalayo nang paunti-unti
 // (spiral) hanggang may mahanap.
@@ -1228,6 +1283,12 @@ function ensureOldManSpot() {
   const world = getWorld();
 
   if (!world || !world.outdoor) return;
+
+  // AYOS (hiling ng user): tingnan ang paliwanag sa itaas ng
+  // OLDMAN_HOME_WORLD_SAVE_KEY - IISANG mundo lang (random na pinili,
+  // grassmap o grassmap2) ang TALAGANG puwestuhan niya, kahit outdoor
+  // pa rin ang ibang mundo (hal. town) - doon, WALANG oldman.
+  if (currentWorld !== getOldManHomeWorld()) return;
 
   const anchorCol = mapData.width - 1 - OLDMAN_TOP_RIGHT_MARGIN_TILES;
   const anchorRow = OLDMAN_TOP_RIGHT_MARGIN_TILES;

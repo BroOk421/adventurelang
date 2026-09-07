@@ -61,8 +61,10 @@ const SNOW_FLAKE_COUNT = 180;
 // mabilis at mas makapal ito - normal/mabagal kapag hindi bagyo.
 const SNOW_MIN_SPEED = 0.1;
 const SNOW_MAX_SPEED = 0.2;
-const SNOW_STORM_SPEED_MULTIPLIER = 3.5;
-const SNOW_STORM_SIZE_MULTIPLIER = 1.3;
+
+// AYOS (hiling ng user - "make the snowstorm bring fast"): dinagdagan
+// pa (dating 3.5) - mas mabilis pa ang bagsak sa panahon ng bagyo.
+const SNOW_STORM_SPEED_MULTIPLIER = 5;
 
 // AYOS: "in-remake" ang itsura ng bawat snowflake para tumugma sa
 // sinend na reference code (standalone "Top Down Snow" na HTML/canvas
@@ -73,6 +75,39 @@ const SNOW_STORM_SIZE_MULTIPLIER = 1.3;
 // integer) - ngayon "size" na (kuwadrado, integer pixel lang: 1-3px).
 const SNOW_MIN_SIZE = 1;
 const SNOW_MAX_SIZE = 3;
+
+// AYOS (hiling ng user): "i want them same size of the snow minimal
+// size" - TINANGGAL na ang dating pag-PALAKI (dating 1.3x, tingnan ang
+// SNOW_STORM_SIZE_MULTIPLIER) - sa halip, ang laki ng BAWAT patak
+// habang SNOWSTORM ay ang PAREHONG "minimal"/pinakamaliit na sukat ng
+// normal na niyebe (SNOW_MIN_SIZE) - hindi na nakabatay sa depth (na
+// puwedeng umabot hanggang SNOW_MAX_SIZE) - kaya pantay-pantay/manipis
+// AT PAREHONG-PAREHONG laki (kagaya ng normal na pinakamaliit) ang
+// bawat isa, mas parang mabilis na "sleet"/blowing snow.
+//
+// AYOS (bug fix): ito ay dating nasa ITAAS pa ng deklarasyon ng
+// SNOW_MIN_SIZE mismo (nauna ito sa file kaysa dito) - kaya sa
+// sandaling i-load ang script, "Cannot access 'SNOW_MIN_SIZE' before
+// initialization" (TDZ) ang nangyayari sa mismong TOP-LEVEL na
+// eksekusyon ng file - kaya HUMIHINTO agad ang BUONG script sa puntong
+// iyon, kasama na ang lahat ng SUSUNOD na `let`/`const` sa file na ito
+// (hal. `snowGroundSparkles`) - kaya kahit tama ang code sa loob ng
+// mga function (hindi pa naman TALAGANG na-eeksekyut ang mga iyon),
+// nag-e-error na agad ang gameLoop sa unang tawag sa updateSnow()
+// ("Cannot access 'snowGroundSparkles' before initialization") dahil
+// hindi na natuloy ang script bago pa man maabot ang deklarasyon
+// nito. AYOS: inilipat ito PAGKATAPOS na ng SNOW_MIN_SIZE (const
+// declarations ay dapat laging BASAHIN nang paunang-una bago gamitin,
+// hindi lang basta i-reorder base sa "logical grouping").
+const SNOW_STORM_FLAKE_SIZE = SNOW_MIN_SIZE;
+
+// AYOS (hiling ng user): "the direction is like left down" - bago,
+// PATULOY na paggalaw PAKALIWA (hindi lang random sway) habang
+// SNOWSTORM - kada 1 unit na pagbaba, ganito karaming unit din
+// (SNOW_STORM_WIND_STRENGTH) ang pahilis na paggalaw PAKALIWA - mas
+// malaki ang value, mas "matarik"/pahiga ang tagilid ng bagsak (mas
+// parang hinihipan ng malakas na hangin), 0 = tuwid pababa lang.
+const SNOW_STORM_WIND_STRENGTH = 0.9;
 
 const SNOW_MIN_OPACITY = 0.5;
 const SNOW_MAX_OPACITY = 0.95;
@@ -271,14 +306,27 @@ function updateSnow() {
   const wrapHeight = canvas.height + SNOW_RESET_MARGIN * 2;
 
   const speedMultiplier = getSnowSpeedMultiplier();
+  const isStorm = getCalendarState().isSnowStorm;
 
   for (const flake of snowflakes) {
     flake.y += flake.speed * speedMultiplier;
     flake.swayPhase += flake.swaySpeed;
-    flake.x += Math.sin(flake.swayPhase) * flake.swayAmount * 0.1;
-    // Munting PATULOY na "drift" (hangin) - dagdag sa sway, kagaya ng
-    // reference code (this.drift * 0.05).
-    flake.x += flake.drift * 0.05;
+
+    if (isStorm) {
+      // AYOS (hiling ng user): sa panahon ng SNOWSTORM, patuloy/
+      // consistent na PAKALIWA ang paggalaw (proporsyonal sa TALAGANG
+      // bilis ng bagsak ngayon, kasama na ang SNOW_STORM_SPEED_
+      // MULTIPLIER) sa halip na banayad na sway lang - kaya lahat ng
+      // snowflake ay TAGILID na bumabagsak papuntang KALIWA, parang
+      // hinihipan talaga ng malakas na hangin, hindi lang basta tuwid
+      // pababa.
+      flake.x -= flake.speed * speedMultiplier * SNOW_STORM_WIND_STRENGTH;
+    } else {
+      flake.x += Math.sin(flake.swayPhase) * flake.swayAmount * 0.1;
+      // Munting PATULOY na "drift" (hangin) - dagdag sa sway, kagaya ng
+      // reference code (this.drift * 0.05).
+      flake.x += flake.drift * 0.05;
+    }
 
     // UMIIKOT (wrap) ang niyebe sa paligid ng tanawin. Mahalaga na sa
     // KABILANG gilid siya lumalabas, hindi laging sa itaas:
@@ -332,11 +380,22 @@ function drawSnow(layer) {
   const offsetX = getSnowOffsetX();
   const offsetY = getSnowOffsetY();
 
-  // Mas malaki/makapal ang bawat snowflake sa panahon ng snowstorm -
-  // "much snow" na hitsura, kasabay ng mas mabilis na bagsak.
-  const sizeMultiplier = getCalendarState().isSnowStorm
-    ? SNOW_STORM_SIZE_MULTIPLIER
-    : 1;
+  // AYOS (hiling ng user - "same size of the snow minimal size"): sa
+  // panahon ng SNOWSTORM, hindi na PINAPALAKI ang bawat patak - ang
+  // PAREHONG "minimal"/pinakamaliit na sukat (SNOW_STORM_FLAKE_SIZE,
+  // tingnan sa itaas) ang gamit ng LAHAT, pantay-pantay, sa halip na
+  // ang depth-based na `flake.size` (na puwedeng umabot hanggang
+  // SNOW_MAX_SIZE).
+  const isStorm = getCalendarState().isSnowStorm;
+
+  // AYOS (hiling ng user): habang SNOWSTORM, iguhit ang bawat patak
+  // bilang mahabang "streak" (hindi lang munting parisukat) na naka-
+  // tagilid papunta sa PAREHONG anggulo ng TALAGANG paggalaw nito
+  // (pababa + PAKALIWA, tingnan ang SNOW_STORM_WIND_STRENGTH sa itaas)
+  // - kaya kahit sa tingin lang (hindi lang sa galaw), makikitang
+  // "hinihipan"/blowing talaga ng hangin ang niyebe, hindi lang basta
+  // mabilis na bumabagsak nang tuwid.
+  const stormAngle = Math.atan2(-SNOW_STORM_WIND_STRENGTH, 1);
 
   ctx.save();
 
@@ -347,14 +406,26 @@ function drawSnow(layer) {
 
     ctx.globalAlpha = flake.opacity * intensity;
 
-    const size = Math.max(1, Math.round(flake.size * sizeMultiplier));
+    if (isStorm) {
+      const size = SNOW_STORM_FLAKE_SIZE;
+      const length = size * 3;
 
-    ctx.fillRect(
-      Math.floor(flake.x - offsetX),
-      Math.floor(flake.y - offsetY),
-      size,
-      size,
-    );
+      ctx.save();
+      ctx.translate(
+        Math.floor(flake.x - offsetX),
+        Math.floor(flake.y - offsetY),
+      );
+      ctx.rotate(stormAngle);
+      ctx.fillRect(-size / 2, -length / 2, size, length);
+      ctx.restore();
+    } else {
+      ctx.fillRect(
+        Math.floor(flake.x - offsetX),
+        Math.floor(flake.y - offsetY),
+        flake.size,
+        flake.size,
+      );
+    }
   }
 
   ctx.restore();

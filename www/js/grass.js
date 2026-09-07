@@ -40,17 +40,28 @@
 
 const GRASS_TUFT_COUNT_PER_WORLD = 50;
 
-// 3 designs (grass1/grass2/grass3) - IISA lang sa 3 ang random na
+// 9 designs (grass1-grass9) - IISA lang sa 9 ang random na
 // napipili KADA TUMPOK (tuft.variant), PAREHO ito SA LAHAT ng
 // pagkakataon (idle, nakatapakan, umuulan ng niyebe) - tingnan ang
 // paliwanag sa itaas kung bakit tinanggal na ang paglipat sa ibang
 // larawan.
-const GRASS_TUFT_VARIANT_COUNT = 3;
+//
+// AYOS (hiling ng user): "i add grass4 to grass9 i want you to add it
+// in random grass" - dinagdag ang grass4-grass9.png sa listahan ng
+// random na napipiling variant (dating grass1-grass3 lang) - kaya mas
+// magkaka-iba-iba na ang itsura ng mga tumpok kada mundo.
+const GRASS_TUFT_VARIANT_COUNT = 9;
 
 const GRASS_TUFT_IDLE_VARIANT_PATHS = [
   "./assets/objects/grass/grass1.png",
   "./assets/objects/grass/grass2.png",
   "./assets/objects/grass/grass3.png",
+  "./assets/objects/grass/grass4.png",
+  "./assets/objects/grass/grass5.png",
+  "./assets/objects/grass/grass6.png",
+  "./assets/objects/grass/grass7.png",
+  "./assets/objects/grass/grass8.png",
+  "./assets/objects/grass/grass9.png",
 ];
 
 const GRASS_TUFT_IMAGES = {};

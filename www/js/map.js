@@ -1713,7 +1713,25 @@ const OCCLUDABLE_OVERLAP_TYPES = new Set(["trees", "house"]);
 // TALAGANG mas mataas pa. Sapat ito para saklawin ang "katabi/harap-
 // tabi ng matangkad na puno" na sitwasyon, pero hindi masyadong
 // agresibo (hindi lahat ng puno sa paligid ay biglang mag-fa-fade).
-const TREE_OCCLUSION_SORT_TOLERANCE = TILE_SIZE * 1.5;
+// AYOS (hiling ng user): "dapat kapag sa harap dumaan yung character
+// hindi mag opacity yung trees dapat sa likod lang ng trees" - SANHI:
+// ang TOLERANCE na ito ay nagbibigay ng ~1.5 TILES na "grasya" sa
+// GUMAGALAW/PASSING na player - kahit NAKALAGPAS/NAKARAAN NA siya
+// (nasa HARAP na ng puno, `playerSortY` ay LUMAMPAS na sa `item.sortY`),
+// kung sa loob pa rin ng 1.5 tiles ang pagkakalampas, ITINUTURING
+// PA RIN itong "likod"/occluding - kaya kitang-kita/nararamdaman na
+// nag-o-opacity pa rin ang puno KAHIT nasa HARAP na talaga ang
+// character (sandaling lampas lang sa ugat ng puno). AYOS: TINANGGAL
+// na ang tolerance na ito (0 na ngayon, kagaya na rin ng bahay) - kaya
+// ang FADE ay TUMITIGIL na agad SA SANDALING umabot/lumampas na ang
+// paanan ng player sa MISMONG hanay ng ugat ng puno (playerSortY >=
+// item.sortY) - HINDI na ito bumabalik pa "likod"/occluding sa
+// sandaling iyon, kahit kaunti pa lang ang nalagpasan. Ang TAAS/LAPAD
+// ng canopy (TREE_OCCLUSION_MAX_HEIGHT, resources.js) ang bahalang
+// mag-alaga sa "gaano kalayo PAITAAS (behind/north) mula sa ugat" pa
+// dapat mag-fade - hindi na kailangan ng hiwalay na south-side na
+// tolerance dito.
+const TREE_OCCLUSION_SORT_TOLERANCE = 0;
 
 function shouldOccludeForPlayer(item, playerVisualBox, playerSortY) {
   if (item.isPlayer || !item.bbox) return false;
@@ -1724,12 +1742,7 @@ function shouldOccludeForPlayer(item, playerVisualBox, playerSortY) {
   // lang, laging puno lang sila.
   if (item.type && !OCCLUDABLE_OVERLAP_TYPES.has(item.type)) return false;
 
-  // MATAAS na occluder (puno - lahat maliban sa "house")? Bigyan ng
-  // sort-tolerance (tingnan ang TREE_OCCLUSION_SORT_TOLERANCE sa itaas)
-  // - ang bahay ay WALANG tolerance (0), dahil mababa/patag lang ito
-  // at ayaw nating mag-fade ito kapag nasa tabi/harap lang ang player.
-  const isTallOccluder = item.type !== "house";
-  const sortTolerance = isTallOccluder ? TREE_OCCLUSION_SORT_TOLERANCE : 0;
+  const sortTolerance = TREE_OCCLUSION_SORT_TOLERANCE;
 
   // Iguguhit lang ito PAGKATAPOS ng player (kaya siya sana ang
   // "tatakip") - kung TALAGANG nauna pa ito nang malaki sa player
@@ -1737,7 +1750,23 @@ function shouldOccludeForPlayer(item, playerVisualBox, playerSortY) {
   // harap na ang player kahit ganoon).
   if (item.sortY <= playerSortY - sortTolerance) return false;
 
-  return isColliding(item.bbox, playerVisualBox);
+  // Mabilis na COARSE na check muna (basta bounding box) - kung wala
+  // man lang dito, tiyak na wala rin sa mas mahigpit/pixel-level na
+  // check sa ibaba, kaya ligtas nang mag-`return false` agad (iwas sa
+  // hindi na kailangang gastos ng pixel sampling).
+  if (!isColliding(item.bbox, playerVisualBox)) return false;
+
+  // AYOS (hiling ng user: "medyo malayo pa pero nag opacity na siya,
+  // dapat nasa mismong overlap na saka lang mag opacity") - kung may
+  // TUMPAK/pixel-level na check pa ang item na ito (`occlusionTest` -
+  // tingnan ang treeOccludesPlayerBox, resources.js), ITO na ang FINAL
+  // na hatol sa halip na basta ang parisukat na bbox - mas TUMPAK ito
+  // dahil TALAGANG sinusuri nito ang ALPHA/SILWETA ng puno (kasama ang
+  // pagta-taper ng canopy papuntang itaas), hindi lang ang bounding box
+  // nito na maaaring may malaking BAHAGING transparent pa rin.
+  if (item.occlusionTest) return item.occlusionTest(playerVisualBox);
+
+  return true;
 }
 
 function drawDrawableWithOcclusion(item, playerVisualBox, playerSortY) {

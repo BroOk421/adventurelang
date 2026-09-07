@@ -129,6 +129,14 @@ function update(deltaMs) {
     updateGroundItems(deltaMs || REFERENCE_FRAME_MS);
   }
 
+  // BAGO (scattered-loot.js, hiling ng user) - nakakalat na wood/stone
+  // na DIREKTANG madadampot (hindi choppable) sa grassmap/grassmap2 -
+  // 10 kada uri, isa-isang bumabalik kada 10 minuto (GAME time) ng
+  // nadampot. SUMUSUNOD ito sa updateGroundItems sa itaas - kung may
+  // bagong lumabas dito, ma-a-apply na lang ang magnet/vacuum nito sa
+  // KASUNOD na frame (walang epekto/hindi kapansin-pansin).
+  if (typeof updateScatteredLoot === "function") updateScatteredLoot();
+
   updatePlayerPutting();
 
   if (typeof updateCanvasCursor === "function") updateCanvasCursor();

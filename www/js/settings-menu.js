@@ -80,6 +80,13 @@ function saveAllGameState() {
   if (typeof saveHarvestedGrassTufts === "function") saveHarvestedGrassTufts(true);
   if (typeof saveGrassRegrowSchedule === "function") saveGrassRegrowSchedule(true);
   if (typeof saveGameTimeState === "function") saveGameTimeState(true);
+  // BAGO (scattered-loot.js) - nakakalat na wood/stone loot (grassmap/
+  // grassmap2) + ang 10-minutong respawn schedule nito, kaparehong
+  // pattern ng resourceExtraNodes/resourceRespawnSchedule sa itaas.
+  if (typeof saveScatteredLoot === "function") saveScatteredLoot(true);
+  if (typeof saveScatteredLootSchedule === "function") {
+    saveScatteredLootSchedule(true);
+  }
 }
 
 // Lahat ng save KEY (localStorage) na ginagamit ng laro - ginagamit ng
@@ -107,6 +114,12 @@ function getAllSaveKeys() {
     typeof GRASS_TUFT_SAVE_KEY !== "undefined" ? GRASS_TUFT_SAVE_KEY : null,
     typeof GRASS_REGROW_SCHEDULE_SAVE_KEY !== "undefined"
       ? GRASS_REGROW_SCHEDULE_SAVE_KEY
+      : null,
+    typeof SCATTERED_LOOT_SAVE_KEY !== "undefined"
+      ? SCATTERED_LOOT_SAVE_KEY
+      : null,
+    typeof SCATTERED_LOOT_SCHEDULE_SAVE_KEY !== "undefined"
+      ? SCATTERED_LOOT_SCHEDULE_SAVE_KEY
       : null,
     typeof GAME_TIME_SAVE_KEY !== "undefined" ? GAME_TIME_SAVE_KEY : null,
   ].filter(Boolean);

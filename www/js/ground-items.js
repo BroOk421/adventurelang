@@ -183,6 +183,19 @@ function updateGroundItems(deltaMs) {
 
       collectGroundItem(item.itemId, item.count);
 
+      // BAGO (scattered-loot.js) - kung isang PERMANENTENG scattered
+      // loot node ang na-"vacuum" (hindi normal na ani/drop) - kailangan
+      // ding tanggalin ito sa registry doon (para malaman ng 10-minutong
+      // respawn schedule na may deficit na uli, at para hindi na ito
+      // muling lumabas sa susunod na reload).
+      if (
+        item.permanent &&
+        item.lootId &&
+        typeof handleScatteredLootPickup === "function"
+      ) {
+        handleScatteredLootPickup(item.world, item.lootId);
+      }
+
       if (typeof playPutSfx === "function") playPutSfx();
     }
 
@@ -191,8 +204,12 @@ function updateGroundItems(deltaMs) {
     if (typeof syncHotbarUI === "function") syncHotbarUI();
   }
 
+  // BAGO (scattered-loot.js) - "permanent: true" na item (hal. mga
+  // nakakalat na wood/stone loot) ay HINDI dapat mag-expire kahit
+  // gaano katagal - tanging pagdampot (itaas, o tryPickupGroundItemsAt)
+  // ang nagtatanggal sa kanila.
   groundItems = groundItems.filter(
-    (item) => now - item.bornAt < GROUND_ITEM_DESPAWN_MS,
+    (item) => item.permanent || now - item.bornAt < GROUND_ITEM_DESPAWN_MS,
   );
 }
 
@@ -240,6 +257,17 @@ function tryPickupGroundItemsAt(col, row) {
   const item = groundItems[index];
 
   collectGroundItem(item.itemId, item.count);
+
+  // BAGO (scattered-loot.js) - tingnan ang paliwanag sa itaas ng
+  // updateGroundItems (parehong hook, pero para sa click/manual pickup
+  // sa halip na magnet/vacuum).
+  if (
+    item.permanent &&
+    item.lootId &&
+    typeof handleScatteredLootPickup === "function"
+  ) {
+    handleScatteredLootPickup(item.world, item.lootId);
+  }
 
   groundItems.splice(index, 1);
 
@@ -345,6 +373,13 @@ function drawGroundItems() {
       const arc = 4 * progress * (1 - progress);
 
       liftY = -arc * GROUND_ITEM_LAND_HEIGHT;
+    } else if (ground.permanent) {
+      // BAGO (scattered-loot.js, hiling ng user: "naka floating lang sa
+      // ground") - tuloy-tuloy na banayad na paglutang paitaas-pababa
+      // (HINDI katulad ng landing bounce sa itaas, na isang beses lang/
+      // paglapag) - "+ ground.id" para hindi sabay-sabay/magkasabay ang
+      // galaw ng bawat isa, magulo kung magkakasunod ang lutang nila.
+      liftY = -Math.sin(now / 600 + ground.id) * 3;
     }
 
     const centerX = ground.col * TILE_SIZE + TILE_SIZE / 2 + ground.offsetX;
@@ -353,10 +388,12 @@ function drawGroundItems() {
 
     // Unti-unting kumukupas bilang babala bago tuluyang mawala
     // (GROUND_ITEM_DESPAWN_MS) - walang epekto habang mas bago pa ito.
+    // "permanent" na item (scattered-loot.js) - HINDI dapat kumupas,
+    // dahil hindi naman ito nag-e-expire (tingnan ang updateGroundItems).
     const msUntilDespawn = GROUND_ITEM_DESPAWN_MS - age;
 
     ctx.globalAlpha =
-      msUntilDespawn < GROUND_ITEM_FADE_WARNING_MS
+      !ground.permanent && msUntilDespawn < GROUND_ITEM_FADE_WARNING_MS
         ? Math.max(0, msUntilDespawn / GROUND_ITEM_FADE_WARNING_MS)
         : 1;
 

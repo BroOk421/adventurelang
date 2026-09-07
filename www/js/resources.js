@@ -15,7 +15,11 @@
 // kaniyang "snow" na bersyon (snowtree/snowtree1, snowrock/snowrock1)
 // na ginagamit sa halip kapag umuulan ng niyebe ngayon.
 
-const TREE_COUNT_PER_WORLD = 11;
+// AYOS (hiling ng user): "minimize the numbers of trees much more the
+// grass than trees" - binaba mula 11 tungo sa 6, para mas malaki ang
+// agwat ng dami ng damo (GRASS_TUFT_COUNT_PER_WORLD, grass.js) kumpara
+// sa puno kada mundo.
+const TREE_COUNT_PER_WORLD = 6;
 const STONE_COUNT_PER_WORLD = 20;
 
 // Ilang beses kailangang i-click (axe/pickaxe) bago talaga maani ang
@@ -1948,8 +1952,26 @@ function drawTreeAtOpacityAndScale(
   const x = node.col * TILE_SIZE + TILE_SIZE / 2 - destWidth / 2 + shakeOffsetX;
   const y = node.row * TILE_SIZE + TILE_SIZE - destHeight;
 
+  // AYOS (bug fix, hiling ng user: "still not working the opacity for
+  // the trees when character behind the tree") - SANHI: dating basta
+  // "ctx.globalAlpha = alpha;" (direktang IPINAPALIT, hindi
+  // isinasama/multiplied) - ang "alpha" dito ay LAGING 1 (o yung
+  // snow-stage cross-fade value lang, WALANG kinalaman sa occlusion)
+  // mula sa drawTreeSprite. Ang OCCLUSION (drawDrawableWithOcclusion,
+  // map.js) ay NAG-SE-SET NA ng ctx.globalAlpha = 0.45 BAGO tawagin ang
+  // item.draw() (na sa huli ay umaabot dito) - PERO dahil DIREKTANG
+  // "=" (hindi "*=") ang ginagawa dito, NABUBURA/na-o-override agad ang
+  // 0.45 na iyon pabalik sa 1 (o sa cross-fade value) BAGO pa man
+  // maiguhit ang larawan - kaya WALANG NANGYAYARING pagbabago sa
+  // itsura kahit TAMA/tumatakbo na ang occlusion check mismo. AYOS:
+  // i-MULTIPLY na lang ang "alpha" (cross-fade) sa AMBIENT na
+  // ctx.globalAlpha (kung ano man ito BAGO pumasok dito - 1 kapag
+  // walang occlusion, 0.45 kapag may occlusion) - kaya PAREHONG
+  // gumagana ang cross-fade AT ang occlusion, hindi na nag-kakansela.
+  const ambientAlpha = ctx.globalAlpha;
+
   ctx.save();
-  ctx.globalAlpha = alpha;
+  ctx.globalAlpha = ambientAlpha * alpha;
   ctx.drawImage(img, x, y, destWidth, destHeight);
   ctx.restore();
 }
@@ -2282,6 +2304,25 @@ function drawPinetreeFallFrame(node, treeDestWidthInTiles, age) {
 // taas ng aktwal na drawTreeSprite) - kaya kahit saang bahagi ng
 // canopy "tumago" ang player, tumatama ang overlap check at lumalabo
 // ang puno (makikita pa rin ang character sa likod nito).
+// BAGO (hiling ng user): "sobrang layo ng character, di pa napupunta
+// sa tree is nag-oopacity na - dapat specific kung anong tree lang
+// madaanan niya yun lang mag-oopacity" - SANHI: ang bboxHeight sa
+// ibaba ay 90% ng BUONG taas ng NAKA-RENDER na puno - pero ang pinetree
+// ay sobrang TAAS (~7.7 tiles) kumpara sa player (~4 tiles), kaya kahit
+// MALAYO pa (hanggang 6-7 tiles PAITAAS mula sa ugat) ang player,
+// NASA LOOB pa rin siya ng bbox na ito (na umaabot halos sa BUONG taas
+// ng puno) - kaya masyadong MAAGA/MALAYO pa lang ay nag-o-opacity na
+// agad, kahit hindi pa talaga nakakalapit/nakakadaan ang player sa
+// puno mismo. AYOS: LIMITAHAN ang bboxHeight sa isang mas makatwirang
+// MAX (hindi na basta 90% ng BUONG taas ng larawan kahit gaano pa
+// kataas ang puno) - sapat na ito para masakop ang TALAGANG NAKIKITANG
+// bahagi ng canopy na puwedeng "tumago"/lumukob sa isang naglalakad na
+// player (ilang tiles lang PAITAAS mula sa ugat, hindi na kailangang
+// umabot sa pinaka-tuktok ng isang napakatangkad na puno) - kaya ang
+// TALAGANG puno LANG na kasalukuyang nilalapitan/dinadaanan ng player
+// ang mag-fa-fade, hindi ang mga malalayo pang puno sa itaas nito.
+const TREE_OCCLUSION_MAX_HEIGHT = TILE_SIZE * 4.5;
+
 function getTreeOcclusionBbox(tree, treeDestWidthInTiles) {
   const variant = getActiveTreeVariantPaths()[tree.variant];
   const img = variant ? RESOURCE_IMAGES[variant.normal] : null;
@@ -2293,11 +2334,14 @@ function getTreeOcclusionBbox(tree, treeDestWidthInTiles) {
       : 1.25; // ligtas na default kung hindi pa naka-load ang larawan
   const destHeight = destWidth * naturalAspect;
 
-  // Halos buong lapad/taas ng TALAGANG naka-render na puno (90%) - hindi
+  // Halos buong lapad ng TALAGANG naka-render na puno (90%) - hindi
   // 100% nang eksakto, para hindi masyadong sensitibo/agad-agad
   // mag-trigger sa pinaka-gilid na transparent na bahagi ng larawan.
   const bboxWidth = destWidth * 0.9;
-  const bboxHeight = destHeight * 0.9;
+  // TAAS: 90% ng render, PERO naka-cap sa TREE_OCCLUSION_MAX_HEIGHT
+  // (tingnan ang paliwanag sa itaas) - kaya hindi na sumasakop nang
+  // sobra-sobra kahit gaano pa "katangkad" ang puno.
+  const bboxHeight = Math.min(destHeight * 0.9, TREE_OCCLUSION_MAX_HEIGHT);
 
   const treeBottomY = tree.row * TILE_SIZE + TILE_SIZE; // parehong anchor ng drawTreeSprite
   const treeCenterX = tree.col * TILE_SIZE + TILE_SIZE / 2;
@@ -2308,6 +2352,125 @@ function getTreeOcclusionBbox(tree, treeDestWidthInTiles) {
     width: bboxWidth,
     height: bboxHeight,
   };
+}
+
+// =========================
+// PIXEL-LEVEL NA OCCLUSION TEST (bug fix, hiling ng user: "medyo malayo
+// pa pero nag opacity na siya, dapat nasa mismong overlap na saka lang
+// mag opacity")
+// =========================
+//
+// SANHI: ang bbox sa itaas (getTreeOcclusionBbox) ay isang SIMPLENG
+// PARISUKAT lang - PERO ang TALAGANG hugis ng puno (lalo na ang
+// pinetree) ay TUMATAPER/lumiliit papuntang itaas (parang tatsulok,
+// hindi tunay na parisukat) - kaya sa itaas na bahagi ng canopy,
+// MALAKING BAHAGI ng "parisukat" na bbox ay TALAGANG TRANSPARENT na
+// pixel lang (walang guhit doon sa totoong larawan) - pero dahil basta
+// AABB (bounding box) lang ang sinusuri (isColliding), ITINUTURING
+// pa ring "overlap"/"likod ng puno" kahit malayo pa talaga ang
+// character sa TALAGANG NAKIKITANG guhit ng puno. AYOS: gamit na ngayon
+// ng TALAGANG ALPHA/SILWETA ng larawan (hindi na basta bounding box)
+// bilang FINAL na pagsusuri - kinukuha ang tunay na pixel data ng
+// larawan (isang beses lang, naka-cache), tapos sinasampol ang ilang
+// punto sa BUONG visual box ng player (playerVisualBox) - kung ANUMAN
+// sa mga puntong iyon ay TALAGANG NAKATAPAT sa isang OPAQUE (hindi
+// transparent) na pixel ng puno, doon lang TALAGANG ituturing na
+// "nakatago"/"overlap" ang character. Ang bbox sa itaas ay GINAGAMIT
+// pa rin bilang MABILIS na unang check (coarse AABB reject) bago pa
+// man patakbuhin ang mas mabigat na pixel test na ito - tingnan ang
+// shouldOccludeForPlayer (map.js).
+const TREE_ALPHA_MASK_CACHE = new Map();
+
+function getImageAlphaMask(img) {
+  if (!img || !img.complete || img.naturalWidth === 0) return null;
+
+  const cached = TREE_ALPHA_MASK_CACHE.get(img.src);
+
+  if (cached) return cached;
+
+  const offscreen = document.createElement("canvas");
+
+  offscreen.width = img.naturalWidth;
+  offscreen.height = img.naturalHeight;
+
+  const offscreenCtx = offscreen.getContext("2d");
+
+  offscreenCtx.drawImage(img, 0, 0);
+
+  let data = null;
+
+  try {
+    data = offscreenCtx.getImageData(0, 0, offscreen.width, offscreen.height).data;
+  } catch (error) {
+    // Hindi kritikal - babalik na lang sa basta-bbox na pagsusuri kung
+    // sakaling hindi ma-access (hal. tainted canvas) ang pixel data.
+    return null;
+  }
+
+  const mask = { width: offscreen.width, height: offscreen.height, data };
+
+  TREE_ALPHA_MASK_CACHE.set(img.src, mask);
+
+  return mask;
+}
+
+// Sinusuri kung OPAQUE (hindi transparent) ang pixel ng puno na ito sa
+// isang partikular na WORLD (x,y) na punto - `null` kung wala pang
+// larawan/mask (hindi pa loaded), treatment nito sa caller ay basta
+// laktawan/huwag i-count bilang overlap sa kasong iyon.
+function isTreePixelOpaqueAtWorld(tree, treeDestWidthInTiles, worldX, worldY) {
+  const variant = getActiveTreeVariantPaths()[tree.variant];
+  const img = variant ? RESOURCE_IMAGES[variant.normal] : null;
+  const mask = getImageAlphaMask(img);
+
+  if (!mask) return false;
+
+  const destWidth = TILE_SIZE * treeDestWidthInTiles;
+  const destHeight = destWidth * (mask.height / mask.width);
+
+  const treeBottomY = tree.row * TILE_SIZE + TILE_SIZE;
+  const treeCenterX = tree.col * TILE_SIZE + TILE_SIZE / 2;
+
+  const left = treeCenterX - destWidth / 2;
+  const top = treeBottomY - destHeight;
+
+  const fracX = (worldX - left) / destWidth;
+  const fracY = (worldY - top) / destHeight;
+
+  if (fracX < 0 || fracX >= 1 || fracY < 0 || fracY >= 1) return false;
+
+  const pixelX = Math.floor(fracX * mask.width);
+  const pixelY = Math.floor(fracY * mask.height);
+  const alphaIndex = (pixelY * mask.width + pixelX) * 4 + 3;
+
+  // Threshold (hindi eksaktong 0) - iwasan ang pagtugon sa halos-
+  // transparent/anti-aliased na gilid ng larawan bilang "buong opaque".
+  return mask.data[alphaIndex] > 40;
+}
+
+// Grid ng sample points (3 hanay x 4 hilera = 12 puntos) sa BUONG
+// playerVisualBox - kung ANUMAN dito ay tumama sa opaque na pixel ng
+// puno, ituturing na "nakatago"/overlap ang character. Hindi kailangan
+// ng bawat-pixel na pagsusuri (mabigat) - sapat na ang grid na ito para
+// maramdaman ang TALAGANG hugis ng puno (kasama ang tapering canopy),
+// hindi lang basta ang parisukat na bounding box nito.
+const TREE_OCCLUSION_SAMPLE_FRACTIONS_X = [0.2, 0.5, 0.8];
+const TREE_OCCLUSION_SAMPLE_FRACTIONS_Y = [0.1, 0.35, 0.6, 0.85];
+
+function treeOccludesPlayerBox(tree, treeDestWidthInTiles, playerVisualBox) {
+  for (const fx of TREE_OCCLUSION_SAMPLE_FRACTIONS_X) {
+    const worldX = playerVisualBox.x + playerVisualBox.width * fx;
+
+    for (const fy of TREE_OCCLUSION_SAMPLE_FRACTIONS_Y) {
+      const worldY = playerVisualBox.y + playerVisualBox.height * fy;
+
+      if (isTreePixelOpaqueAtWorld(tree, treeDestWidthInTiles, worldX, worldY)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 function getResourceDrawables() {
@@ -2469,6 +2632,16 @@ function getResourceDrawables() {
         bbox: suppressFadeForAxe
           ? undefined
           : getTreeOcclusionBbox(tree, treeDestWidthInTiles),
+        // AYOS (hiling ng user: "medyo malayo pa pero nag opacity na
+        // siya, dapat nasa mismong overlap na saka lang mag opacity")
+        // - tingnan ang paliwanag sa itaas ng treeOccludesPlayerBox:
+        // TUMPAK/pixel-level na check ito (hindi lang basta parisukat
+        // na bbox) - ito ang FINAL na hatol ng shouldOccludeForPlayer
+        // (map.js) kapag naka-set.
+        occlusionTest: suppressFadeForAxe
+          ? undefined
+          : (playerVisualBox) =>
+              treeOccludesPlayerBox(tree, treeDestWidthInTiles, playerVisualBox),
       });
       continue;
     }
@@ -2490,6 +2663,13 @@ function getResourceDrawables() {
       bbox: suppressFadeForAxe
         ? undefined
         : getTreeOcclusionBbox(tree, treeDestWidthInTiles),
+      // AYOS (hiling ng user: "dapat nasa mismong overlap na saka lang
+      // mag opacity") - tingnan ang paliwanag sa itaas ng
+      // treeOccludesPlayerBox.
+      occlusionTest: suppressFadeForAxe
+        ? undefined
+        : (playerVisualBox) =>
+            treeOccludesPlayerBox(tree, treeDestWidthInTiles, playerVisualBox),
     });
   }
 

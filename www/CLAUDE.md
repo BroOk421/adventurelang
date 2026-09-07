@@ -78,7 +78,7 @@ Mahalaga ang pagkakasunod dahil global lahat. Simplipikadong listahan:
 ```
 canvas → assets → gametime → player → camera → input → collisions →
 worlds → footprints → map → dig → resources → decor → bed →
-ground-items → hotbar → craft → stove → inventory-save →
+ground-items → scattered-loot → hotbar → craft → stove → inventory-save →
 settings-menu → tool-radial → atmosphere → calendar → snow → rain →
 fireflies → calendar-ui → update → draw → main
 ```
@@ -96,6 +96,7 @@ fireflies → calendar-ui → update → draw → main
 | `js/map.js` | Pag-load/pagguhit ng Tiled map. **Y-sort (painter's algorithm)** at ang **see-through occlusion** (paglabo ng puno/bahay kapag nasa likod ang player). Dito rin ang paghahati ng puno sa paligid ng bahay. |
 | `js/dig.js` | Rake/hukay ng lupa, tanim ng carrot, lifecycle ng lupa (grass→dirt→wet→grass), at ang **equip state ng mga tool** (`pickaxeEquipped`, `rakeEquipped`, atbp.). |
 | `js/resources.js` | Random na puno/bato, pag-chop (axe/kamao), at `axeEquipped`/`arrowEquipped`/`torchEquipped`. |
+| `js/scattered-loot.js` | Persistent na nakakalat na wood/stone LOOT (grassmap/grassmap2) - DIREKTANG madadampot (hindi choppable, hiwalay sa `resources.js`), 10 kada uri, isa-isang bumabalik kada 10 minutong (game time) ng nadampot. |
 | `js/decor.js` | Static na dekorasyon, **oldman NPC** (naglalakad/nawawala + shop), at oak trees. |
 | `js/pig.js` | **Mga baboy** - gumagala sa mapa, may "health"/clickable, namamatay-nabubuhay-muli (tingnan ang bahagi 7, item 12). |
 | `js/bed.js` | Ang **kama** sa loob ng houseInside — i-click para matulog hanggang 6am (gabi lang puwede). |
@@ -3784,3 +3785,63 @@ kailangang i-adjust ang mga ito.
   `map.js` (1800000000051), `resources.js` (1800000000052), `pig.js`
   (1800000000053), `mobile-controls.js` (1800000000054),
   `controller-layout.js` (1800000000055).
+
+### Entry #79 — Bagong "scattered loot": 10 wood + 10 stone na naka-floating/direktang madadampot sa grassmap/grassmap2, isa-isang bumabalik kada 10 minuto
+- **Files (bago):** `js/scattered-loot.js`
+- **Files (binago):** `index.html`, `js/ground-items.js`, `js/update.js`,
+  `js/settings-menu.js`
+- **Hiling ng user:** "mag dagdag ka na lang ng 10 woods at 10 rocks na
+  naka floating lang sa ground yung mga lootable na woods at rocks
+  gusto ko kasi nakakalat sa map random siyang nakakalat every 10 mins
+  nag spawn isa isa sa grassmap at grassmap2".
+- **Mahalagang pagkakaiba sa random na puno/bato (Entry #78d, atbp.):**
+  ang mga iyon ay CHOPPABLE na node (kailangan pa ng axe/pickaxe + ilang
+  hit). Ang bago dito ay DIREKTANG nakalapag na ITEM sa lupa (parehong
+  gawi ng normal na `groundItems`, `ground-items.js` - awtomatikong
+  "na-vacuum"/madadampot pag lumapit, o pwede ring i-click) - "loot" na
+  agad, hindi na "node".
+- **Bagong file (`scattered-loot.js`):**
+  - `SCATTERED_LOOT_WORLDS = ["grassmap", "grassmap2"]`,
+    `SCATTERED_LOOT_TARGET_COUNT = 10` (kada uri, kada mundo),
+    `SCATTERED_LOOT_RESPAWN_MS = 10 * 60 * 1000` (FIXED na 10 minuto ng
+    GAME time - `getGameNow()`, hindi random na saklaw tulad ng
+    `rollResourceRegrowMs()` ng puno/bato).
+  - Dalawang naka-save na estado (parehong pattern ng
+    `resourceExtraNodes`/`resourceRespawnSchedule`, `resources.js`):
+    `scatteredLoot` (aktwal na col/row ng bawat kasalukuyang piraso, kada
+    mundo/uri) at `scatteredLootSchedule` (kailan susunod na lalabas ang
+    bago). Parehong may `force` param sa save function nila (walang
+    auto-save, kaparehong buong proyekto) - nakarehistro na sa
+    `saveAllGameState()`/`getAllSaveKeys()` (`settings-menu.js`).
+  - `findValidScatteredLootSpot()` - halos kopya ng
+    `findValidRelocationSpot` (resources.js: iniiwasan ang mga puno/bato,
+    bagay sa mapa, tanim, town gate, collision, pintuan) - IDINAGDAG:
+    iniiwasan din ang mga tile na may IBANG scattered loot na.
+  - `initializeScatteredLootIfNeeded(world)` - sa UNANG beses pumasok sa
+    isang scattered-loot world (per save file, naka-flag na
+    `initialized`), agad na nilalagyan ng buong 10 wood + 10 stone.
+  - `updateScatteredLoot()` (tinatawag kada frame, `update.js`) - kada
+    10-minutong tick (WHILE loop na may safety cap, kagaya ng
+    `updateResourceRespawns`), kung may deficit pa (< 10) sa alinmang
+    uri, isa lang ang idinaragdag.
+- **Binago sa `ground-items.js`:** bagong `permanent`/`lootId` field sa
+  bawat `groundItems` entry - (a) hindi na sila kasama sa normal na
+  60-segundong despawn filter, (b) walang fade-out warning bago mawala
+  (dahil hindi naman sila mawawala), (c) may sariling banayad na
+  tuloy-tuloy na "paglutang" (sine wave sa `drawGroundItems`, hiwalay sa
+  isang-beses-lang na "landing bounce" ng normal na ani), (d) sa
+  sandaling madampot (parehong sa magnet/vacuum sa `updateGroundItems`
+  AT sa manual click/`tryPickupGroundItemsAt`) - tinatawag ang bagong
+  `handleScatteredLootPickup()` (`scattered-loot.js`) para matanggal din
+  ito sa registry (para malaman ng 10-minutong schedule na may bakante
+  na uli).
+- **Hydration pagkatapos ng reload:** dahil session-lang ang
+  `groundItems` array (hindi mismo ito naka-save, tingnan ang paliwanag
+  sa itaas ng `ground-items.js`) - `ensureScatteredLootVisualsHydrated()`
+  ang bahalang muling maglagay ng visual na `groundItems` entry (mula sa
+  naka-save nang `scatteredLoot` registry) sa UNANG pagkakataon na
+  mapasok ang isang world sa bagong session, isang beses lang kada mundo
+  (session-lang na Set ang bantay dito).
+- **Cache-bust:** binump ang `?v=` ng `ground-items.js` (1800000000056,
+  dating `1793300000003`), `settings-menu.js` (1800000000056), `update.js`
+  (1800000000056); bagong `scattered-loot.js?v=1800000000056`.
