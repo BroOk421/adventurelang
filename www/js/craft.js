@@ -113,17 +113,7 @@ const CRAFT_SHAPED_RECIPES = [
     // S . S
     // . S .
     // W . W
-    shape: [
-      "stone",
-      null,
-      "stone",
-      null,
-      "stone",
-      null,
-      "wood",
-      null,
-      "wood",
-    ],
+    shape: ["stone", null, "stone", null, "stone", null, "wood", null, "wood"],
     result: { itemId: "cutter", count: 1 },
   },
   {
@@ -161,7 +151,7 @@ const CRAFT_SHAPED_RECIPES = [
       "stone",
       "stone",
       "stone",
-      "charcoal",
+      null,
       "stone",
       "stone",
       "stone",
@@ -767,7 +757,8 @@ function collectCraftOutput() {
   // refrigerator") - parehong "countable" na stock lang (kaparehong
   // pattern ng "crafter"/"light" sa itaas).
   else if (craftOutput.itemId === "bed") {
-    if (typeof bedsCollected !== "undefined") bedsCollected += craftOutput.count;
+    if (typeof bedsCollected !== "undefined")
+      bedsCollected += craftOutput.count;
   } else if (craftOutput.itemId === "refrigerator") {
     if (typeof refrigeratorCollected !== "undefined")
       refrigeratorCollected += craftOutput.count;
@@ -788,19 +779,23 @@ function collectCraftOutput() {
     // AYOS (hiling ng user): bagong-crafted na tool = FRESH/BUONG
     // durability (50) - tingnan ang TOOL_DURABILITY_MAX (dig.js).
     if (typeof pickaxeDurability !== "undefined")
-      pickaxeDurability = typeof TOOL_DURABILITY_MAX !== "undefined" ? TOOL_DURABILITY_MAX : 50;
+      pickaxeDurability =
+        typeof TOOL_DURABILITY_MAX !== "undefined" ? TOOL_DURABILITY_MAX : 50;
   } else if (craftOutput.itemId === "rake") {
     rakeUnlocked = true;
     if (typeof rakeDurability !== "undefined")
-      rakeDurability = typeof TOOL_DURABILITY_MAX !== "undefined" ? TOOL_DURABILITY_MAX : 50;
+      rakeDurability =
+        typeof TOOL_DURABILITY_MAX !== "undefined" ? TOOL_DURABILITY_MAX : 50;
   } else if (craftOutput.itemId === "axe") {
     axeUnlocked = true;
     if (typeof axeDurability !== "undefined")
-      axeDurability = typeof TOOL_DURABILITY_MAX !== "undefined" ? TOOL_DURABILITY_MAX : 50;
+      axeDurability =
+        typeof TOOL_DURABILITY_MAX !== "undefined" ? TOOL_DURABILITY_MAX : 50;
   } else if (craftOutput.itemId === "cutter") {
     if (typeof cutterUnlocked !== "undefined") cutterUnlocked = true;
     if (typeof cutterDurability !== "undefined")
-      cutterDurability = typeof TOOL_DURABILITY_MAX !== "undefined" ? TOOL_DURABILITY_MAX : 50;
+      cutterDurability =
+        typeof TOOL_DURABILITY_MAX !== "undefined" ? TOOL_DURABILITY_MAX : 50;
   } else if (craftOutput.itemId === "sword") swordUnlocked = true;
   else if (craftOutput.itemId === "torch")
     torchesCollected += craftOutput.count;

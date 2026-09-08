@@ -134,6 +134,12 @@ function draw() {
   ctx.translate(-snappedCameraX, -snappedCameraY);
   ctx.imageSmoothingEnabled = false;
 
+  // BAGO (hiling ng user, may kalakip na CodePen reference) - "long
+  // shadow" ng puno/bato/damo habang naka-equip ang TORCH, PAALIS sa
+  // apoy nito (tingnan ang shadows.js) - BAGO ang drawMapObjects()
+  // (sa ILALIM ng mismong puno/bato/player ang anino, hindi sa ibabaw).
+  if (typeof drawTorchShadows === "function") drawTorchShadows();
+
   drawMapObjects();
 
   // "lamps" / "snowlamps" (parol ng town) - LAGING NASA HARAP ng player,

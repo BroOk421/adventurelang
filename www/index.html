@@ -312,21 +312,6 @@
                 <div class="stat-bar-fill" id="stat-fill-health"></div>
               </div>
             </div>
-            <div class="stat-row" id="stat-row-stamina">
-              <span class="stat-icon">⚡</span>
-              <div class="stat-bar">
-                <div class="stat-bar-fill" id="stat-fill-stamina"></div>
-              </div>
-            </div>
-            <!-- BAGO (hiling ng user): "FOOD" duration/hunger - sa
-                 ILALIM ng Stamina. Tingnan ang syncEquipmentStats/
-                 updateFoodHunger sa hotbar.js. -->
-            <div class="stat-row" id="stat-row-food">
-              <span class="stat-icon">🍗</span>
-              <div class="stat-bar">
-                <div class="stat-bar-fill" id="stat-fill-food"></div>
-              </div>
-            </div>
             <div class="stat-row" id="stat-row-exp">
               <span class="stat-icon">✨</span>
               <div class="stat-bar">
@@ -750,7 +735,9 @@
     <div id="controller-layout-panel" class="hidden">
       <div id="controller-layout-header">
         <span id="controller-layout-label">Controller</span>
-        <button type="button" id="controller-layout-close" title="Isara">✕</button>
+        <button type="button" id="controller-layout-close" title="Isara">
+          ✕
+        </button>
       </div>
 
       <div id="controller-layout-body">
@@ -759,14 +746,14 @@
         </button>
         <p id="controller-layout-hint">
           Kapag naka-edit mode, i-TAP ang gustong button/HUD (joystick/hand
-          button/Tools/minimap/hotbar/health-stamina-food/weather/settings)
-          sa screen para ma-highlight/piliin ito - lalabas dito ang sarili
-          nitong Laki/Opacity. I-drag ito para ilipat.
+          button/Tools/minimap/hotbar/health-stamina-food/weather/settings) sa
+          screen para ma-highlight/piliin ito - lalabas dito ang sarili nitong
+          Laki/Opacity. I-drag ito para ilipat.
         </p>
 
         <p id="controller-layout-empty-hint">
-          Wala pang napipiling button - i-on muna ang edit mode sa itaas,
-          tapos i-tap ang gustong i-adjust sa screen.
+          Wala pang napipiling button - i-on muna ang edit mode sa itaas, tapos
+          i-tap ang gustong i-adjust sa screen.
         </p>
 
         <div id="controller-layout-sliders" class="hidden">
@@ -774,12 +761,26 @@
 
           <label class="controller-layout-slider-row">
             <span>Laki</span>
-            <input type="range" id="controller-layout-scale" min="0.5" max="1.8" step="0.05" value="1" />
+            <input
+              type="range"
+              id="controller-layout-scale"
+              min="0.5"
+              max="1.8"
+              step="0.05"
+              value="1"
+            />
           </label>
 
           <label class="controller-layout-slider-row">
             <span>Opacity</span>
-            <input type="range" id="controller-layout-opacity" min="0.2" max="1" step="0.05" value="1" />
+            <input
+              type="range"
+              id="controller-layout-opacity"
+              min="0.2"
+              max="1"
+              step="0.05"
+              value="1"
+            />
           </label>
         </div>
 
@@ -882,7 +883,11 @@
          (distansya mula sa gilid ng screen) ngayon ang ginagamit ng
          D-pad (kaliwa) at ng button na ito (kanan) - tingnan
          style.css. -->
-    <button type="button" id="mobile-btn-action" title="Gamitin (Tap) / Tools (Hawak)">
+    <button
+      type="button"
+      id="mobile-btn-action"
+      title="Gamitin (Tap) / Tools (Hawak)"
+    >
       <span id="mobile-btn-action-icon">✋</span>
     </button>
 
@@ -892,11 +897,7 @@
          na ang "Run" button, hiling ng user: "yung 2 button yung run
          alisin mo na"), nakaposisyon sa ITAAS ng malaking hand button
          (parehong gilid/"kanan"). -->
-    <button
-      type="button"
-      id="mobile-btn-tools"
-      title="Tools (V)"
-    >
+    <button type="button" id="mobile-btn-tools" title="Tools (V)">
       <img src="./assets/items/pickaxe.png" alt="Tools" />
     </button>
 
@@ -1027,6 +1028,7 @@
          na hiwalay na slots. -->
     <script src="./js/tool-radial.js?v=1787160000000"></script>
     <script src="./js/atmosphere.js?v=1789400000000"></script>
+    <script src="./js/shadows.js?v=1800000000061"></script>
     <!-- calendar.js: petsa/buwan/oras at ang schedule ng snow/ulan - dapat
          mauna sa snow.js/rain.js dahil ginagamit nila ang calendar state.
          Ginagamit din ito ng resources.js sa itaas (seededRandom) pero
@@ -1042,7 +1044,7 @@
     <script src="./js/calendar-ui.js?v=1787160000000"></script>
     <script src="./js/update.js?v=1800000000056"></script>
     <script src="./js/minimap.js?v=1800000000011"></script>
-    <script src="./js/draw.js?v=1800000000016"></script>
+    <script src="./js/draw.js?v=1800000000060"></script>
     <script src="./js/main.js?v=1787160000000"></script>
     <script src="./js/mobile-controls.js?v=1800000000054"></script>
     <!-- controller-layout.js: Settings > Controller > Edit Layout -

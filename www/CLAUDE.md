@@ -3989,3 +3989,120 @@ kailangang i-adjust ang mga ito.
   ang sira, kaya export lang ang inayos.
 - **Cache-bust:** binump ang `?v=` ng `settings-menu.js`
   (1800000000058).
+
+### Entry #82 — Tinanggal ang Stamina/Food row sa loob ng PROFILE panel (hindi sa top-left HUD)
+- **Files (binago ng user, dokumentado lang dito):** `www/index.html`
+- **Hiling ng user:** tinanggal ang `#stat-row-stamina`/`#stat-row-food`
+  (kasama ang `#stat-fill-stamina`/`#stat-fill-food`) sa LOOB ng
+  "profile" panel (`#equipment-stats`, bahagi ng bag panel) - PERO
+  HINDI dapat matanggal ang katumbas nito sa TOP-LEFT na `#player-hud`
+  (`#player-hud-fill-stamina`/`#player-hud-fill-food`, magkaibang
+  IDs/elemento - tingnan ang bahagi 5 sa itaas). VERIFIED na SAFE ang
+  pagtanggal na ito - ang `setStatBarFill()` (hotbar.js) ay may guard
+  na (`if (!el) return;`), kaya walang error/crash kahit wala nang
+  `stat-fill-stamina`/`stat-fill-food` sa DOM - basta't nananatili ang
+  `#equipment-stats` mismo bilang existing na guard sa
+  `syncEquipmentStats()`.
+
+### Entry #83 — TORCH "LONG SHADOW": mga anino ng puno/bato/damo habang naka-equip ang torch (batay sa CodePen reference ng user)
+- **Files (bago):** `www/js/shadows.js`
+- **Files (binago):** `www/index.html`, `www/js/draw.js`
+- **Hiling ng user:** "para sa pag gamit ng torch na may shadow yung
+  mga object like trees stones grass etc" - may kalakip na CodePen
+  reference: "Long shadow" ni mladen___
+  (https://codepen.io/mladen___/pen/gbvqBo) - isang liwanag na
+  sumusunod sa cursor, mga umiikot na parisukat ("boxes") na
+  nagkakaroon ng mahabang anino PAALIS sa liwanag, kinukuwenta batay
+  sa anggulo ng bawat kanto (corner) ng parisukat laban sa liwanag.
+- **Paano in-adapt (`js/shadows.js`, bagong file):**
+  - Ang "liwanag" ay ang TALAGANG posisyon ng apoy ng torch
+    (`getTorchFlamePosition()`, EXISTING na function, atmosphere.js) -
+    HINDI cursor (iba ang context - laro ito, hindi demo), at "world
+    space" (sumusunod sa camera/zoom) sa halip na screen space.
+  - Para sa BAWAT bagay na malapit sa liwanag (loob ng
+    `TORCH_SHADOW_CAST_RADIUS`, 150 world px - performance, wala namang
+    makikitang anino sa malayo) - kunin ang "footprint" nito
+    (parisukat na bounding box, world pixels), tapos i-project ang
+    bawat isa sa 4 na kanto nito PAALIS sa liwanag ng
+    `TORCH_SHADOW_LENGTH` (220 world px), tapos gumuhit ng 4 na "quad"
+    (isa kada gilid ng parisukat) papunta roon - PAREHONG-PAREHONG
+    algorithm ng `drawShadow`/`Box.prototype` sa CodePen (tingnan ang
+    `drawTorchLongShadowForFootprint`).
+  - **Saklaw** (hiling ng user: "trees stones grass"):
+    puno/bato (`resourceNodesCache.trees`/`.stones`, resources.js -
+    naka-guard sa `getHarvestedForCurrentWorld()`, hindi kasama ang
+    kasalukuyang na-chop/na-mina), oak trees (`oakSpotsCache`,
+    decor.js - naka-guard sa `isOakFullyHarvested`), indibidwal na
+    puno sa grassmap/grassmap2 (`GRASSMAP_TREE_SPOTS`, decor.js, gamit
+    ang `trunkBox` nila), at tumpok ng damo (`grassTuftsCache`,
+    grass.js) - LAHAT ng ito ay REUSED na EXISTING na array/cache,
+    walang binagong logic doon, `shadows.js` lang ang bumabasa/
+    umiiterate sa kanila.
+  - Iginuguhit gamit ang `ctx.globalCompositeOperation = "multiply"`
+    (kaparehong paraan ng `drawDayNight`, atmosphere.js) - para makita
+    pa rin ang texture ng lupa/damo sa ILALIM ng anino, hindi tuluyang
+    itim.
+  - **Kailan gumagana:** LAGING gumagana basta't naka-equip ang
+    `torchEquipped` (kahit araw pa - kaparehong gawi ng liwanag ng
+    torch mismo, atmosphere.js, na hindi rin naka-guard sa "gabi
+    lang") - hindi ito naka-gate sa "outdoor"/"indoor" (puwedeng
+    magamit ang torch kahit saan).
+- **Saan itinawag (`js/draw.js`):** bagong `drawTorchShadows()` call
+  DIREKTA bago ang `drawMapObjects()` (sa ikalawang world-space
+  `ctx.save()` block, katabi ng "lupa+puno+bahay+player na sabay-sabay
+  pinapadilim" na paliwanag doon) - kaya NASA ILALIM ang anino ng
+  MISMONG puno/bato/player (natural na occlusion, hindi na kailangan
+  ng sariling Y-sort/occlusion logic para dito).
+- **Cache-bust:** bagong `shadows.js?v=1800000000059`; binump ang
+  `?v=` ng `draw.js` (1800000000060).
+
+### Entry #84 — Ayos sa STOVE recipe (tinanggal na charcoal sa gitnang slot - user's own edit, dokumentado lang dito)
+- **Files (binago ng user):** `www/js/craft.js`
+- Ang shape ng "stove" recipe ay `S S S / S . S / S S S` (8 stones sa
+  paligid, BAKANTE ang gitna) ayon sa ASCII-art comment sa itaas
+  nito - PERO ang TALAGANG code ay may `"charcoal"` pa rin sa gitnang
+  cell (index 4) - hindi tugma sa comment. AYOS: `null` na ngayon ang
+  gitna, tugma na sa comment - 8 stones lang, walang ibang
+  kailangan sa gitna.
+
+### Entry #85 — Torch shadow: idinagdag sa mga PLACED structure (bed/crafter/stove/lamp) + gawing DINAMIKO ang haba (batay sa distansya, hindi na FIXED)
+- **Files (binago):** `www/js/shadows.js`, `www/index.html`
+- **Hiling ng user (bahagi 1 - saklaw):** "i apply mo rin pala yung
+  shadow sa loob ng bahay na mga item na dropable na item like bed,
+  crafter, stove at lamp" - BAGO: `addPlacedStructureShadowCasters()`
+  - iisang bagong helper na REUSED ng LAHAT ng 4 na placed structure -
+    binabasa ang `placedBeds` (bed.js), `placedCrafters` (craft.js),
+    `placedStoves` (stove.js), `placedLights` (light.js) - bawat isa
+    ay array ng `{world, col, row, id}`, saka ang TALAGANG laki (sa
+    tiles) ng bawat isa ay hango sa EXISTING na `PLACEMENT_FOOTPRINTS`
+    (placement.js: crafter/stove 2x1, light 1x1, bed 2x3) - walang
+    binagong logic sa 4 na file na iyon, `shadows.js` lang ang
+    umiiterate/bumabasa sa kanila. Naka-filter sa `placed.world ===
+    currentWorld` (isang beses lang isang mundo/bahay ang
+    kasalukuyang tinitingnan).
+- **Hiling ng user (bahagi 2 - haba ng anino):** "kay bang baguhin
+  yung shadow medyo mahaba kasi... kapag malapit sa item... pagitan
+  is 1 tile lang is gawin mo na lang na yung mismong shadow niya is
+  mawawala yung shadow pero kapag malayo or papalayo is lumalaki yung
+  shadow na ganyang itsura sa ngayon" - DATING FIXED (`TORCH_SHADOW_
+  LENGTH = 220`) ang haba ng anino KAHIT ANONG DISTANSYA - AYOS: bagong
+  `computeTorchShadowLengthForDistance(distance)` - LINEAR
+  interpolation batay sa distansya (world pixels) mula sa liwanag
+  papunta sa GITNA ng bagay:
+  - `distance <= TORCH_SHADOW_NEAR_DISTANCE` (16px, ~1 tile) -> `0`
+    (WALANG anino - kaparehong-pareho ng eksaktong hiling ng user).
+  - `distance >= TORCH_SHADOW_CAST_RADIUS` (150px, sa dulo na ng
+    saklaw ng liwanag) -> buong `TORCH_SHADOW_LENGTH` (220px) - ITO
+    na ang dating "laging ganito" na itsura, ngayon nasa
+    PINAKAMALAYONG punto na lang ito nangyayari.
+  - Sa PAGITAN ng dalawang iyon - unti-unting lumalaki (linear).
+  - Ang na-compute na haba (`shadowLength`) ay ISINASAMA na sa
+    footprint object mismo (`buildTorchShadowFootprint`) sa MISMONG
+    oras na kinokolekta ang caster (`addRectShadowCaster` - IISANG
+    bagong generic na helper, ginagamit na rin ng lumang
+    `addTileBoxShadowCaster` sa halip na duplicate ng distance-check
+    logic) - hindi na kailangang kuwentahin ulit sa pag-guhit
+    (`drawTorchLongShadowForFootprint`) - `box.shadowLength <= 0` ->
+    walang iguguhit AT ALL (kahit ang footprint fill mismo) para sa
+    napakalapit na bagay.
+- **Cache-bust:** binump ang `?v=` ng `shadows.js` (1800000000061).
