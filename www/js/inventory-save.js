@@ -70,7 +70,7 @@
 // naka-save) - itinaas ang bersyon dito para ma-force ang bagong
 // panimulang estado (5 Carrot na agad, tingnan ang loadInventoryState
 // sa ibaba).
-const INVENTORY_SAVE_KEY = "tralala.inventory.v9";
+const INVENTORY_SAVE_KEY = "tralala.inventory.v10";
 
 // Mabagal ang localStorage - kagaya ng maybeSavePlayerPosition
 // (update.js), hindi tayo nagsu-save KADA TAWAG (maaaring paulit-ulit
