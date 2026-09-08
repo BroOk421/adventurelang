@@ -102,13 +102,42 @@ if (isMobileTouchDevice) {
   // ituring na "gustong gumalaw".
   const DEAD_ZONE_PX = 6;
 
-  // Gaano kalapit dapat sa gilid (bahagdan ng MAX_RADIUS_PX) bago
-  // ituring na "gustong tumakbo" (kaparehong Shift key).
-  const RUN_THRESHOLD_RATIO = 0.72;
+  // AYOS (BUG FIX/BAGO, hiling ng user: "yung sa analog sa mobile
+  // version is parang naka run siya... gawin mo na lang kapag
+  // halimbawa is analog kapag naka-left yung analog ng 6 sec is saka
+  // lang mag rurunning tuloy-tuloy na yun kahit ilagay ko sa up down
+  // right at left pero kapag huminto siya yung analog is di na
+  // nakafunction... walk ulit siya, intay ulit ng 6 sec bago
+  // tumakbo") - dating batay sa DISTANSYA/lakas ng hila (RUN_THRESHOLD_
+  // RATIO, 72% ng MAX_RADIUS_PX) ang "takbo" - kaya halos LAGING
+  // "naka-run" ito sa totoong paggamit, dahil natural na itinutulak
+  // ng daliri ang stick papalapit sa gilid (madaling lampasan ang
+  // 72%), kahit gustong maglakad lang. Pinalitan na ito ng ORAS
+  // (HOLD_TO_RUN_MS) sa halip na distansya: LAKAD muna (default) -
+  // kapag TULOY-TULOY (walang pagbitaw pabalik sa dead zone) na
+  // naka-hawak ng KAHIT ANONG direksyon ng 6 segundo, saka pa lang
+  // mag-uumpisang tumakbo - at MANANATILING tumatakbo kahit magpalit
+  // pa ng direksyon (left/right/up/down) HABANG hindi pa binibitawan
+  // (tingnan ang holdStartTime sa ibaba - hindi ito na-re-reset sa
+  // bawat pagbabago ng direksyon, "tuloy-tuloy" ang pagbilang). Sa
+  // sandaling bumalik ang stick sa dead zone (binitawan/tumigil) -
+  // TALAGANG na-re-reset (null) ang holdStartTime (tingnan ang
+  // clearDirectionKeys sa ibaba) - kaya sa SUSUNOD na paghawak,
+  // LAKAD ulit muna ito, kailangan pang maghintay ulit ng 6 segundo
+  // bago tumakbo, hindi na basta ipinagpapatuloy ang dating "run"
+  // state.
+  const HOLD_TO_RUN_MS = 6000;
+
+  // Kailan (Date.now()) unang TULOY-TULOY na humawak ng kahit anong
+  // direksyon (lumabas sa dead zone) - null kapag kasalukuyang wala
+  // (naka-dead-zone/bitaw). Hindi ito na-re-reset sa bawat
+  // pagbabago ng direksyon - sa PAGBITAW/PAGBALIK LANG sa dead zone
+  // (clearDirectionKeys) ito na-re-reset.
+  let holdStartTime = null;
 
   let activePointerId = null;
 
-  function setDirectionKeys(dx, dy, distRatio) {
+  function setDirectionKeys(dx, dy) {
     // 0° = pakanan, dumadagdag PABABA (screen space, +Y = pababa) -
     // kino-convert papunta sa 8 octant, para puwedeng magsabay ang 2
     // direksyon (diagonal) - PAREHONG "keys" object (input.js) na
@@ -121,10 +150,9 @@ if (isMobileTouchDevice) {
     keys["s"] = deg > 22.5 && deg < 157.5;
     keys["w"] = deg < -22.5 && deg > -157.5;
 
-    // AYOS: TINANGGAL na ang dating "Run" button (naunang round) -
-    // awtomatiko na lang ang "takbo" base sa distansya ng hila
-    // (walang dahilan pang mag-check ng button na wala na naman).
-    keys["shift"] = distRatio > RUN_THRESHOLD_RATIO;
+    if (holdStartTime === null) holdStartTime = Date.now();
+
+    keys["shift"] = Date.now() - holdStartTime >= HOLD_TO_RUN_MS;
   }
 
   function clearDirectionKeys() {
@@ -133,6 +161,7 @@ if (isMobileTouchDevice) {
     keys["s"] = false;
     keys["d"] = false;
     keys["shift"] = false;
+    holdStartTime = null;
   }
 
   function updateFromClientPoint(clientX, clientY) {
@@ -157,7 +186,7 @@ if (isMobileTouchDevice) {
       return;
     }
 
-    setDirectionKeys(rawDx, rawDy, clampedDist / MAX_RADIUS_PX);
+    setDirectionKeys(rawDx, rawDy);
   }
 
   function resetJoystick() {

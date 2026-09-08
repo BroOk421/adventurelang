@@ -182,7 +182,22 @@ button.hotbar-slot {
   position: fixed;
   left: 0;
   top: 0;
-  transform: translate(-50%, -50%);
+  /* AYOS (hiling ng user: "sa mobile version... pag drag ng item sa
+     slots is di maganda... pag drag sa mismong gustong slot is
+     napupunta naman pangit lang tignan") - dating "translate(-50%,
+     -50%)" lang (walang scale) - pero naka-scale DOWN ang #hotbar
+     mismo sa mobile (0.82 o 0.7, tingnan ang body.touch-controls-
+     active #hotbar sa ibaba) samantalang FIXED 40px pa rin ang ghost
+     na ito - kaya kapag mula sa hotbar hinihila ang isang item sa
+     mobile, biglang "lumalaki"/hindi tugma ang laki ng icon na
+     kasunod ng daliri kumpara sa laki ng slot na pinagmulan/
+     pupuntahan (mismatch, "pangit tignan"). Ginagamit na ngayon ang
+     --floating-ghost-scale (custom property, tingnan ang
+     applyFloatingGhostScale sa hotbar.js) para itugma ang laki ng
+     ghost sa KASALUKUYANG visual scale ng pinagmulan nito (1 kung
+     desktop/hindi mula sa hotbar - walang epekto doon).
+  */
+  transform: translate(-50%, -50%) scale(var(--floating-ghost-scale, 1));
 
   width: 40px;
   height: 40px;
@@ -3421,7 +3436,12 @@ body.touch-controls-active #mobile-btn-action {
    uri ng device, hindi sa lapad ng screen. */
 
 body.touch-controls-active #player-hud {
-  transform: scale(0.9);
+  /* AYOS (BAGO, hiling ng user: "kaya ba ma i-adjust yung size ng...
+     profile sa mobile version") - dating 0.9 lang (napakaliit na
+     bawas) - pinaliit pa (0.8) para mas kapareho ng antas ng
+     pagliit ng ibang HUD element (hotbar 0.82, bag/stove 0.82) sa
+     itaas/ibaba. */
+  transform: scale(0.8);
   transform-origin: top left;
   top: max(8px, env(safe-area-inset-top));
   left: max(8px, env(safe-area-inset-left));
@@ -3478,6 +3498,31 @@ body.touch-controls-active #hotbar {
   max-width: 100vw;
 }
 
+/* AYOS (BAGO, hiling ng user: "kaya ba ma i-adjust yung size ng
+   inventory pati na rin profile sa mobile version kahit yung sa
+   stove at yung sa crafter kapag nag appear yung section nila medyo
+   malaki") - dating WALANG anumang mobile-specific na pagliit ang
+   #bag-panel/#stove-panel (parehong-pareho ng laki sa desktop at
+   mobile) - masyadong malaki ito para sa isang maliit na telepono,
+   lalo na't puno ito ng mga detalye (grid, craft/smelt slots, atbp.).
+   Pareho itong "position: fixed; ...; transform: translate(-50%,
+   -50%);" (naka-center sa gitna ng screen, tingnan ang base CSS sa
+   itaas) - kaya kailangang IPAGSAMA ang scale() DITO RIN (hindi
+   basta palitan/tanggalin ang translate) - parehong dahilan/pattern
+   ng #hotbar sa itaas. Ang #crafter-dock ay ANAK/nested na sa loob
+   ng #bag-panel (hindi hiwalay na fixed-position na elemento), kaya
+   AWTOMATIKO na itong sumusunod/lumiliit din kasabay ng magulang
+   nito - hindi na kailangan pang hiwalay na i-target. */
+body.touch-controls-active #bag-panel {
+  transform: translate(-50%, -50%) scale(0.82);
+  transform-origin: center center;
+}
+
+body.touch-controls-active #stove-panel {
+  transform: translate(-50%, -50%) scale(0.82);
+  transform-origin: center center;
+}
+
 /* Sobrang KIPOT na screen (hal. maliit na phone sa PORTRAIT, o
    sobrang liit na window) - konting extra shrink pa. Kasama pa rin
    dapat ang touch-controls-active check, para hindi maapektuhan ang
@@ -3485,6 +3530,21 @@ body.touch-controls-active #hotbar {
 @media (max-width: 430px) {
   body.touch-controls-active #hotbar {
     transform: translateX(-50%) scale(0.7);
+  }
+
+  /* AYOS (BAGO, hiling ng user): konting extra shrink pa para sa
+     sobrang kipot na screen - kaparehong dahilan/pattern ng #hotbar
+     sa itaas. */
+  body.touch-controls-active #bag-panel {
+    transform: translate(-50%, -50%) scale(0.68);
+  }
+
+  body.touch-controls-active #stove-panel {
+    transform: translate(-50%, -50%) scale(0.68);
+  }
+
+  body.touch-controls-active #player-hud {
+    transform: scale(0.7);
   }
 
   body.touch-controls-active #mobile-joystick {

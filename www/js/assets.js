@@ -155,10 +155,12 @@ sprites.bagIdle.right.src = "./assets/character/bag/idle/rightbag/rightbag.png";
 // tingnan ang drawPlayer() sa player.js kung paano pinipili sa pagitan
 // nito.
 //
-// TANGING "idle" LANG (walang "walk" na torch dito, hiling ng user:
-// "only idlebag and idle") - habang gumagalaw ang player kahit
-// naka-equip ang torch, babalik muna sa normal na walk/bagWalk sprite
-// (walang torch-specific na walk na ginagamit dito).
+// AYOS (BAGO, hiling ng user: "gusto ko sana i-apply mo na yung sa
+// torch walk at sa bag na folder tapos walk kapag may used na
+// torch") - MAY "walk" na TALAGA na ngayon ang torch art (tingnan
+// ang sprites.torchWalk/torchBagWalk sa ibaba, malapit sa bagRun) -
+// hindi na basta babalik sa normal na walk/bagWalk habang gumagalaw
+// kahit naka-equip ang torch, gaya ng dati.
 sprites.torchIdle = {
   down: new Image(),
   up: new Image(),
@@ -217,6 +219,67 @@ sprites.bagRun = {
   up: sprites.bagWalk.up,
   left: sprites.bagWalk.left,
   right: sprites.bagWalk.right,
+};
+
+// BAGO (hiling ng user: "gusto ko sana i-apply mo na yung sa torch
+// walk at sa bag na folder tapos walk kapag may used na torch") -
+// TUNAY na ngayon ang "naglalakad habang naka-hawak ng torch" na
+// sprite (assets/character/torch/walk/) - dating "walang hiwalay na
+// torch na walk" pa (tingnan ang dating komento sa itaas ng
+// torchIdle) - babalik na lang sa normal na walk/bagWalk noon habang
+// gumagalaw kahit naka-equip ang torch. PAREHONG bilang ng frame ng
+// normal na walk (front/back = 10, left/right = 7 - 640/64=10,
+// 448/64=7, 64px kada frame kaparehong-pareho ng torchIdle) - kaya
+// gumagana na agad ang PAREHONG getPlayerAnimationFrameCount() nang
+// walang dagdag na espesyal na kaso. Tingnan ang drawPlayer()
+// (player.js) kung paano ito pinipili.
+sprites.torchWalk = {
+  down: new Image(),
+  up: new Image(),
+  left: new Image(),
+  right: new Image(),
+};
+sprites.torchWalk.down.src =
+  "./assets/character/torch/walk/frontwalk/frontwalk.png";
+sprites.torchWalk.up.src =
+  "./assets/character/torch/walk/backwalk/backwalk.png";
+sprites.torchWalk.left.src =
+  "./assets/character/torch/walk/leftwalk/leftwalk.png";
+sprites.torchWalk.right.src =
+  "./assets/character/torch/walk/rightwalk/rightwalk.png";
+
+// Parehong "walk", pero may suot na bag KASABAY ng hawak na torch
+// (parehong naka-equip ang bag AT ang torch) -
+// assets/character/torch/bag/walk/.
+sprites.torchBagWalk = {
+  down: new Image(),
+  up: new Image(),
+  left: new Image(),
+  right: new Image(),
+};
+sprites.torchBagWalk.down.src =
+  "./assets/character/torch/bag/walk/frontwalk/frontwalk.png";
+sprites.torchBagWalk.up.src =
+  "./assets/character/torch/bag/walk/backwalk/backwalk.png";
+sprites.torchBagWalk.left.src =
+  "./assets/character/torch/bag/walk/leftwalk/leftwalk.png";
+sprites.torchBagWalk.right.src =
+  "./assets/character/torch/bag/walk/rightwalk/rightwalk.png";
+
+// "Takbo" na naka-hawak ng torch (parehong may bag at wala) - WALANG
+// hiwalay na "run" na art dito rin (kaparehong dahilan ng bagRun sa
+// itaas) - kopya lang ng kani-kanilang "walk" na bersyon.
+sprites.torchRun = {
+  down: sprites.torchWalk.down,
+  up: sprites.torchWalk.up,
+  left: sprites.torchWalk.left,
+  right: sprites.torchWalk.right,
+};
+sprites.torchBagRun = {
+  down: sprites.torchBagWalk.down,
+  up: sprites.torchBagWalk.up,
+  left: sprites.torchBagWalk.left,
+  right: sprites.torchBagWalk.right,
 };
 
 for (let i = 1; i <= 6; i++) {

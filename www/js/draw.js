@@ -72,6 +72,21 @@ function draw() {
   // ibabaw ng lupa, sa ilalim ng player (nalalakaran).
   drawGroundItems();
 
+  // AYOS (BUG FIX, hiling ng user: "dapat laging naka behind lang sa
+  // objects sa lahat") - dating nasa IBABA ito (sa LOOB ng
+  // PANGALAWANG ctx.save() block, kasabay ng drawMapObjects() sa
+  // ibaba) - kaya naiguhit ang shadow PAGKATAPOS na (sa ibabaw) ng
+  // mga naka-lagay na Crafter/Stove/Bag/Light/Bed sa ibaba (silang
+  // lahat ay naiguguhit dito, sa UNANG block, MAS MAAGA) - resulta,
+  // naka-IBABAW ang anino sa mga structure na ito sa halip na
+  // nasa ILALIM (mali, dapat parehong-pareho ang gawi laban sa LAHAT
+  // ng bagay, kasama ang mga structure, hindi lang puno/bato/player).
+  // Inilipat na dito ang tawag (BAGO pa ang drawPlacedCrafters sa
+  // ibaba), kaya ngayon, TALAGANG UNA na itong naiguguhit bago ang
+  // KAHIT ANONG bagay/structure/puno/player sa BUONG frame - laging
+  // nasa ILALIM na ngayon ang anino, saanman.
+  if (typeof drawTorchShadows === "function") drawTorchShadows();
+
   // Mga naka-lagay na Crafter (crafting table) - PERMANENTENG bagay sa
   // mundo, hindi tulad ng groundItems (tingnan ang craft.js).
   if (typeof drawPlacedCrafters === "function") drawPlacedCrafters();
@@ -136,9 +151,13 @@ function draw() {
 
   // BAGO (hiling ng user, may kalakip na CodePen reference) - "long
   // shadow" ng puno/bato/damo habang naka-equip ang TORCH, PAALIS sa
-  // apoy nito (tingnan ang shadows.js) - BAGO ang drawMapObjects()
-  // (sa ILALIM ng mismong puno/bato/player ang anino, hindi sa ibabaw).
-  if (typeof drawTorchShadows === "function") drawTorchShadows();
+  // apoy nito (tingnan ang shadows.js) - dating tinatawag dito
+  // (sa LOOB ng block na ito, BAGO ang drawMapObjects()) - INILIPAT
+  // na ito papunta sa itaas (bago pa ang drawPlacedCrafters, UNANG
+  // block) - tingnan ang bagong paliwanag doon (BUG FIX: dating
+  // naiguguhit ang anino SA IBABAW ng mga naka-lagay na Crafter/
+  // Stove/Bag/Light/Bed, dahil silang lahat ay naiguguhit sa UNANG
+  // block, mas maaga kaysa dito).
 
   drawMapObjects();
 

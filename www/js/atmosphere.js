@@ -208,6 +208,13 @@ function getTorchFlamePosition() {
 
 // "PULSE"/paghinga ng liwanag - mabagal na lumalaki't liliit (sine
 // wave, hindi biglaan/flicker) - 0.9 hanggang 1.1x ng base radius.
+//
+// AYOS (hiling ng user: "wag na yung bilog na light ng torch") -
+// dating ginagamit ito sa "hole-punch" na radial gradient ng torch sa
+// drawDayNight (TINANGGAL na, tingnan ang paliwanag doon) - wala nang
+// gumagamit nito ngayon, pero iniiwan na lang ang function (hindi
+// tinatanggal nang buo) kung sakaling may bagong pulsing effect pa
+// balang araw.
 function getTorchPulseFactor() {
   return 1 + Math.sin(Date.now() / 450) * 0.1;
 }
@@ -276,16 +283,18 @@ function punchGrassmapHouseLightrayHole(tintCtx, hole) {
   tintCtx.restore();
 }
 
-function drawDayNight() {
-  if (
-    typeof isIndoors === "function" &&
-    isIndoors() &&
-    typeof hasLitPlacedLightInCurrentWorld === "function" &&
-    hasLitPlacedLightInCurrentWorld()
-  ) {
-    return;
-  }
-
+// AYOS (BUG FIX/BAGO, hiling ng user: "kung anong kulay ng dark sa
+// gabi ganun yung magiging kulay ng shadow [ng torch]... apply mo
+// kung anong kulay ng gabi sa snow, sunny at rainy") - hinati/inilabas
+// ang buong pagkukwenta ng "kasalukuyang kulay ng oras+panahon" dito
+// (dating nasa LOOB lang ng drawDayNight, hindi puwedeng gamitin ng
+// ibang file) - PAREHONG [red,green,blue] ito na ginagamit ng
+// drawDayNight sa ibaba (walang binago sa gawi nito), PERO puwede na
+// ring tawagin ng shadows.js (getTorchShadowColorRGB) para ang anino
+// ng torch ay TALAGANG kaparehong-kaparehong kulay ng dilim ng
+// kasalukuyang oras/panahon (gabi + snow/sunny/rain overcast), sa
+// halip na basta FIXED na itim (dating TORCH_SHADOW_COLOR).
+function getCurrentAtmosphereTintRGB() {
   let [red, green, blue] = getDayNightColor(getDayNightProgress());
 
   // AYOS: bagong "makulimlim" na epekto habang umuulan - hinahalo
@@ -340,6 +349,33 @@ function drawDayNight() {
     blue = lerp(blue, SUNNY_OVERCAST_COLOR[2], SUNNY_OVERCAST_STRENGTH);
   }
 
+  return [red, green, blue];
+}
+
+// AYOS (BUG FIX, hiling ng user: "i mean ikaw na pala mag-bago kasi
+// nawala rin yung light sa gabi e di na umiilaw yung sa torch") -
+// dating TINANGGAL NANG BUO ang liwanag/"hole" ng torch (hiling ng
+// user noon: "wag na yung bilog") - PERO sobra pala ang tanggal:
+// wala na ring ANUMANG liwanag na natitira sa gabi kahit naka-equip
+// ang torch (kitang-kita, hindi makapag-eksplora sa dilim). Ibinalik
+// na ngayon ang liwanag, PERO mas MALAKI AT MAS MALAMBOT/GRADUAL na
+// ngayon ang gradient nito (dating maliit at may medyo matigas na
+// hangganan sa 55%-100%, kaya kitang-kitang "bilog"/spotlight) - mas
+// maraming color stop, mas unti-unti ang paglabo papalayo, para
+// mas "natural"/hindi gaanong kapansin-pansin bilang isang eksaktong
+// bilog, pero TALAGANG may liwanag pa rin sa paligid ng torch.
+function drawDayNight() {
+  if (
+    typeof isIndoors === "function" &&
+    isIndoors() &&
+    typeof hasLitPlacedLightInCurrentWorld === "function" &&
+    hasLitPlacedLightInCurrentWorld()
+  ) {
+    return;
+  }
+
+  let [red, green, blue] = getCurrentAtmosphereTintRGB();
+
   // Halos puti = tanghali, walang mababago - laktawan na natin, sayang
   // lang ang isang buong fullscreen na guhit.
   if (red > 252 && green > 252 && blue > 252) return;
@@ -362,11 +398,12 @@ function drawDayNight() {
   }
 
   // May naka-equip na torch AT/O may kailangang butasin (lightray) -
-  // gumamit ng off-screen buffer para makapag-"butas" (smooth radial
-  // gradient para sa torch, eksaktong hugis ng ray para sa lightray),
-  // ITINAPAT sa mismong APOY ng torch (hindi na sa gitna ng player
-  // mismo), at may "PULSE"/paghinga (unti-unting lumalaki-liliit) -
-  // tingnan ang getTorchFlamePosition/getTorchPulseFactor sa ibaba.
+  // gumamit ng off-screen buffer para makapag-"butas" (malambot na
+  // radial gradient para sa torch, eksaktong hugis ng ray para sa
+  // lightray), ITINAPAT sa mismong APOY ng torch (hindi sa gitna ng
+  // player mismo), at may "PULSE"/paghinga (unti-unting lumalaki-
+  // liliit) - tingnan ang getTorchFlamePosition/getTorchPulseFactor
+  // sa ibaba.
   const tintCtx = getDayNightTintSurface();
 
   tintCtx.fillStyle = tintColor;
@@ -387,12 +424,12 @@ function drawDayNight() {
   const screenX = (flame.x - camera.x) * camera.zoom;
   const screenY = (flame.y - camera.y) * camera.zoom;
 
-  // BAGO (hiling ng user): "liitan mo" - pinaliit pa ang base radius
-  // (dating 1.15x, ngayon 0.85x), tapos may "PULSE" - unti-unting
-  // lumalaki/liliit ang radius (hindi biglaan/flicker, kundi mabagal
-  // na "paghinga") gamit ang isang sine wave.
+  // AYOS (mas malambot/mas malaki, hindi na kasing-tigas ng dati) -
+  // dating 0.85x lang ng TORCH_LIGHT_RADIUS ang saklaw (mabilis
+  // ma-abot ang "buong dilim" - matigas ang hangganan), ngayon 1.4x -
+  // mas malawak, kaya mas unti-unti/mas gradual ang paglabo papalayo.
   const holeRadius =
-    TORCH_LIGHT_RADIUS * 0.85 * getTorchPulseFactor() * camera.zoom;
+    TORCH_LIGHT_RADIUS * 1.4 * getTorchPulseFactor() * camera.zoom;
 
   const holeGradient = tintCtx.createRadialGradient(
     screenX,
@@ -403,8 +440,13 @@ function drawDayNight() {
     holeRadius,
   );
 
+  // Mas MARAMING color stop (dating 3 lang - 0/0.55/1) - mas
+  // unti-unti/mas malambot ang pagkupas papalayo sa liwanag, para
+  // hindi masyadong "matigas"/kapansin-pansin bilang eksaktong bilog.
   holeGradient.addColorStop(0, "rgba(0, 0, 0, 1)");
-  holeGradient.addColorStop(0.55, "rgba(0, 0, 0, 0.85)");
+  holeGradient.addColorStop(0.35, "rgba(0, 0, 0, 0.85)");
+  holeGradient.addColorStop(0.6, "rgba(0, 0, 0, 0.55)");
+  holeGradient.addColorStop(0.8, "rgba(0, 0, 0, 0.25)");
   holeGradient.addColorStop(1, "rgba(0, 0, 0, 0)");
 
   tintCtx.globalCompositeOperation = "destination-out";

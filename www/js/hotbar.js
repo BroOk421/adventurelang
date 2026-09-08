@@ -1745,7 +1745,34 @@ function ensureDefaultBagPositions() {
   for (const item of BAG_ITEMS) {
     if (item.id === "bag") continue; // dynamic na ang bag, tingnan sa itaas
 
-    if (getBagUnassignedCount(item.id) <= 0) continue;
+    // AYOS (BUG FIX, hiling ng user: "meron akong item sa 1,2,3,5 pero
+    // dating nasa 4 slot si torch pero kapag nilagay ko dun sa left
+    // hand ok pero pag balik sa inventory... hindi na nafifill up yung
+    // slot 4 which is empty... napupunta lagi sa 7") - ITO ang UGAT ng
+    // bug: dating kapag naubos ang UNASSIGNED na bilang ng isang item
+    // (0, hal. buong stock ay na-equip/na-pin sa ibang lugar), basta
+    // na lang "SKIP" ito dito - PERO HINDI TINATANGGAL ang LUMANG
+    // itemDefaultBagPosition[item.id] nito, kaya naiiwan itong
+    // "nakareserba"/naka-alaala. Kapag bumalik ang stock (hal. na-
+    // unequip), ang ipinapakitang posisyon ay ang LUMANG reserbadong
+    // iyon (maaaring MATAGAL nang itinalaga - hal. noong UNANG beses
+    // kinolekta ang item, bago pa man ito i-drag/i-split ng manlalaro
+    // papunta sa ibang slot), HINDI ang KASALUKUYANG unang bakanteng
+    // slot - kaya "lumalabas" ang item sa MALI/LUMANG posisyon
+    // (hal. slot 7) sa halip na sa TALAGANG unang bakanteng slot
+    // ngayon (hal. slot 4, na siya namang huling ginamit/pinuwesto
+    // ng manlalaro dati bago ito na-equip). AYOS: kapag 0 na ang
+    // unassigned na bilang, TALAGANG TINATANGGAL na ngayon ang lumang
+    // reserbasyon nito (delete) - kaya sa susunod na bumalik ang
+    // stock, TALAGANG SARIWANG maghahanap ito ng BAGONG unang
+    // bakanteng slot (mula sa itaas-kaliwa pababa, tingnan ang
+    // paghahanap sa ibaba), hindi na "natitirik" sa isang lumang
+    // posisyon na hindi na naman TALAGANG kasalukuyang pinakaunang
+    // bakante.
+    if (getBagUnassignedCount(item.id) <= 0) {
+      delete itemDefaultBagPosition[item.id];
+      continue;
+    }
 
     const assignedPosition = itemDefaultBagPosition[item.id];
 
@@ -2167,11 +2194,68 @@ function updateFloatingGhostContent() {
   floatingGhostEl.appendChild(badge);
 }
 
+// AYOS (BUG FIX, hiling ng user: "sa mobile version... pag drag ng
+// item sa slots is di maganda... napupunta naman pangit lang tignan")
+// - kinukuha ang TALAGANG kasalukuyang visual "scale" ng #hotbar
+// (galing sa CSS transform: scale(...), tingnan ang body.touch-
+// controls-active #hotbar sa style.css - 1 (walang scale) sa
+// desktop, 0.82/0.7 sa mobile) - ginagamit ito sa halip na basta
+// hard-code ang numero dito, para awtomatikong tama kahit magbago pa
+// ang eksaktong CSS scale balang araw.
+function getHotbarVisualScale() {
+  const hotbarEl = document.getElementById("hotbar");
+
+  if (!hotbarEl) return 1;
+
+  const transform = getComputedStyle(hotbarEl).transform;
+
+  if (!transform || transform === "none") return 1;
+
+  // "matrix(a, b, c, d, tx, ty)" - ang "a" (unang numero) ay ang
+  // horizontal scale factor kapag walang rotation (tama para dito,
+  // scale lang naman - walang rotation - ang ginagamit ng #hotbar).
+  const match = /matrix\(([^,]+),/.exec(transform);
+  const scale = match ? parseFloat(match[1]) : NaN;
+
+  return Number.isFinite(scale) && scale > 0 ? scale : 1;
+}
+
+// Itinatakda ang laki ng #floating-pickup-ghost (custom property
+// --floating-ghost-scale, tingnan ang style.css) para TUMUGMA sa
+// laki ng KASALUKUYANG pinagmulan nito - kapag mula sa isang hotbar
+// slot (source.type === "slot") AT naka-scale-down ang #hotbar
+// (mobile/touch), itutugma ang ghost sa PAREHONG scale (hindi na
+// "biglaang lumalaki" ang icon habang naka-drag). Ibang uri ng
+// pinagmulan (bag/bagSplit) - hindi naman naka-scale ang #bag-panel
+// sa mobile, kaya 1 (default) na lang, walang epekto.
+function applyFloatingGhostScale(source) {
+  if (!floatingGhostEl) return;
+
+  const scale = source && source.type === "slot" ? getHotbarVisualScale() : 1;
+
+  floatingGhostEl.style.setProperty("--floating-ghost-scale", String(scale));
+}
+
+// AYOS (hiling ng user): sa TOUCH (daliri), natatakpan ng mismong
+// daliri ang icon kapag EKSAKTONG nasa ilalim ng tapat na tapat ng
+// touch point ito (kaya "di maganda tignan"/hindi makita nang maayos
+// kung saan talaga dinadala ang item) - itinataas nang kaunti ang
+// ghost sa itaas ng TALAGANG touch point kapag touch-controls-active,
+// para makita ito nang malinaw. Walang epekto sa desktop/mouse
+// (0 offset doon - eksakto pa rin sa ilalim ng cursor, dating gawi).
+const MOBILE_FLOATING_GHOST_Y_OFFSET = 46;
+
+function getFloatingGhostYOffset() {
+  return document.body.classList.contains("touch-controls-active")
+    ? MOBILE_FLOATING_GHOST_Y_OFFSET
+    : 0;
+}
+
 function moveFloatingGhost(x, y) {
   if (!floatingGhostEl) return;
 
   floatingGhostEl.style.left = x + "px";
-  floatingGhostEl.style.top = y + "px";
+  floatingGhostEl.style.top = y - getFloatingGhostYOffset() + "px";
 }
 
 function clearFloatingPickupState() {
@@ -2209,6 +2293,7 @@ function grabWholeStackIntoFloat(source, itemId) {
   floatingGhostEl = document.createElement("div");
   floatingGhostEl.id = "floating-pickup-ghost";
   document.body.appendChild(floatingGhostEl);
+  applyFloatingGhostScale(source);
   updateFloatingGhostContent();
 
   syncHotbarUI();
@@ -2535,6 +2620,7 @@ function cutOneIntoFloat(source, itemId) {
     floatingGhostEl = document.createElement("div");
     floatingGhostEl.id = "floating-pickup-ghost";
     document.body.appendChild(floatingGhostEl);
+    applyFloatingGhostScale(source);
   }
 
   if (source.type === "slot") {

@@ -69,6 +69,50 @@ const CRAFT_SHAPED_RECIPES = [
     shape: ["wood", "wood", "wood", "wood"],
     result: { itemId: "crafter", count: 1 },
   },
+  // AYOS (BUG FIX, hiling ng user: "2x2 lang dapat kaya din niyan mag
+  // lagay ng charcoal at torch bukod dun sa crafter") - dating 2 lang
+  // ang shape dito (parehong "horizontal", parehong charcoal-muna-bago-
+  // wood), kaya kung ibang ayos ang pagkakalagay (hal. patayo/vertical,
+  // o baligtad ang pagkakasunod), "hindi tumutugma" kahit tama naman
+  // ang 2 sangkap - kaya parang "may bug" kahit tama na ang totoong
+  // ingredients. Idinagdag na ngayon ang LAHAT ng posibleng ayos sa
+  // isang 2x2 grid (dalawang patayo, dalawang pahalang, PAREHONG
+  // pagkakasunod - charcoal-muna o wood-muna) - basta MAGKATABI (hindi
+  // pahilis/diagonal) ang dalawang cell, dapat gumana:
+  //   C W      . .      C .      . C
+  //   . .      C W      W .      . W
+  {
+    shape: ["charcoal", "wood", null, null],
+    result: { itemId: "torch", count: 1 },
+  },
+  {
+    shape: ["wood", "charcoal", null, null],
+    result: { itemId: "torch", count: 1 },
+  },
+  {
+    shape: [null, null, "charcoal", "wood"],
+    result: { itemId: "torch", count: 1 },
+  },
+  {
+    shape: [null, null, "wood", "charcoal"],
+    result: { itemId: "torch", count: 1 },
+  },
+  {
+    shape: ["charcoal", null, "wood", null],
+    result: { itemId: "torch", count: 1 },
+  },
+  {
+    shape: ["wood", null, "charcoal", null],
+    result: { itemId: "torch", count: 1 },
+  },
+  {
+    shape: [null, "charcoal", null, "wood"],
+    result: { itemId: "torch", count: 1 },
+  },
+  {
+    shape: [null, "wood", null, "charcoal"],
+    result: { itemId: "torch", count: 1 },
+  },
   {
     // S S S
     // S W .
@@ -117,16 +161,27 @@ const CRAFT_SHAPED_RECIPES = [
     result: { itemId: "cutter", count: 1 },
   },
   {
-    // . C .
-    // . W .
-    // . . .
-    //
-    // BAGO (hiling ng user): "2 slot charcoal, 5 slot wood is torch" -
-    // pinasimple, TINANGGAL na ang ikatlong "wood" (dating nasa cell 8
-    // rin) - ang dating 3-cell na shape na ito (charcoal-2, wood-5,
-    // wood-8) ay ngayon ang shape na ng "Light"/"Lamp" sa halip
-    // (tingnan sa ibaba).
+    shape: ["charcoal", null, null, "wood", null, null, null, null, null],
+    result: { itemId: "torch", count: 1 },
+  },
+  {
     shape: [null, "charcoal", null, null, "wood", null, null, null, null],
+    result: { itemId: "torch", count: 1 },
+  },
+  {
+    shape: [null, null, "charcoal", null, null, "wood", null, null, null],
+    result: { itemId: "torch", count: 1 },
+  },
+  {
+    shape: [null, null, null, "charcoal", null, null, "wood", null, null],
+    result: { itemId: "torch", count: 1 },
+  },
+  {
+    shape: [null, null, null, null, "charcoal", null, null, "wood", null],
+    result: { itemId: "torch", count: 1 },
+  },
+  {
+    shape: [null, null, null, null, "charcoal", null, "charcoal", null, "wood"],
     result: { itemId: "torch", count: 1 },
   },
   {
@@ -340,9 +395,19 @@ function findMatchingShapedRecipe() {
 function getSelectedGuideRecipe() {
   if (!craftGuideRecipeId) return null;
 
+  // AYOS (BUG FIX): dating basta ".find()" lang gamit ang result.itemId
+  // - pero DALAWA (o higit pa) na ngayon ang recipe entry na may
+  // PAREHONG result (hal. "torch" - meron na ngayong 2x2 AT 3x3 na
+  // bersyon), kaya laging ang UNANG match (ang 2x2) ang nakukuha kahit
+  // "advanced" (3x3/9-cell) ang bukas na grid - resulta, sirang/maling
+  // preview/ghost ang lumalabas sa guide kapag torch. Idinagdag ang
+  // pagsuri sa shape.length para tumugma talaga sa KASALUKUYANG laki
+  // ng grid (craftInputs.length).
   return (
     CRAFT_SHAPED_RECIPES.find(
-      (recipe) => recipe.result.itemId === craftGuideRecipeId,
+      (recipe) =>
+        recipe.result.itemId === craftGuideRecipeId &&
+        recipe.shape.length === craftInputs.length,
     ) || null
   );
 }
@@ -363,16 +428,21 @@ function getSelectedGuideRecipe() {
 // mananatiling bakante ang cell na iyon - ipapakita na lang bilang
 // "missing" na ghost (pulang border, tingnan ang syncCraftPanel).
 function autoFillGuideRecipe(itemId) {
+  // AYOS (BUG FIX): dating basta ".find()" gamit ang result.itemId lang
+  // (tingnan ang parehong bug sa getSelectedGuideRecipe sa itaas) - kaya
+  // "torch" (may 2x2 AT 3x3 na bersyon na ngayon) ay laging nakukuha
+  // ang 2x2 shape (ang UNANG entry sa CRAFT_SHAPED_RECIPES), kahit
+  // "advanced" (9-cell) ang bukas na grid - resulta, hindi na-a-autofill
+  // ang torch sa crafter (3x3) dahil hindi tumutugma ang shape.length
+  // (4) sa craftInputs.length (9). Idinagdag na rin dito ang parehong
+  // pagsuri sa shape.length (hindi lang basta result.itemId).
   const recipe = CRAFT_SHAPED_RECIPES.find(
-    (entry) => entry.result.itemId === itemId,
+    (entry) =>
+      entry.result.itemId === itemId &&
+      entry.shape.length === craftInputs.length,
   );
 
   if (!recipe) return;
-
-  // Lahat ng laman ng CRAFT_GUIDE_ITEMS ay 9-cell/"advanced" na shape,
-  // pero sinusuri pa rin dito bilang safety net (huwag mag-autofill sa
-  // maling laki ng grid).
-  if (recipe.shape.length !== craftInputs.length) return;
 
   recipe.shape.forEach((expected, i) => {
     if (!expected) return;

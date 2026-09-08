@@ -671,17 +671,29 @@ function drawPlayer() {
     // (bagEquipped, hotbar.js) - hiling ng user na gamitin din ito sa
     // "run", hindi lang sa idle. Kaparehong-pareho ng gawi ng normal na
     // run (kopya lang ng walk, tingnan ang assets.js).
-    sprite =
-      typeof bagEquipped !== "undefined" &&
-      bagEquipped &&
-      sprites.bagRun &&
-      sprites.bagRun[player.direction]
-        ? sprites.bagRun[player.direction]
-        : sprites.run[player.direction];
-    cropCategory =
-      typeof bagEquipped !== "undefined" && bagEquipped && sprites.bagRun
-        ? "bagWalk" // parehong art/crop ng bagWalk (kopya lang ng file)
-        : "walk"; // parehong art/crop ng walk (kopya lang ng file)
+    //
+    // AYOS (BAGO, hiling ng user: "i-apply mo na yung sa torch walk at
+    // sa bag na folder tapos walk kapag may used na torch") - MAY
+    // sariling "torch" na bersyon na ngayon (torchRun/torchBagRun,
+    // kopya lang ng torchWalk/torchBagWalk, tingnan ang assets.js) -
+    // apat na posibleng kumbinasyon, PAREHONG priyoridad ng idle sa
+    // ibaba (torch+bag > torch lang > bag lang > wala).
+    const torchOnRun = typeof torchEquipped !== "undefined" && torchEquipped;
+    const bagOnRun = typeof bagEquipped !== "undefined" && bagEquipped;
+
+    if (torchOnRun && bagOnRun && sprites.torchBagRun && sprites.torchBagRun[player.direction]) {
+      sprite = sprites.torchBagRun[player.direction];
+      cropCategory = "torchBagWalk"; // parehong art/crop ng torchBagWalk (kopya lang ng file)
+    } else if (torchOnRun && sprites.torchRun && sprites.torchRun[player.direction]) {
+      sprite = sprites.torchRun[player.direction];
+      cropCategory = "torchWalk"; // parehong art/crop ng torchWalk (kopya lang ng file)
+    } else if (bagOnRun && sprites.bagRun && sprites.bagRun[player.direction]) {
+      sprite = sprites.bagRun[player.direction];
+      cropCategory = "bagWalk"; // parehong art/crop ng bagWalk (kopya lang ng file)
+    } else {
+      sprite = sprites.run[player.direction];
+      cropCategory = "walk"; // parehong art/crop ng walk (kopya lang ng file)
+    }
     // Umiikot lang ang animation frame (0-5) kapag talagang naglalakad.
     // Kapag naka-idle o naka-sit, laging unang frame (0) lang ang gamit,
     // para hindi "nanginginig"/nagbabago-bago ang pose kahit di gumagalaw.
@@ -691,17 +703,33 @@ function drawPlayer() {
     // "add bag walk use it if i used bag ... idle and walk") - parehong
     // frame count ng normal na walk (assets.js), kaya walang dagdag na
     // pagbabago sa getPlayerAnimationFrameCount() na kailangan.
-    sprite =
-      typeof bagEquipped !== "undefined" &&
-      bagEquipped &&
-      sprites.bagWalk &&
-      sprites.bagWalk[player.direction]
-        ? sprites.bagWalk[player.direction]
-        : sprites.walk[player.direction];
-    cropCategory =
-      typeof bagEquipped !== "undefined" && bagEquipped && sprites.bagWalk
-        ? "bagWalk"
-        : "walk";
+    //
+    // AYOS (BAGO, hiling ng user: "i-apply mo na yung sa torch walk at
+    // sa bag na folder tapos walk kapag may used na torch") - dating
+    // basta bagWalk/walk lang ang sinusuri dito (walang torch) - kaya
+    // babalik sa normal na sprite habang gumagalaw kahit naka-equip
+    // ang torch. Ngayon, apat na posibleng kumbinasyon (PAREHONG
+    // priyoridad ng idle sa ibaba):
+    //   torch + bag  -> torchBagWalk (may bag AT hawak na torch)
+    //   torch lang   -> torchWalk    (hawak na torch, walang bag)
+    //   bag lang     -> bagWalk      (dating gawi)
+    //   wala         -> walk         (normal)
+    const torchOnWalk = typeof torchEquipped !== "undefined" && torchEquipped;
+    const bagOnWalk = typeof bagEquipped !== "undefined" && bagEquipped;
+
+    if (torchOnWalk && bagOnWalk && sprites.torchBagWalk && sprites.torchBagWalk[player.direction]) {
+      sprite = sprites.torchBagWalk[player.direction];
+      cropCategory = "torchBagWalk";
+    } else if (torchOnWalk && sprites.torchWalk && sprites.torchWalk[player.direction]) {
+      sprite = sprites.torchWalk[player.direction];
+      cropCategory = "torchWalk";
+    } else if (bagOnWalk && sprites.bagWalk && sprites.bagWalk[player.direction]) {
+      sprite = sprites.bagWalk[player.direction];
+      cropCategory = "bagWalk";
+    } else {
+      sprite = sprites.walk[player.direction];
+      cropCategory = "walk";
+    }
     frameIndex = player.frame;
   } else {
     // AYOS: dati ay laging frame 0 lang ang ginagamit dito (walang

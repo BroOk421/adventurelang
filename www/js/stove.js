@@ -297,13 +297,36 @@ function collectSmeltOutput() {
 // muna sa stock ang naka-hintay na smeltOutput (kung meron - TUNAY na
 // nagawa/naluto na ito, hindi lang "preview" gaya ng craftOutput sa
 // crafter - kaya hindi ito basta dapat mawala/malimot).
+//
+// AYOS (BUG FIX, hiling ng user: "kapag nag luto or cook is dapat
+// kahit i-x ko yung stove is naka-stay pa rin yung niluluto, continues
+// pa rin, di nawawala yung item if nag luluto - kung hindi is babalik
+// lang sa inventory yung items kapag hindi nag work yung pagluluto") -
+// dating basta ALWAYS inaalis/ibinabalik (removeSmeltItem) ang
+// ingredient/fuel sa PAGSARA ng panel, KAHIT AKTIBONG NAGLULUTO PA -
+// mali ito, dahil TALAGANG tumatakbo pa rin ang updateStoveCooking sa
+// likod (update.js, KADA FRAME, HINDI naka-gate sa stovePanelOpen) -
+// kaya "naiinterrupt"/nakansela ang isang GITNANG-LUTO na proseso sa
+// tuwing sarhan ng manlalaro ang panel, kahit gusto pa sana nilang
+// ipagpatuloy ito sa likod habang naglalakad/gumagawa ng iba. Ngayon,
+// sinusuri muna ang isStoveActivelyCooking() - kung TALAGANG
+// AKTIBO pa ang pagluluto (may sapat pang ingredient AT fuel, valid
+// recipe), HINDI na inaalis/ibinabalik ang mga ito - ipinapatuloy na
+// lang ang pagluluto sa likod (magpapatuloy pa rin ang timer, tuluy-
+// tuloy pa ring lalabas ang resulta sa smeltOutput kahit sarado ang
+// panel). Ibinabalik/refund LANG kapag TALAGANG HINDI (na) aktibong
+// nagluluto (naubos na ang isa sa dalawa, o walang valid na recipe) -
+// doon lang dapat "babalik sa inventory".
 function closeStovePanel() {
   if (!stovePanelOpen) return;
 
   stovePanelOpen = false;
 
-  if (smeltIngredient) removeSmeltItem("ingredient", true);
-  if (smeltFuel) removeSmeltItem("fuel", true);
+  if (!isStoveActivelyCooking()) {
+    if (smeltIngredient) removeSmeltItem("ingredient", true);
+    if (smeltFuel) removeSmeltItem("fuel", true);
+  }
+
   if (smeltOutput) collectSmeltOutput();
 
   syncStovePanel();

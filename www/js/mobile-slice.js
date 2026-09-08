@@ -47,7 +47,27 @@
 // lang naman ang mapipili).
 
 const MOBILE_LONG_PRESS_MS = 480;
-const MOBILE_LONG_PRESS_MOVE_TOLERANCE_PX = 12;
+// AYOS (BUG FIX, hiling ng user: "sa mobile version... pag drag ng
+// item sa slots is di maganda, di nadadala ng maayos yung item e
+// na-stock") - dating mas MALAKI ang tolerance dito (12px) kaysa sa
+// TALAGANG "drag threshold" ng normal na hold-drag sa hotbar.js
+// (DRAG_THRESHOLD_PX, 6px) - kaya may maikling agwat (6px-12px) kung
+// saan AKTIBO na ang normal na drag (floatingPickup na gumagalaw)
+// PERO HINDI pa na-kansela ang timer na ito. Sa KARANIWAN, hindi
+// dulot nito ng aktwal na sira dahil may sarili nang guard ang
+// triggerMobileLongPressSlice (floatingPickup check sa ibaba) - PERO
+// kung MABAGAL/MAINGAT ang paggalaw ng daliri (karaniwan kapag
+// tinatarget ang isang maliit na 40px na slot), posibleng manatili
+// pa ring MAS MABABA sa 6px ang TOTAL na galaw sa loob ng buong
+// 480ms - sa kasong iyon, "nauunahan" ng long-press timer ang
+// TALAGANG pagsisimula ng drag (na-kakansela pa ang dragState nito,
+// tingnan ang triggerMobileLongPressSlice), kaya parang "nawawala"/
+// "hindi nadadala nang maayos" ang item. Itinutugma na ngayon ang
+// tolerance dito sa parehong 6px (hindi na basta 12) para KAAGAD
+// na-kakansela ang pending long-press sa SANDALING may sapat nang
+// galaw para maituring itong drag (parehong pamantayan ng hotbar.js).
+const MOBILE_LONG_PRESS_MOVE_TOLERANCE_PX =
+  typeof DRAG_THRESHOLD_PX !== "undefined" ? DRAG_THRESHOLD_PX : 6;
 
 let mobileLongPressTimer = null;
 let mobileLongPressStart = null; // { x, y, pointerId }
@@ -90,7 +110,18 @@ document.addEventListener("pointerdown", (event) => {
   mobileLongPressTimer = setTimeout(() => {
     mobileLongPressTimer = null;
 
-    if (mobileLongPressStart) {
+    // AYOS (BUG FIX): huling pagsuri (safety net) bago talaga ipakita
+    // ang Slice menu - kung sakaling naumpisahan na (`dragState`,
+    // hotbar.js) at TALAGANG naka-activate na (floatingPickup) ang
+    // isang normal na drag sa mismong sandaling ito (hal. race sa
+    // pagitan ng setTimeout at pointermove), huwag nang ituloy - ang
+    // triggerMobileLongPressSlice mismo ang may sariling guard din
+    // dito, pero sinusuri na rin agad dito para hindi na kailanganing
+    // kanselahin pa ang dragState sa loob nito kung hindi na kailangan.
+    if (
+      mobileLongPressStart &&
+      !(typeof floatingPickup !== "undefined" && floatingPickup)
+    ) {
       triggerMobileLongPressSlice(
         mobileLongPressStart.x,
         mobileLongPressStart.y,
