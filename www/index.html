@@ -599,6 +599,49 @@
       </div>
     </div>
 
+    <!-- MOBILE SLICE QUANTITY POPUP (tingnan ang js/mobile-slice.js) -
+         TOUCH-ONLY (event.pointerType === "touch" ang tanging
+         pamantayan, walang epekot ito sa desktop/mouse) na kapareho ng
+         itsura ng #oldman-sell-qty-popup sa itaas. Lumalabas kapag
+         pinili ang "Slice" sa munting menu (showBagActionMenu,
+         hotbar.js) na sumusunod pagkatapos i-TOUCH-AND-HOLD
+         (long-press) ang isang hotbar slot/bag cell na may HIGIT SA 1
+         piraso. Pagka-Confirm, LUMULUTANG ang napiling bilang
+         (floatingPickup, hotbar.js) - PWEDE nang i-TAP sa ibang slot
+         para roon ilipat, kaparehong-pareho ng resulta ng paulit-ulit
+         na RIGHT-CLICK sa desktop (cutOneIntoFloat). -->
+    <div id="mobile-slice-qty-popup" class="hidden">
+      <div id="mobile-slice-qty-card">
+        <div id="mobile-slice-qty-header">
+          <span id="mobile-slice-qty-icon"></span>
+          <span id="mobile-slice-qty-label">Ilang piraso?</span>
+        </div>
+
+        <div id="mobile-slice-qty-controls">
+          <button
+            type="button"
+            id="mobile-slice-qty-minus"
+            class="mobile-slice-qty-step"
+          >
+            −
+          </button>
+          <input type="number" id="mobile-slice-qty-input" min="1" value="1" />
+          <button
+            type="button"
+            id="mobile-slice-qty-plus"
+            class="mobile-slice-qty-step"
+          >
+            +
+          </button>
+        </div>
+
+        <div id="mobile-slice-qty-actions">
+          <button type="button" id="mobile-slice-qty-cancel">Cancel</button>
+          <button type="button" id="mobile-slice-qty-confirm">Confirm</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Settings menu (burger icon) + Kalendaryo/orasan - pareho itong
          nasa itaas-kanan, kaya magkasama sa loob ng isang flex row
          wrapper (#top-right-bar) para hindi sila magkapatong (dynamic
@@ -972,7 +1015,7 @@
          (at sa dig/resources/player/decor) dahil tinatawag nito ang
          save function ng bawat isa (saveInventoryState/savePlayerPosition/
          saveDugTiles/saveHarvestedResources/saveHarvestedOakTrees). -->
-    <script src="./js/settings-menu.js?v=1800000000056"></script>
+    <script src="./js/settings-menu.js?v=1800000000058"></script>
     <!-- main-menu.js: BAGONG "Loading -> Play/Load/Settings/Exit" na
          screen bago mag-umpisa ang laro (#main-menu-overlay,
          beginInitialWorldLoad sa map.js) - kailangang MAUNA ang
@@ -1009,5 +1052,6 @@
          Kailangang MAUNA ang mobile-controls.js (isMobileTouchDevice)
          at settings-menu.js (openSettingsPanel/showSettingsToast). -->
     <script src="./js/controller-layout.js?v=1800000000055"></script>
+    <script src="./js/mobile-slice.js?v=1800000000057"></script>
   </body>
 </html>

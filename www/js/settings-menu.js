@@ -388,6 +388,45 @@ function renderLoadSlotsList() {
 // sa index.html.
 // =========================
 
+// AYOS (hiling ng user: "kapag nag export ako ng save hindi nag
+// dodownload" - sa NAKA-INSTALL na APK mismo, hindi sa browser): ang
+// dating paraan (`<a download>` + blob: URL + link.click()) ay
+// GUMAGANA lang nang maaasahan sa isang TUNAY na browser (Chrome/
+// Safari) - sa loob ng isang Capacitor WebView (ito mismo ang
+// environment ng naka-install na app, tingnan ang
+// capacitor.config.json/android/), WALANG naka-kabit na "download
+// manager" sa blob: URL na ito - kaya TAHIMIK lang itong nabibigo
+// (walang error, pero walang file na lalabas kahit saan) - kaya
+// "hindi ko nakikita sa Downloads" ang naramdaman ng user.
+//
+// AYOS: kapag TALAGANG naka-install na APK ito (Capacitor NATIVE
+// platform, hindi lang basta "mobile browser" - tingnan ang
+// isRunningAsNativeCapacitorApp sa ibaba), gamitin ang mismong
+// "Filesystem" + "Share" na NATIVE PLUGIN ng Capacitor sa halip
+// (isinulat ang JSON papuntang Directory.Cache, pagkatapos buksan ang
+// NATIVE share sheet ng Android - doon na mismo pipiliin ng user kung
+// saan/paano talaga i-se-save - "Files", Google Drive, ipapadala sa
+// sarili sa Messenger/Gmail, atbp. - GARANTISADONG makikita ito ng
+// user kahit saan niya piliing i-save, kaiba sa "Downloads" na
+// tahimik lang na nabibigo). Sa TUNAY na browser (walang Capacitor),
+// PAREHONG-PAREHO pa rin ang DATING `<a download>` na paraan - walang
+// binago roon.
+//
+// TANDAAN: kailangan munang idagdag ang "@capacitor/filesystem" at
+// "@capacitor/share" sa package.json (nagawa na ito) TAPOS patakbuhin
+// ang `npm install` at `npx cap sync android` (at i-rebuild/i-install
+// ulit ang APK) bago talaga gumana ito sa totoong device - hanggang
+// hindi pa nagagawa iyon, awtomatiko na lang itong babagsak (try/
+// catch) pabalik sa lumang `<a download>` na paraan (tingnan ang
+// "walang Filesystem/Share plugin" na sanga sa ibaba).
+function isRunningAsNativeCapacitorApp() {
+  return !!(
+    typeof window.Capacitor !== "undefined" &&
+    typeof window.Capacitor.isNativePlatform === "function" &&
+    window.Capacitor.isNativePlatform()
+  );
+}
+
 // I-eexport lang ang IISANG partikular na slot (yung ni-click na
 // "📤" sa tabi ng "I-load" nito) - hindi lahat ng save nang sabay.
 function exportSaveSlot(id) {
@@ -423,16 +462,26 @@ function exportSaveSlot(id) {
     bundle,
   };
 
+  const json = JSON.stringify(exportPayload, null, 2);
+  const safeName = (slot.name || "save").replace(/[^\w\-]+/g, "_");
+  const fileName = "adventureLang-" + safeName + ".json";
+
+  if (
+    isRunningAsNativeCapacitorApp() &&
+    window.Capacitor.Plugins?.Filesystem &&
+    window.Capacitor.Plugins?.Share
+  ) {
+    exportSaveSlotViaNativeShare(fileName, json);
+    return;
+  }
+
   try {
-    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
-      type: "application/json",
-    });
+    const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    const safeName = (slot.name || "save").replace(/[^\w\-]+/g, "_");
 
     link.href = url;
-    link.download = "adventureLang-" + safeName + ".json";
+    link.download = fileName;
 
     document.body.appendChild(link);
     link.click();
@@ -442,6 +491,49 @@ function exportSaveSlot(id) {
 
     showSettingsToast("Na-export ang save! 📤 I-check ang Downloads.");
   } catch (error) {
+    showSettingsToast("Hindi ma-export ang save file. 😕");
+  }
+}
+
+// Ang NATIVE APK na bersyon ng export (tingnan ang paliwanag sa itaas
+// ng exportSaveSlot) - isinusulat muna sa Directory.Cache ng app
+// (LAGING pinapayagan ito ng Android na i-share, kahit walang dagdag
+// na "file_paths.xml" config - tingnan ang opisyal na dokumentasyon ng
+// @capacitor/share), tapos ang Android SHARE SHEET mismo ang bahalang
+// magpakita kung saan/paano ito talaga ise-save/ipadala ng user.
+async function exportSaveSlotViaNativeShare(fileName, json) {
+  try {
+    const { Filesystem, Share } = window.Capacitor.Plugins;
+
+    await Filesystem.writeFile({
+      path: fileName,
+      data: json,
+      directory: "CACHE",
+      encoding: "utf8",
+    });
+
+    const { uri } = await Filesystem.getUri({
+      path: fileName,
+      directory: "CACHE",
+    });
+
+    await Share.share({
+      title: "I-save ang AdventureLang save file",
+      dialogTitle: "Saan mo gustong i-save/ipadala ang save file?",
+      url: uri,
+    });
+
+    showSettingsToast(
+      "Na-export ang save! 📤 Piliin kung saan i-se-save/ipadala.",
+    );
+  } catch (error) {
+    // "Share cancelled" (kinansela lang ng user ang share sheet, hindi
+    // talaga error) - huwag nang tumira ng "hindi ma-export" na toast
+    // dito, para hindi nakakalito (buong sadya namang kinansela).
+    const message = String(error?.message || error || "");
+
+    if (/cancel/i.test(message)) return;
+
     showSettingsToast("Hindi ma-export ang save file. 😕");
   }
 }

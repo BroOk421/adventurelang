@@ -3845,3 +3845,147 @@ kailangang i-adjust ang mga ito.
 - **Cache-bust:** binump ang `?v=` ng `ground-items.js` (1800000000056,
   dating `1793300000003`), `settings-menu.js` (1800000000056), `update.js`
   (1800000000056); bagong `scattered-loot.js?v=1800000000056`.
+
+### Entry #80 — MOBILE LANG: "long-press = slice" na paraan para hatiin ang isang stack (katumbas ng right-click ng desktop), popup na parang oldman shop
+- **Files (bago):** `js/mobile-slice.js`
+- **Files (binago):** `index.html`, `style.css`
+- **Hiling ng user:** sa MOBILE version LANG (huwag baguhin ang desktop) -
+  ang mga lootable na item na may maraming quantity, kapag DINIINAN
+  (long-press/touch-and-hold), dapat may lumabas na label ("Use" o
+  "Slice"). Kung "Slice", may lalabas na div section sa itaas
+  na "parang sa oldman na magbebenta ka" ang itsura - may icon/quantity
+  ng item, may buton na "−"/"+" (bawas/dagdag ng 1), at may Confirm sa
+  ibaba. Pagka-confirm, lumulutang ang na-slice na item at pwede na
+  itong ilapag sa ibang slot - dapat PAREHONG resulta ito ng paulit-
+  ulit na RIGHT-CLICK sa isang item na maraming quantity sa desktop.
+- **Bakit hiwalay na file (`mobile-slice.js`), hindi dinagdag sa
+  `hotbar.js`:** para malinaw na "dagdag lang" ito (walang binagong
+  linya sa `hotbar.js` mismo) - lahat ng existing na desktop na
+  right-click/hold-drag na code (`cutOneIntoFloat`,
+  `grabWholeStackIntoFloat`, `floatingPickup`, `dragState`, atbp,
+  lahat sa `hotbar.js`) ay HINDI GINALAW, REUSED lang (global scope,
+  tingnan ang bahagi 1 sa itaas) - garantisadong walang epekto sa
+  desktop mode.
+- **Paano na-detect na "mobile"/touch ito (HINDI `isMobileTouchDevice`/
+  media query, mobile-controls.js):** `event.pointerType === "touch"`
+  bilang PANGUNAHING hadlang - mas mahigpit ito kaysa sa media query:
+  kahit sa isang touchscreen na LAPTOP/DESKTOP (may mouse pa rin),
+  hindi tatakbo ang buong "long-press slice" na ito kung MOUSE ang
+  talagang ginamit - TALAGANG DALIRI (touch pointer) lang ang
+  nagpapasimula nito. Kaya walang paraang maapektuhan ang desktop mode
+  kahit anong device pa ang gamitin.
+- **Long-press detection:** `pointerdown` (touch) sa isang hotbar slot
+  (`[id^="hotbar-slot-"]`) o bag cell
+  (`#bag-panel-grid`/`#stove-panel-grid > [data-bag-position]`) -
+  nagsisimula ng `setTimeout` (480ms). Kung lumagpas sa 12px ang galaw
+  ng daliri (`pointermove`) O binitawan/na-cancel (`pointerup`/
+  `pointercancel`) BAGO umabot ang 480ms - kinakansela ang timer
+  (ituring na normal na tap/drag, hindi hold).
+- **Pagka-trigger ng long-press (`triggerMobileLongPressSlice`):**
+  - Una, `dragState = null` - KAILANGAN ito dahil ang PAREHONG
+    pointerdown (bago pa man mag-timeout) ay TUMAWAG NA rin ng
+    `startPointerAction` (existing listener sa `hotbar.js`, direktang
+    naka-attach sa slot/cell), na nagtatakda na ng `dragState` - kung
+    hindi ito kakanselahin, ang PAGBITAW ng daliri pagkatapos lumabas
+    ang menu ay ituturing pa ring "click" (mag-tto-toggle ng
+    gold-highlight/equip - tingnan ang `pointerup` listener,
+    `hotbar.js`).
+  - Ginagamit ang PAREHONG `resolveTargetSourceAt` (existing,
+    `hotbar.js`) para malaman ang laman (source + itemId) ng
+    dinantayan.
+  - PAREHONG special-case chain ng desktop right-click
+    (`document.pointerdown` na may `event.button === 2` check,
+    `hotbar.js`) - "bag" -> Use/Drop; holdable
+    (`HOLDABLE_ITEM_IDS` - crafter/stove/light/bed) -> Hold/Throw;
+    food (`EDIBLE_ITEMS`) -> Use. Reused din ang `showBagActionMenu`
+    (existing, `hotbar.js`) para sa munting menu na ito - IISA lang
+    ang function na ito na ginagamit ng DESKTOP (right-click) AT
+    MOBILE (long-press) ngayon.
+  - Para sa GENERIC na item (hindi bag/holdable/food): kung 1 na lang
+    ang available - diretso na lang `cutOneIntoFloat` (parehong
+    function ng desktop, walang punto pang magpapakita ng popup kung
+    iisa lang naman ang mapipili). Kung higit sa 1 - lumalabas ang
+    "Slice" sa menu.
+- **"Slice" -> `#mobile-slice-qty-popup`:** BAGONG popup
+  (`index.html`/`style.css`) - SINADYANG kinopya ang eksaktong
+  estruktura/estilo ng `#oldman-sell-qty-popup` (icon, label, −/+ na
+  buton, number input, Cancel/Confirm) dahil ITO MISMO ang tinutukoy
+  ng user bilang "parang sa oldman na magbebenta ka ganun itsura" -
+  ang tanging pagkakaiba: mas malaki ang `.mobile-slice-qty-step`
+  na buton (40px, dating 26px ng oldman popup) - TOUCH target ito
+  (daliri), kaya kailangan mas malapad kaysa sa para-sa-mouse na
+  bersyon. Default ang number input sa BUONG available (parang
+  hold-drag sa desktop), puwede pang bawasan.
+- **Pagka-Confirm -> `sliceStackIntoFloat(source, itemId, qty)`
+  (bagong function, `mobile-slice.js`):** kaparehong-pareho ng
+  epekto/logic ng `cutOneIntoFloat` (`hotbar.js`) PERO "amount" ang
+  binabawas sa ISANG hakbang (hindi na kailangang tumawag nang
+  paulit-ulit) - dinideklara ang PAREHONG `floatingPickup`/
+  `floatingGhostEl` (global, `hotbar.js`) kaya AWTOMATIKO na itong
+  nakikilala ng lahat ng existing na "may lumulutang na" na logic
+  (kasama na ang `startPointerAction` - ang SUSUNOD na tap kahit saan
+  mang slot/bag cell, touch man o mouse, ay maglalagay na nito doon -
+  walang binagong code doon).
+- **Pagsunod ng ghost sa daliri:** walang "hover" sa touchscreen
+  (kaiba sa `mousemove` na dating ginagamit ng desktop para sundan ng
+  ghost ang cursor kahit walang hawak na button) - kaya bagong
+  `pointermove` listener (touch lang, `event.pointerType === "touch"`)
+  ang nagpapagalaw ng ghost HABANG TALAGANG naka-touch pa rin ang
+  daliri sa screen; sa sandaling mabitawan, titigil na lang ito sa
+  huling posisyon hanggang sa susunod na tap sa isang target slot.
+- **Cache-bust:** bagong `mobile-slice.js?v=1800000000057`.
+
+### Entry #81 — Ayos sa export ng save file SA NAKA-INSTALL NA APK (Capacitor WebView) - gamit na ang native Share sheet sa halip na `<a download>`
+- **Files (binago):** `package.json` (root), `www/js/settings-menu.js`, `www/index.html`
+- **Hiling ng user:** "kapag nag export ako ng save hindi nag dodownload
+  kasi kapag hinanap ko sa download hindi ko nakikita yung file kapag
+  gusto kong i import" - VERIFIED na TALAGANG naka-install na APK
+  (`android/`) ang ginagamit niya, hindi lang basta browser sa phone.
+- **Sanhi:** ang `exportSaveSlot()` (settings-menu.js) ay gumagamit ng
+  `<a download>` + `blob:` URL + `link.click()` - GUMAGANA lang ito
+  nang maaasahan sa isang TUNAY na browser (Chrome/Safari). Sa loob ng
+  isang Capacitor WebView (ito mismo ang environment ng naka-install
+  na APK) - WALANG naka-kabit na "download manager" para sa `blob:`
+  URL na ito - kaya TAHIMIK lang itong nabibigo (walang JS error, pero
+  walang file na TALAGANG lalabas kahit saan sa device) - kaya
+  "hindi ko nakikita sa Downloads" ang naramdaman ng user.
+- **Ayos:** bagong `isRunningAsNativeCapacitorApp()` (settings-menu.js)
+  - kapag TALAGANG naka-install na APK (`window.Capacitor.
+  isNativePlatform()`), gamitin ang NATIVE na `Filesystem`/`Share`
+  plugin ng Capacitor sa halip (`exportSaveSlotViaNativeShare()`):
+  (1) isulat muna ang JSON sa `Directory.Cache` ng app (LAGING
+  pinapayagang i-share ito ng Android nang walang dagdag na
+  `file_paths.xml` config, base sa opisyal na dokumentasyon ng
+  `@capacitor/share`), (2) kunin ang `file://`/`content://` URI nito
+  (`Filesystem.getUri`), (3) buksan ang NATIVE ANDROID SHARE SHEET
+  (`Share.share`) gamit ang URI na iyon - doon na mismo pipipiliin ng
+  user kung saan/paano TALAGANG ise-save/ipadala (Files app, Google
+  Drive, Messenger, Gmail, atbp.) - GARANTISADONG makikita ito ng user
+  kahit saan niya piliin, kaiba sa "Downloads" na tahimik lang na
+  nabibigo. Sa TUNAY na browser (walang Capacitor) - PAREHONG-PAREHO
+  pa rin ang DATING `<a download>` na paraan, walang binago roon
+  (may guard/fallback: kung wala pang Filesystem/Share plugin na
+  naka-install - hal. bago pa ma-`npm install`/`cap sync` - babagsak
+  na lang ito pabalik dito, hindi basta babagsak/mag-eerror).
+- **Bagong dependencies (`package.json`, root - HINDI pa naka-apply sa
+  totoong APK hangga't hindi pa ito ginagawa):**
+  `@capacitor/filesystem`, `@capacitor/share`. KAILANGAN NG USER na
+  patakbuhin ang mga sumusunod (sa loob ng project root, kung saan may
+  `package.json`/`capacitor.config.json`) BAGO talaga gumana ito sa
+  totoong device:
+  ```bash
+  npm install
+  npx cap sync android
+  ```
+  tapos i-rebuild/i-reinstall ulit ang APK (Android Studio, o
+  `npx cap run android`) - WALANG kailangang baguhin pa sa
+  `MainActivity.java` (plain `BridgeActivity`, awtomatikong
+  na-a-autolink ang mga bagong plugin ng `cap sync` - walang manual na
+  plugin registration list doon).
+- **Hindi ginalaw:** ang IMPORT (`importSaveFile`, `<input
+  type="file">`) - gumagana na ito nang maayos sa Capacitor WebView
+  nang walang dagdag na plugin (native na Android document picker
+  mismo ang bumubukas dito, standard HTML file input) - export lang
+  ang sira, kaya export lang ang inayos.
+- **Cache-bust:** binump ang `?v=` ng `settings-menu.js`
+  (1800000000058).

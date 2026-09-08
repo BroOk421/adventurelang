@@ -3525,6 +3525,151 @@ body.touch-controls-active #hotbar {
 }
 
 /* =========================
+   MOBILE SLICE QUANTITY POPUP (tingnan ang js/mobile-slice.js) -
+   TOUCH-ONLY na popup, kaparehong-pareho ang itsura/estilo ng
+   #oldman-sell-qty-popup sa itaas (sinadya - ito mismo ang tinutukoy
+   ng user bilang "parang sa oldman na magbebenta ka ganun itsura"). */
+#mobile-slice-qty-popup {
+  position: fixed;
+  inset: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(0, 0, 0, 0.5);
+
+  z-index: 45;
+}
+
+#mobile-slice-qty-popup.hidden {
+  display: none;
+}
+
+#mobile-slice-qty-card {
+  width: 220px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  padding: 14px;
+
+  background: rgba(24, 26, 32, 0.97);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  border-radius: 10px;
+
+  font-family: system-ui, sans-serif;
+  color: white;
+}
+
+#mobile-slice-qty-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+#mobile-slice-qty-icon .hotbar-slot-item-img {
+  width: 20px;
+  height: 20px;
+}
+
+#mobile-slice-qty-icon .hotbar-icon {
+  font-size: 17px;
+}
+
+#mobile-slice-qty-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.mobile-slice-qty-step {
+  /* Mas malaki kaysa sa .oldman-sell-qty-step (26px) - TOUCH target
+     ito (daliri, hindi mouse cursor), kaya kailangan mas malapad
+     ayon sa karaniwang minimum touch target guideline (~40px+). */
+  width: 40px;
+  height: 40px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+
+  font: inherit;
+  font-size: 18px;
+  color: white;
+
+  cursor: pointer;
+}
+
+.mobile-slice-qty-step:hover {
+  background: rgba(212, 175, 55, 0.25);
+  border-color: rgba(212, 175, 55, 0.6);
+}
+
+#mobile-slice-qty-input {
+  width: 56px;
+
+  padding: 6px;
+
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+
+  font: inherit;
+  font-size: 14px;
+  color: white;
+  text-align: center;
+}
+
+#mobile-slice-qty-actions {
+  display: flex;
+  gap: 8px;
+}
+
+#mobile-slice-qty-actions button {
+  flex: 1;
+
+  padding: 10px 0;
+
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+#mobile-slice-qty-cancel {
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+}
+
+#mobile-slice-qty-cancel:hover {
+  background: rgba(255, 90, 90, 0.3);
+}
+
+#mobile-slice-qty-confirm {
+  background: rgba(212, 175, 55, 0.3);
+  border-color: rgba(212, 175, 55, 0.6);
+  color: white;
+}
+
+#mobile-slice-qty-confirm:hover {
+  background: rgba(212, 175, 55, 0.5);
+}
+
+/* =========================
    BAG ACTION MENU ("Use"/"Drop" sa inventory, "Use"/"Break" sa lupa)
    - tingnan ang showBagActionMenu sa hotbar.js. Munting floating menu
    na lumalabas malapit sa cursor sa oras ng right-click. */
