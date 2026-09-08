@@ -306,6 +306,11 @@ function update(deltaMs) {
           // clickable dapat e na rin gamit" - kaparehong-pareho na
           // ngayon ito ng Crafter/Stove/Light/Bed sa itaas.
           if (typeof openOldManShopPanel === "function") openOldManShopPanel();
+        } else if (structure.type === "joseph") {
+          // AYOS (hiling ng user): si Joseph ("Builder" NPC, builder.js) -
+          // kaparehong-pareho ng gawi ng Oldman sa itaas ("E" para
+          // makausap, bubukas ang Builder panel).
+          if (typeof openBuilderPanel === "function") openBuilderPanel();
         }
       }
     }

@@ -971,6 +971,18 @@ function getUsableStructureUnderPlayer() {
     });
   }
 
+  // AYOS (hiling ng user): si Joseph ("Builder" NPC, builder.js) -
+  // static (hindi gumagala, kaiba sa Oldman), kaya diretso na lang
+  // ang FIXED na (JOSEPH_COL, JOSEPH_ROW) niya ang sinusuri.
+  if (typeof isPlayerNearJoseph === "function" && isPlayerNearJoseph()) {
+    candidates.push({
+      type: "joseph",
+      target: null,
+      col: JOSEPH_COL,
+      row: JOSEPH_ROW,
+    });
+  }
+
   if (candidates.length === 0) return null;
 
   candidates.sort((a, b) => {
@@ -1121,6 +1133,21 @@ canvas.addEventListener("mousedown", (event) => {
       typeof isOldManTile === "function" && isOldManTile(tile.col, tile.row);
 
     if (oldManHere) return;
+
+    // AYOS (hiling ng user): si Joseph (builder.js) - kaparehong-pareho
+    // ng gawi ng Oldman sa itaas (consumed ang click, "E" na lang ang
+    // paraan para makausap).
+    if (tile.col === JOSEPH_COL && tile.row === JOSEPH_ROW && typeof JOSEPH_WORLD !== "undefined" && currentWorld === JOSEPH_WORLD) {
+      return;
+    }
+  }
+
+  // Custom na bahay (builder.js, hiling ng user) - HUWAG nang gumawa ng
+  // anuman dito sa left-click (right-click na lang ang "Sell", tingnan
+  // ang builder.js) - basta "consumed" na lang, para hindi bumagsak
+  // papunta sa paghukay/awtomatikong kamay.
+  if (typeof getCustomHouseAt === "function" && getCustomHouseAt(tile.col, tile.row)) {
+    return;
   }
 
   // NAKA-LAGAY NA CRAFTER/STOVE/LIGHT/BED (craft.js/stove.js/light.js/

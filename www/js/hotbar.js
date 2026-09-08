@@ -864,6 +864,123 @@ document.addEventListener("pointerdown", (event) => {
 });
 
 // =========================
+// "ABOUT" NA POPUP (hiling ng user: "sa lahat ng labels lagyan mo ng
+// about label lagay mo sa pinaka babang list ng pop up lahat ng items
+// lagyan mo niyan nakapaloob sa about is item name ikaw na bahala sa
+// description kahit 3 lines lang wag masyadong malaki yung text tapos
+// price magkano ibenta sa oldman")
+// =========================
+//
+// Maikling reference lang (2-3 linya) para sa bawat item - LAHAT ng
+// BAG_ITEMS ay may sariling entry dito. Ipinapakita ito sa "About" na
+// popup (showItemAboutPopup sa ibaba), kasama ang pangalan at ang
+// presyo kapag ibinenta kay Oldman (mula sa OLDMAN_SHOP_ITEMS, kung
+// meron - "Hindi tinatanggap ni Oldman" kung wala pang entry doon).
+const ITEM_DESCRIPTIONS = {
+  carrot: "Sariwang gulay mula sa taniman. Puwedeng kainin o itanim ulit bilang binhi.",
+  wood: "Kahoy na galing sa pagputol ng puno. Pangunahing sangkap sa maraming gawa.",
+  stone: "Bato mula sa paghukay. Gamit sa pag-craft ng matitibay na kagamitan.",
+  meat: "Hilaw na karne mula sa baboy. Puwedeng kainin agad o lutuin muna sa Stove.",
+  torch: "Nagbibigay-liwanag sa dilim. Isuot sa kaliwang kamay, nauubos habang nasusunog.",
+  crafter: "Mesa para sa paggawa ng iba't ibang bagay. Ilagay sa mundo para magamit.",
+  charcoal: "Uling mula sa pagsunog ng kahoy sa Stove. Gasolina para sa pagluluto.",
+  cookedmeat: "Lutong karne, mas masustansya kaysa hilaw. Kainin para mapawi ang gutom.",
+  stove: "Kalan para sa pagluluto/pag-smelt. Ilagay sa mundo para magamit.",
+  light: "Ilawan na puwedeng buksan/patayin. Ilagay sa loob ng bahay.",
+  pickaxe: "Kasangkapan sa paghukay ng bato. I-Use para isuot bilang kasalukuyang tool.",
+  rake: "Kasangkapan sa paghuhukay ng lupa. I-Use para isuot bilang kasalukuyang tool.",
+  axe: "Kasangkapan sa pagputol ng puno. I-Use para isuot bilang kasalukuyang tool.",
+  cutter: "Kasangkapan sa pagputol ng damo. I-Use para isuot bilang kasalukuyang tool.",
+  sword: "Sandata para sa pakikipaglaban. Hinihintay pa ang susunod na update.",
+  bag: "Backpack na nagpapalaki ng bag slots. I-Use para isuot ito.",
+  bed: "Higaan - ilagay sa loob ng bahay para makatulog/mag-save ng oras.",
+  wool: "Malambot na materyales mula sa tupa. Sangkap sa paggawa ng Bed.",
+  silk: "Pino at premium na materyales. Sangkap din sa paggawa ng Bed.",
+  iron: "Mabigat na metal. Sangkap sa paggawa ng Refrigerator.",
+  refrigerator: "Nagpapanatiling sariwa ang pagkain. Ilagay sa loob ng bahay.",
+};
+
+let itemAboutPopupEl = null;
+
+function closeItemAboutPopup() {
+  if (itemAboutPopupEl) {
+    itemAboutPopupEl.remove();
+    itemAboutPopupEl = null;
+  }
+}
+
+// Hinahanap ang TALAGANG sell price mula sa OLDMAN_SHOP_ITEMS (iisang
+// pinagmumulan lang, kaparehong-pareho ng ginagamit na ng
+// getFoodTooltipText sa itaas) - `null` kung wala pang entry doon ang
+// itemId na ito (hindi pa ito tinatanggap/binibili ni Oldman), sa
+// halip na basta mag-imbento ng presyo na hindi naman TALAGANG
+// gumagana kapag TALAGANG binenta.
+function getItemSellPrice(itemId) {
+  const shopEntry =
+    typeof OLDMAN_SHOP_ITEMS !== "undefined"
+      ? OLDMAN_SHOP_ITEMS.find((entry) => entry.itemId === itemId)
+      : null;
+
+  return shopEntry ? shopEntry.sellPrice : null;
+}
+
+function showItemAboutPopup(x, y, itemId) {
+  closeBagActionMenu();
+  closeItemAboutPopup();
+
+  const item = BAG_ITEMS.find((entry) => entry.id === itemId);
+  const label = item ? item.label : itemId;
+  const description =
+    ITEM_DESCRIPTIONS[itemId] || "Wala pang detalyeng nakalaan para dito.";
+
+  const popup = document.createElement("div");
+
+  popup.className = "bag-about-popup";
+  popup.style.left = Math.min(x, window.innerWidth - 210) + "px";
+  popup.style.top = Math.min(y, window.innerHeight - 130) + "px";
+
+  const nameEl = document.createElement("div");
+
+  nameEl.className = "bag-about-name";
+  nameEl.textContent = label;
+  popup.appendChild(nameEl);
+
+  const descEl = document.createElement("div");
+
+  descEl.className = "bag-about-desc";
+  descEl.textContent = description;
+  popup.appendChild(descEl);
+
+  const priceEl = document.createElement("div");
+
+  priceEl.className = "bag-about-price";
+
+  // AYOS (hiling ng user): "sa about pala imbis na text na sell is
+  // gawin mo icon ng gold lagay mo dun" - dating "Sell: X gold" (plain
+  // text) - ginamit na ngayon ang PAREHONG gold ICON (🪙 emoji) na
+  // ginagamit na ng ibang bahagi ng laro (decor.js - presyo sa oldman
+  // shop) sa halip na ang salitang "gold".
+  const sellPrice = getItemSellPrice(itemId);
+
+  if (sellPrice === null) {
+    priceEl.textContent = "Sell: Hindi tinatanggap ni Oldman";
+  } else {
+    priceEl.textContent = "Sell: 🪙" + sellPrice;
+  }
+
+  popup.appendChild(priceEl);
+
+  document.body.appendChild(popup);
+  itemAboutPopupEl = popup;
+}
+
+document.addEventListener("pointerdown", (event) => {
+  if (itemAboutPopupEl && !itemAboutPopupEl.contains(event.target)) {
+    closeItemAboutPopup();
+  }
+});
+
+// =========================
 // "USE" ANG BAG - suotin/gamitin (bagEquipped, tingnan player.js)
 // =========================
 //
@@ -1142,6 +1259,21 @@ const EDIBLE_ITEMS = {
     foodAmount: 3,
     consume: () => {
       carrotsCollected--;
+    },
+  },
+  // AYOS (hiling ng user): "yung sa foods is may use din yung raw meat
+  // lagyan mo rin ng plus 5 para sa foods" - dating hindi pa "kainin"
+  // (hindi EDIBLE_ITEMS) ang HILAW/raw na "meat" (kaiba sa
+  // "cookedmeat", na luto na sa Stove) - ngayon, puwede na rin itong
+  // kainin nang diretso, mas mababa lang ang halaga kaysa luto na
+  // (hiling: +5).
+  meat: {
+    label: "Raw Meat",
+    description: "Hilaw na karne - puwede nang kainin, pero mas mainam lutuin muna sa Stove.",
+    healAmount: 5,
+    foodAmount: 5,
+    consume: () => {
+      meatCollected--;
     },
   },
 };
@@ -2090,6 +2222,9 @@ function adjustGlobalItemCount(itemId, delta) {
   else if (itemId === "pickaxe" && delta < 0) pickaxeInInventory = false;
   else if (itemId === "rake" && delta < 0) rakeInInventory = false;
   else if (itemId === "axe" && delta < 0) axeInInventory = false;
+  else if (itemId === "cutter" && delta < 0) {
+    if (typeof cutterInInventory !== "undefined") cutterInInventory = false;
+  }
   else if (itemId === "sword" && delta < 0) swordUnlocked = false;
 }
 
@@ -3032,32 +3167,31 @@ function usesFloatEconomy(source) {
 document.addEventListener("pointermove", (event) => {
   if (!dragState) return;
 
-  if (usesFloatEconomy(dragState.source) && !dragState.activated) {
-    const moved = Math.hypot(
-      event.clientX - dragState.startX,
-      event.clientY - dragState.startY,
-    );
+  // AYOS (hiling ng user): "alisin mo na yung mga item na draggable di
+  // na dapat draggable throw na lang kung sakali" - dating dito
+  // (pagkatapos lumampas ng DRAG_THRESHOLD_PX ng cursor habang naka-
+  // hawak) "ina-ARM" ang buong stack papunta sa isang lumulutang na
+  // ghost na sumusunod sa cursor (grabWholeStackIntoFloat) - TALAGANG
+  // "draggable" na paglipat ng item. TINANGGAL na ito - hindi na
+  // dapat mag-activate ang isang drag kahit gaano pa gumalaw ang
+  // cursor/daliri habang naka-hawak sa isang PANGKALAHATANG item sa
+  // inventory (slot/bag/bagSplit - tingnan ang usesFloatEconomy) - sa
+  // halip, ang popup ng mga aksyon na lang (Use/Hold/Throw/Drop/Slice -
+  // buildMobileItemActions, mobile-slice.js) ang lumalabas sa isang
+  // plain click/tap (tingnan ang pointerup sa ibaba). HINDI apektado
+  // nito ang IBANG uri ng drag (craft-input/craft-output/smelt-
+  // ingredient/smelt-fuel/equip-hand/oldman-buy) - LUMANG dragGhostEl-
+  // based na paraan pa rin ang mga iyon, hiwalay sa usesFloatEconomy -
+  // tuloy-tuloy silang gumagana, walang binago.
+  if (usesFloatEconomy(dragState.source)) return;
 
-    if (moved < DRAG_THRESHOLD_PX) return; // baka click lang, hindi pa drag
-
-    const source =
-      dragState.source === "slot"
-        ? { type: "slot", slot: dragState.fromSlotIndex }
-        : dragState.source === "bagSplit"
-          ? { type: "bagSplit", index: dragState.bagSplitIndex }
-          : { type: "bag" };
-
-    if (!grabWholeStackIntoFloat(source, dragState.itemId)) {
-      dragState = null;
-      return;
-    }
-
-    dragState.activated = true;
-  }
-
-  if (usesFloatEconomy(dragState.source))
-    moveFloatingGhost(event.clientX, event.clientY);
-  else moveDragGhost(event.clientX, event.clientY);
+  // Ang mga LUMANG dragGhostEl-based na source (craft-input/craft-
+  // output/smelt-ingredient/smelt-fuel/equip-hand/oldman-buy) ay
+  // "activated: true" na AGAD sa pointerdown pa lang nila mismo
+  // (tingnan ang startCraftInputDrag, craft.js, at kaparehong mga
+  // function sa stove.js/dito) - walang DRAG_THRESHOLD_PX na
+  // hinihintay, kaya diretso na lang dito sa paggalaw ng ghost.
+  moveDragGhost(event.clientX, event.clientY);
 
   clearDropHighlights();
 
@@ -3150,24 +3284,22 @@ document.addEventListener("pointerup", (event) => {
     }
     clearDropHighlights();
 
-    // AYOS (BAGO, hiling ng user: "sa mobile version wala ng press
-    // hold na mangyayari... pag click na lang sa mismong item sa
-    // lahat... pwede rin malipat kahit saan") - TOUCH-ONLY na
-    // alternatibo sa buong-biyaheng DRAG (na madalas "natitigil"/
-    // mahirap i-track nang tama sa touchscreen): isang MAIKLING TAP
-    // na lang (hindi kailangang i-drag, at HINDI na rin kailangang
-    // i-LONG-PRESS) sa isang naka-fill na SLOT/BAG cell ay AGAD na
-    // "binubuhat"/in-a-ARM ang BUONG stack papunta sa floatingPickup
-    // (tingnan ang handleMobileItemTap, mobile-slice.js) - SABAY na
-    // ring lumalabas ang popup ng mga karagdagang aksyon (Use/Hold/
-    // Throw/Drop/Slice, depende sa uri ng item - buildMobileItemActions
-    // doon) - PWEDE pa ring i-TAP sa kahit anong ibang slot para roon
-    // ilipat/mag-swap (EXISTING na floatingPickup mechanism, walang
-    // binago doon). TOOLS (pickaxe/axe/rake) - nauuna pa rin ang
-    // pag-equip (equipToolItemIfApplicable) kaysa sa bagong paraan na
-    // ito, para hindi masira ang dating gawi ng pag-tap sa mga ito.
+    // AYOS (hiling ng user): "alisin mo na yung mga item na draggable
+    // di na dapat draggable throw na lang kung sakali" - dating
+    // TOUCH-ONLY na alternatibo ito sa pag-drag (dahil noon, DESKTOP
+    // pa rin ang gumagamit ng TALAGANG pag-drag papuntang ibang slot -
+    // tingnan ang pointermove sa itaas, TINANGGAL na rin ngayon iyon).
+    // Ngayon, PAREHONG-PAREHO na ito (mouse man o touch) - isang
+    // MAIKLING TAP/CLICK lang (walang paggalaw, walang long-press) sa
+    // isang naka-fill na SLOT/BAG/bagSplit cell ay nagpapakita ng popup
+    // ng mga karagdagang aksyon (Use/Hold/Throw/Drop/Slice, depende sa
+    // uri ng item - buildMobileItemActions, mobile-slice.js) - NANANATILI
+    // ang item sa kinaroroonan nito (WALANG "tumataas"/float, tingnan
+    // ang handleMobileItemTap doon), highlight/selection na lang.
+    // TOOLS (pickaxe/axe/rake) - nauuna pa rin ang pag-equip
+    // (equipToolItemIfApplicable) kaysa sa popup na ito, para hindi
+    // masira ang dating gawi ng pag-click/tap sa mga ito.
     if (
-      event.pointerType === "touch" &&
       usesFloatEconomy(dragState.source) &&
       dragState.itemId &&
       typeof handleMobileItemTap === "function"
@@ -3194,18 +3326,6 @@ document.addEventListener("pointerup", (event) => {
 
       dragState = null;
       return;
-    }
-
-    if (dragState.source === "bag") {
-      selectedBagItemId =
-        selectedBagItemId === dragState.itemId ? null : dragState.itemId;
-      syncBagPanel();
-    } else if (dragState.source === "slot") {
-      // Kung pickaxe/rake/axe - i-equip/i-unequip (tingnan ang
-      // equipToolItemIfApplicable) sa halip na basta i-toggle ang
-      // gold-highlight - kaparehong gawi ng activateHotbarSlot (digit
-      // key).
-      equipToolItemIfApplicable(dragState.itemId);
     }
 
     dragState = null;
@@ -3377,9 +3497,20 @@ document.addEventListener("pointerup", (event) => {
     }
     syncHotbarUI();
   } else if (overCraftOutput && dragState.source === "craft-output") {
-    // Wala namang epekto ang pag-drop ulit sa parehong output slot -
-    // dapat sa BAG, hotbar slot, o sa mundo (canvas) lang talagang
-    // "makuha" ito.
+    // AYOS (hiling ng user): "dun kasi sa result slot ng crafter at
+    // stove at sa craft is draggable dapat para malipat mas ok siguro
+    // kung isang pindot na lang din at automatic na pupunta sa
+    // inventory" - dating WALANG EPEKTO ang basta pag-CLICK (walang
+    // paggalaw) dito - kailangan pa TALAGANG i-drag PALABAS (papunta
+    // sa bag/hotbar slot/mundo) bago pa man "makuha" ang laman nito.
+    // Ngayon, isang PLAIN CLICK na lang (drop pabalik sa MISMONG
+    // output slot ring ito - ibig sabihin, walang TALAGANG paggalaw)
+    // ay AWTOMATIKONG kumukuha nito papunta sa inventory (parehong
+    // function/resulta ng "i-drag papunta sa bag" - collectCraftOutput,
+    // craft.js).
+    if (typeof collectCraftOutput === "function") collectCraftOutput();
+
+    syncHotbarUI();
   } else if (dragState.source === "craft-input" && overCanvas) {
     // Itinapon sa MUNDO (hindi sa bag) - dapat kaparehong-pareho ng
     // gawi ng ibang item (carrot/wood/stone, tingnan ang
@@ -3467,9 +3598,10 @@ document.addEventListener("pointerup", (event) => {
 
     syncHotbarUI();
   } else if (overSmeltOutput && dragState.source === "smelt-output") {
-    // Wala namang epekto ang pag-drop ulit sa parehong output slot -
-    // dapat sa BAG, hotbar slot, o sa mundo (canvas) lang talagang
-    // "makuha" ito.
+    // Parehong AYOS ng craft-output sa itaas - isang PLAIN CLICK na
+    // lang (walang TALAGANG paggalaw) ay AWTOMATIKONG kumukuha na rin
+    // nito papunta sa inventory (collectSmeltOutput, stove.js).
+    if (typeof collectSmeltOutput === "function") collectSmeltOutput();
   } else if (
     (dragState.source === "smelt-ingredient" ||
       dragState.source === "smelt-fuel") &&
@@ -3701,6 +3833,7 @@ const DOUBLE_CLICK_EQUIPABLE_ITEMS = new Set([
   "pickaxe",
   "rake",
   "axe",
+  "cutter",
 ]);
 
 // Tinatawag mula sa dblclick listener ng bag item (buildBagItemSlot) O
@@ -3720,7 +3853,7 @@ function equipViaDoubleClick(itemId, fromSlotIndex) {
       delete pinnedSlots[fromSlotIndex];
       delete pinnedSlotCounts[fromSlotIndex];
     }
-  } else if (itemId === "pickaxe" || itemId === "rake" || itemId === "axe") {
+  } else if (itemId === "pickaxe" || itemId === "rake" || itemId === "axe" || itemId === "cutter") {
     // "I-INSTALL" papunta sa tool radial (bagong hiling - dating
     // agad na "Unlocked"/equippable ang isang pickaxe/rake/axe sa
     // sandaling ma-drag palabas ng crafting output; ngayon, dalawang
@@ -3742,6 +3875,10 @@ function equipViaDoubleClick(itemId, fromSlotIndex) {
       axeInInventory = false;
       axeUnlocked = true;
       equipAxe();
+    } else if (itemId === "cutter") {
+      if (typeof cutterInInventory !== "undefined") cutterInInventory = false;
+      if (typeof cutterUnlocked !== "undefined") cutterUnlocked = true;
+      if (typeof equipCutter === "function") equipCutter();
     }
 
     // Aalisin sa numbered slot (kung naka-pin) - nawala na rin ito sa

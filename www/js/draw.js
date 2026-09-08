@@ -43,6 +43,22 @@ function draw() {
   if (typeof drawGrassmapHouseLightray === "function")
     drawGrassmapHouseLightray();
 
+  // AYOS (hiling ng user): "yung lightray ng window dapat naka ilalim
+  // sa puno at sa grass at sa character e dapat naapakan siya pero
+  // kita parin yung glow niya" - dating iginuguhit ang DALAWANG ito
+  // (window glow ng mga bahay sa grassmap/town) SA HULI (screen space,
+  // PAGKATAPOS ng drawMapObjects - tingnan ang lumang paliwanag sa
+  // atmosphere.js), kaya LAGING NASA IBABAW ng puno/damo/player.
+  // LUMIPAT na sila dito (WORLD SPACE, bago pa man ang drawGrass()/
+  // drawMapObjects() sa ibaba) - kaparehong-pareho ng ginawa na sa
+  // drawGrassmapHouseLightray sa itaas - kaya AWTOMATIKONG
+  // "naaapakan"/natatakpan na sila ng kahit anong damo/puno/player na
+  // naiguhit PAGKATAPOS nito (normal na draw-order occlusion), pero
+  // makikita/kikinang pa rin ang glow sa mga bahaging BUKAS/walang
+  // bumabara dito.
+  if (typeof drawHouseWindowLights === "function") drawHouseWindowLights();
+  if (typeof drawTownWindowLights === "function") drawTownWindowLights();
+
   // Ang damo (kapag matagal nang tila ang niyebe) - sa ibabaw ng snow
   // layer, sa ilalim ng mga hinukay na tile.
   drawGrass();
@@ -236,10 +252,18 @@ function draw() {
   // character) - iginuguhit ito PAGKATAPOS ng drawMapObjects (kung
   // saan iginuguhit ang player), kaya laging nasa IBABAW ng player ang
   // liwanag kapag lumapit siya sa parol/bintana.
+  //
+  // AYOS (hiling ng user): "yung lightray ng window dapat naka ilalim
+  // sa puno at sa grass at sa character" - LUMIPAT na ang DALAWANG
+  // "window" na glow (drawHouseWindowLights/drawTownWindowLights)
+  // papunta sa WORLD SPACE, PINAKAUNA ng frame (tingnan ang draw.js,
+  // kasabay ng drawGrassmapHouseLightray) - hindi na sila dito
+  // tinatawag. Ang parol (drawTownLamps) at pintuan (drawTownDoorLights)
+  // ay NAIWAN pa rin DITO (screen space, laging nasa ibabaw) - hindi
+  // "window" ang hiling, at mas mataas naman talaga karaniwan ang
+  // parol kaysa sa mga bagay sa paligid nito.
 
-  drawHouseWindowLights();
   drawTownLamps();
-  drawTownWindowLights();
   if (typeof drawTownDoorLights === "function") drawTownDoorLights();
 
   // Sarili nilang liwanag ang alitaptap - dapat nasa IBABAW ng

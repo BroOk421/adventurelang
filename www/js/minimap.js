@@ -674,29 +674,16 @@ function drawMinimap() {
     );
   }
 
-  // Mga collision (pader, bundok) - kayumanggi/madilim. Ang mga
-  // puno/bato (may "resourceKey", tingnan ang resources.js) ay
-  // LINALAKTAWAN na dito - may sarili na silang icon sa ibaba
-  // (drawMinimapResourceIcons) sa halip na basta box. Ang mga BAHAY
-  // (walang resourceKey, pero may sarili nang icon - drawMinimapHouses,
-  // itinatawag PAGKATAPOS nito) ay natatakpan/naguguhitan pa rin dito
-  // muna (parte ng generic box loop, mula sa House-wall collisions,
-  // map.js), pero OK LANG - buong natatakpan naman ito ng mas malaking
-  // icon ng bahay sa ibaba.
-  if (typeof collisions !== "undefined" && Array.isArray(collisions)) {
-    ctx2.fillStyle = "rgba(55, 42, 34, 0.9)";
-
-    for (const box of collisions) {
-      if (box.resourceKey) continue;
-
-      ctx2.fillRect(
-        toMinimapX(box.x),
-        toMinimapY(box.y),
-        Math.max(1, box.width * scale),
-        Math.max(1, box.height * scale),
-      );
-    }
-  }
+  // AYOS (hiling ng user): "alisin mo na yung parang mga collision na
+  // box box iwan mo lang yung map tapos navigation tyaka yung mga
+  // icons" - dating iginuguhit dito ang generic na kayumanggi/madilim
+  // na box para sa bawat collision (pader/bundok/bahay-wall) na WALANG
+  // resourceKey - TINANGGAL na ito (buo, hindi lang comment-out) - ang
+  // mga TALAGANG bagay (puno/bato/structure/bahay bilang background
+  // image) ay makikita pa rin naman sa background image mismo ng mapa
+  // (getMinimapWorldBackgroundImage, itaas) at sa mga sariling icon sa
+  // ibaba (drawMinimapResourceIcons/drawMinimapStructures) - hindi na
+  // kailangan pang i-highlight ulit bilang hiwalay na box.
 
   // AYOS (hiling ng user: "alisin mo na yung bahay na icon dun sa
   // minimap") - dating dito iginuguhit ang AKTWAL na sprite ng bahay

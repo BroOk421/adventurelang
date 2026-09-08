@@ -2484,6 +2484,19 @@ function getResourceDrawables() {
   const treeDestWidthInTiles = getActiveTreeDestWidthInTiles();
 
   for (const tree of resourceNodesCache.trees) {
+    // AYOS (hiling ng user): "kung may mga trees don at rocks
+    // mawawala na di na tutubo hanggat may bahay" - hindi na iguguhit
+    // ang puno na ito habang natatakpan ng isang custom na bahay
+    // (builder.js) - "babalik" na lang ito (muling makikita) sa
+    // sandaling ibenta/tanggalin ang bahay roon (walang binabago sa
+    // TALAGANG data ng puno mismo, "suppress" lang ito dito).
+    if (
+      typeof isTileCoveredByCustomHouse === "function" &&
+      isTileCoveredByCustomHouse(currentWorld, tree.col, tree.row)
+    ) {
+      continue;
+    }
+
     const key = tree.col + "," + tree.row;
     const isPinetree =
       (currentWorld === "grassmap" || currentWorld === "grassmap2") &&
@@ -2674,6 +2687,15 @@ function getResourceDrawables() {
   }
 
   for (const stone of resourceNodesCache.stones) {
+    // AYOS (hiling ng user): parehong "nawawala habang may bahay" na
+    // gawi ng puno sa itaas.
+    if (
+      typeof isTileCoveredByCustomHouse === "function" &&
+      isTileCoveredByCustomHouse(currentWorld, stone.col, stone.row)
+    ) {
+      continue;
+    }
+
     const key = stone.col + "," + stone.row;
 
     if (isNodeFullyHarvested(harvested, key, "stone")) continue; // wala nang natitira
@@ -3072,6 +3094,17 @@ function findValidRelocationSpot(listKey) {
 }
 
 function handleAxeClickOnTree(col, row) {
+  // AYOS (hiling ng user): "kung may mga trees don at rocks
+  // mawawala na di na tutubo hanggat may bahay" - natatakpan/
+  // "nawawala" ang puno/bato na ito habang may naka-tayong custom na
+  // bahay (builder.js) sa tile na ito - hindi na dapat magamitan.
+  if (
+    typeof isTileCoveredByCustomHouse === "function" &&
+    isTileCoveredByCustomHouse(currentWorld, col, row)
+  ) {
+    return false;
+  }
+
   // BAGO (linaw ng hiling ng user): "dapat yung tile kung san naka
   // root yung puno dapat dun lang niya ma hit" - simple na tile-match
   // lang (ang (col,row) mismo ng node - ibig sabihin, ang tile kung
@@ -3111,6 +3144,15 @@ function handleAxeClickOnTree(col, row) {
 }
 
 function handlePickaxeClickOnStone(col, row) {
+  // AYOS (hiling ng user): parehong "nawawala habang may bahay" na
+  // gawi ng puno sa itaas.
+  if (
+    typeof isTileCoveredByCustomHouse === "function" &&
+    isTileCoveredByCustomHouse(currentWorld, col, row)
+  ) {
+    return false;
+  }
+
   if (!findStoneAt(col, row)) return false;
 
   registerHit(col, row, "stone");

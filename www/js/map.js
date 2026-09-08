@@ -1594,12 +1594,76 @@ function drawMapBackground() {
   // rin ito ng minimap.js) - GARANTISADONG walang seam dahil IISANG
   // drawImage call lang ang buong background, hindi na paulit-ulit na
   // tile-by-tile.
-  if (currentWorld === "grassmap" || currentWorld === "grassmap2") {
+  // AYOS (hiling ng user): "yung sa mobile version may mga black lines
+  // pa kita sa mismong mga tiles sa house room tyaka dun sa town map -
+  // i same mo lang sa mga grassmap na di kita tyaka dun grassmap2 na
+  // di kita yung black border sa tiles" - PAREHONG "town" AT ang mga
+  // interior room (grassmapHouse/manuelHouse/atbp - LAHAT sila ay
+  // gumagamit ng IISANG "room_grassmap.tmj", tingnan ang WORLDS sa
+  // worlds.js) ay TAME pa ring bumabagsak dati sa GENERIC na
+  // tile-by-tile na reconstruction (drawTileLayer, ibaba) para sa
+  // sariling "map" layer nito - kaya lumalabas ang parehong
+  // "seam"/black line sa pagitan ng magkatabing tile na paliwanag sa
+  // itaas (lalo na NAPAPANSIN ito sa mobile, dahil sa device pixel
+  // ratio/antialiasing kapag naka-scale ang canvas). May sarili palang
+  // EKSAKTONG-TUMUTUGMANG flat na PNG ang PAREHONG mundong ito
+  // (town.png/snowtown.png - PAREHONG larawan na ginagamit na rin ng
+  // minimap.js; room_grassmap.png - WALANG snow variant dahil laging
+  // outdoor-only ang snow, tingnan sa mismong GRASSMAP_DIRECT_IMAGE_SOURCES
+  // sa ibaba) - kaya PAREHONG-PAREHONG "direct pixel crop" trick
+  // (drawGrassmapDirectRegion) ang gagamitin na rin dito, GARANTISADONG
+  // walang seam (IISANG drawImage call lang).
+  const isInteriorRoomWorld =
+    typeof WORLDS !== "undefined" &&
+    WORLDS[currentWorld] &&
+    WORLDS[currentWorld].url === "./assets/map/room_grassmap.tmj";
+
+  // AYOS (hiling ng user): "gusto ko kasi na... pwedeng gumawa ng
+  // sarili mong interior house design" - custom na interior world
+  // (builder.js, dynamic na Blob-URL na "tmj", isang tao/bahay lang
+  // kada isa) - IISANG uploaded na PNG (walang tile-by-tile) ang buong
+  // background nito, PAREHONG "direct crop" na trick ng grassmap/
+  // room_grassmap sa itaas, pero HIWALAY na Image object kada bahay
+  // (getCustomHouseInteriorImage, builder.js) sa halip na isang
+  // shared/hardcoded na larawan.
+  const customInteriorImage =
+    typeof getCustomHouseInteriorImage === "function"
+      ? getCustomHouseInteriorImage(currentWorld)
+      : null;
+
+  if (customInteriorImage && customInteriorImage.complete && customInteriorImage.naturalWidth) {
     const mapWidthPx = mapData.width * mapData.tilewidth;
     const mapHeightPx = mapData.height * mapData.tileheight;
 
-    drawGrassmapDirectRegion(currentWorld, 0, 0, mapWidthPx, mapHeightPx);
+    ctx.drawImage(customInteriorImage, 0, 0, mapWidthPx, mapHeightPx);
     return;
+  }
+
+  if (
+    currentWorld === "grassmap" ||
+    currentWorld === "grassmap2" ||
+    currentWorld === "town" ||
+    isInteriorRoomWorld
+  ) {
+    const mapWidthPx = mapData.width * mapData.tilewidth;
+    const mapHeightPx = mapData.height * mapData.tileheight;
+
+    // Lahat ng interior room (kahit ibang-iba ang currentWorld name,
+    // hal. "manuelHouse" o "josephHouse") ay PAREHONG-PAREHO ring
+    // room_grassmap.png ang TALAGANG larawan - kaya iisang "key" lang
+    // ("room_grassmap") ang ginagamit dito, hiwalay sa currentWorld.
+    const directImageKey = isInteriorRoomWorld ? "room_grassmap" : currentWorld;
+
+    drawGrassmapDirectRegion(directImageKey, 0, 0, mapWidthPx, mapHeightPx);
+
+    // Ang "town" LANG dito ang may KARAGDAGANG layer sa IBABAW ng
+    // background na ito (windows/door, gabi lang - tingnan sa ibaba) -
+    // kaya hindi pa dapat mag-return, kailangan pang tumuloy sa loob
+    // (naka-skip na roon ang sarili nitong "map" layer, para hindi
+    // madoble). Ang grassmap/grassmap2/interior room ay WALANG
+    // karagdagang layer (buong-larawan lang talaga sila) - ligtas nang
+    // mag-return agad.
+    if (currentWorld !== "town") return;
   }
 
   const allTileLayers = flattenTileLayers(mapData.layers);
@@ -1617,6 +1681,12 @@ function drawMapBackground() {
     if (overlapLayerSet.has(layer)) continue;
 
     const layerName = layer.name.toLowerCase();
+
+    // AYOS: para sa "town", direkta nang iginuhit ang "map" layer nito
+    // sa itaas (drawGrassmapDirectRegion, "town" key) - i-SKIP na lang
+    // dito para hindi ito madoble/i-overdraw ng generic tile-by-tile
+    // na bersyon (na siya mismong sanhi ng black seams sa mobile).
+    if (layerName === "map" && currentWorld === "town") continue;
 
     if (layerName === "windows" || layerName === "door") {
       if (nightAmount > 0.05) drawTileLayer(layer);
@@ -1814,6 +1884,14 @@ function drawDrawableWithOcclusion(item, playerVisualBox, playerSortY) {
 // naming convention (parehong ginagamit na rin ng minimap.js -
 // MINIMAP_WORLD_BACKGROUND_PATHS - VERIFIED na ito talaga ang tamang
 // larawan kada mundo).
+// AYOS (hiling ng user): "yung sa mobile version may mga black lines pa
+// kita sa mismong mga tiles sa house room tyaka dun sa town map - i
+// same mo lang sa mga grassmap na di kita" - dagdag na "town" (may
+// snow variant, kaparehong-pareho ng ginagamit na ng minimap.js) at
+// "room_grassmap" (IISANG larawan lang para sa LAHAT ng interior room -
+// grassmapHouse/manuelHouse/atbp, tingnan ang isInteriorRoomWorld sa
+// drawMapBackground - WALANG snow variant dahil hindi naman
+// naka-expose ang snow weather sa loob ng bahay).
 const GRASSMAP_DIRECT_IMAGE_SOURCES = {
   grassmap: {
     normal: "./assets/map/grassmap.png",
@@ -1822,6 +1900,14 @@ const GRASSMAP_DIRECT_IMAGE_SOURCES = {
   grassmap2: {
     normal: "./assets/map/grassmap2.png",
     snow: "./assets/map/snowgrassmap2.png",
+  },
+  town: {
+    normal: "./assets/map/town.png",
+    snow: "./assets/map/snowtown.png",
+  },
+  room_grassmap: {
+    normal: "./assets/map/room_grassmap.png",
+    snow: "./assets/map/room_grassmap.png",
   },
 };
 
@@ -1941,6 +2027,16 @@ function drawMapObjects() {
     // Mga baboy (pig.js) - clickable/may health, gumagala sa mapa.
     if (typeof getPigDrawables === "function") {
       fallbackDrawables.push(...getPigDrawables());
+    }
+
+    // Custom na bahay (builder.js, hiling ng user) - exterior lot sa
+    // grassmap/grassmap2, at si Joseph mismo (loob ng josephHouse).
+    if (typeof getCustomHouseDrawables === "function") {
+      fallbackDrawables.push(...getCustomHouseDrawables());
+    }
+
+    if (typeof getJosephDrawables === "function") {
+      fallbackDrawables.push(...getJosephDrawables());
     }
 
     // Mga damong tuft (grass.js) - dekorasyon lang, walang collision,

@@ -151,6 +151,17 @@ function canMoveTo(x, y) {
     }
   }
 
+  // Custom na bahay ni Joseph/manlalaro (builder.js, hiling ng user:
+  // "kahit saan pwede basta walang collisions na matamaan") - totoong
+  // hadlang (buong footprint MINUS ang butas/pintuan nito).
+  if (typeof getCustomHouseCollisionBoxes === "function") {
+    if (
+      getCustomHouseCollisionBoxes().some((box) => isColliding(playerBox, box))
+    ) {
+      return false;
+    }
+  }
+
   // AYOS (hiling ng user): "alisin mo na yung collisions niya kung san
   // siya naka drop" - dating totoong hadlang (parang Crafter/Stove) ang
   // naka-lagay na Bag sa mundo - HINDI na ngayon, madadaanan/

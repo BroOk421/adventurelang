@@ -777,5 +777,37 @@ canvas.addEventListener("mousedown", (event) => {
 
   lastPigHitAt = Date.now();
 
+  // AYOS (hiling ng user): "isa pa pala yung animation kapag gamit ko
+  // yung axe is pwede ko magamit yung animation pag patay sa pig" -
+  // dating WALANG swing animation kapag pig ang tinamaan (basta
+  // diretso na lang sa registerPigHit) - PAREHO na ngayon ng ginagawa
+  // sa puno/bato/damo (startAxeStrike/startPickaxeStrike/
+  // startRakeStrike, player.js) - GUIDE/COSMETIC lang ito, naaapply
+  // na agad ang damage sa ibaba kahit wala pang animation (kaparehong
+  // pattern doon).
+  if (
+    typeof axeEquipped !== "undefined" &&
+    axeEquipped &&
+    typeof startAxeStrike === "function"
+  ) {
+    startAxeStrike(tile.col, tile.row);
+  } else if (
+    typeof pickaxeEquipped !== "undefined" &&
+    pickaxeEquipped &&
+    typeof startPickaxeStrike === "function"
+  ) {
+    startPickaxeStrike(tile.col, tile.row);
+  } else if (
+    typeof rakeEquipped !== "undefined" &&
+    rakeEquipped &&
+    typeof startRakeStrike === "function"
+  ) {
+    startRakeStrike(tile.col, tile.row);
+  }
+  // Walang dedikadong swing sheet pa ang "cutter" (tingnan ang
+  // paliwanag sa handleCutterClickOnGrass, resources.js) - wala
+  // munang animation dito kapag ito ang naka-equip, kaparehong-pareho
+  // ng gawi doon sa damo.
+
   registerPigHit(pig, damage);
 });

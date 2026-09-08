@@ -833,36 +833,37 @@ function collectCraftOutput() {
     if (typeof refrigeratorCollected !== "undefined")
       refrigeratorCollected += craftOutput.count;
   }
-  // Pickaxe/rake/axe - BAGONG HILING: direktang "Unlocked" (equip-
-  // ready sa tool radial) agad SA SANDALING i-drag palabas ang output
-  // (dating dumadaan pa muna sa "InInventory"/bag bilang normal na
-  // item, kailangang i-double click - tingnan ang lumang bahagi 7 item
-  // 17 sa CLAUDE.md) - HINDI na sila lumalabas/lumilitaw sa bag/
-  // inventory KAHIT SANDALI, para "less item sa inventory" - deretso
-  // sa circle tools (tool radial). Ang `pickaxeInInventory`/
-  // `rakeInInventory`/`axeInInventory` (dig.js/resources.js) ay
-  // NAIWAN pa rin bilang variable (safe/hindi na aktibong gamit ng
-  // landas na ito - tingnan ang bahagi 7 item 19 sa ibaba) sakaling
-  // may umaasa pa dito (hal. lumang naka-save na data).
+  // AYOS (hiling ng user): "tyaka yung sa pickaxe wag mo na i auto na
+  // mawawala at mapunta sa tool-radial gawin na lang is mapunta sa
+  // inventory tapos may pop up na label din use or throw" - dating
+  // direktang "Unlocked" (equip-ready sa tool radial) agad SA
+  // SANDALING makuha ang output, HINDI na dumadaan sa bag/inventory
+  // KAHIT SANDALI. TINANGGAL na ito - "InInventory" (normal na item sa
+  // bag/hotbar, makikita/mapipili) na lang muna ang nangyayari dito,
+  // KAPAREHONG-PAREHO sa ibang craftable na item sa itaas - ang
+  // TALAGANG "Unlocked"/pag-equip sa tool radial ay nangyayari na lang
+  // sa sandaling piliin ng manlalaro ang "Use" sa popup ng item na ito
+  // (buildMobileItemActions, mobile-slice.js -> equipViaDoubleClick,
+  // hotbar.js) - may "Throw" ding option doon kung ayaw na ituloy.
   else if (craftOutput.itemId === "pickaxe") {
-    pickaxeUnlocked = true;
+    pickaxeInInventory = true;
     // AYOS (hiling ng user): bagong-crafted na tool = FRESH/BUONG
     // durability (50) - tingnan ang TOOL_DURABILITY_MAX (dig.js).
     if (typeof pickaxeDurability !== "undefined")
       pickaxeDurability =
         typeof TOOL_DURABILITY_MAX !== "undefined" ? TOOL_DURABILITY_MAX : 50;
   } else if (craftOutput.itemId === "rake") {
-    rakeUnlocked = true;
+    rakeInInventory = true;
     if (typeof rakeDurability !== "undefined")
       rakeDurability =
         typeof TOOL_DURABILITY_MAX !== "undefined" ? TOOL_DURABILITY_MAX : 50;
   } else if (craftOutput.itemId === "axe") {
-    axeUnlocked = true;
+    axeInInventory = true;
     if (typeof axeDurability !== "undefined")
       axeDurability =
         typeof TOOL_DURABILITY_MAX !== "undefined" ? TOOL_DURABILITY_MAX : 50;
   } else if (craftOutput.itemId === "cutter") {
-    if (typeof cutterUnlocked !== "undefined") cutterUnlocked = true;
+    if (typeof cutterInInventory !== "undefined") cutterInInventory = true;
     if (typeof cutterDurability !== "undefined")
       cutterDurability =
         typeof TOOL_DURABILITY_MAX !== "undefined" ? TOOL_DURABILITY_MAX : 50;

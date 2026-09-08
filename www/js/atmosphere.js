@@ -283,6 +283,77 @@ function punchGrassmapHouseLightrayHole(tintCtx, hole) {
   tintCtx.restore();
 }
 
+// =========================
+// "HOLE-PUNCH" PARA SA WINDOW LIGHTS (hiling ng user: "yung lightray
+// ng window dapat naka ilalim sa puno at sa grass at sa character e
+// dapat naapakan siya pero kita parin yung glow niya")
+// =========================
+//
+// Kaparehong konsepto ng punchGrassmapHouseLightrayHole sa itaas, pero
+// para sa MARAMING points (bawat naka-ilaw na bintana - parehong
+// houseWindowLightPoints/map.js at getWindowLayerLightPoints/map.js) -
+// simpleng malambot na BILOG na lang ang butas kada isa (hindi
+// sprite-shaped/masked), dahil plain radial gradient lang naman ang
+// mismong glow ng mga ito (drawHouseWindowLights/drawTownWindowLights,
+// ibaba).
+function getWindowLightHolePoints() {
+  const points = [];
+
+  const nightAmount = typeof getNightAmount === "function" ? getNightAmount() : 0;
+
+  if (nightAmount <= 0.05) return points; // araw pa, walang butas na kailangan
+
+  if (typeof houseWindowLightPoints !== "undefined") {
+    for (const point of houseWindowLightPoints) {
+      if (
+        point.world &&
+        typeof hasLitPlacedLightInWorld === "function" &&
+        hasLitPlacedLightInWorld(point.world)
+      ) {
+        points.push(point);
+      }
+    }
+  }
+
+  if (typeof getWindowLayerLightPoints === "function") {
+    points.push(...getWindowLayerLightPoints());
+  }
+
+  return points;
+}
+
+function punchWindowLightHoles(tintCtx, points) {
+  const holeRadius = WINDOW_LIGHT_RADIUS * 1.3 * camera.zoom;
+
+  tintCtx.save();
+  tintCtx.globalCompositeOperation = "destination-out";
+
+  for (const point of points) {
+    const screenX = (point.x - camera.x) * camera.zoom;
+    const screenY = (point.y - camera.y) * camera.zoom;
+
+    const holeGradient = tintCtx.createRadialGradient(
+      screenX,
+      screenY,
+      0,
+      screenX,
+      screenY,
+      holeRadius,
+    );
+
+    holeGradient.addColorStop(0, "rgba(0, 0, 0, 1)");
+    holeGradient.addColorStop(0.55, "rgba(0, 0, 0, 0.5)");
+    holeGradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+    tintCtx.fillStyle = holeGradient;
+    tintCtx.beginPath();
+    tintCtx.arc(screenX, screenY, holeRadius, 0, Math.PI * 2);
+    tintCtx.fill();
+  }
+
+  tintCtx.restore();
+}
+
 // AYOS (BUG FIX/BAGO, hiling ng user: "kung anong kulay ng dark sa
 // gabi ganun yung magiging kulay ng shadow [ng torch]... apply mo
 // kung anong kulay ng gabi sa snow, sunny at rainy") - hinati/inilabas
@@ -386,7 +457,23 @@ function drawDayNight() {
   const torchOn = typeof torchEquipped !== "undefined" && torchEquipped;
   const lightrayHole = getGrassmapHouseLightrayHoleInfo();
 
-  if (!torchOn && !lightrayHole) {
+  // AYOS (hiling ng user): "yung lightray ng window dapat naka ilalim
+  // sa puno at sa grass at sa character e dapat naapakan siya pero
+  // kita parin yung glow niya" - ang mga "window" glow
+  // (drawHouseWindowLights/drawTownWindowLights, ibaba) ay LUMIPAT na
+  // papuntang WORLD SPACE at MAS MAAGA sa buong frame (draw.js, bago
+  // pa man ang drawMapObjects) para TALAGANG ma-occlude ng
+  // damo/puno/player - PERO dahil dito, MAS MAAGA na rin sila kaysa
+  // sa "multiply"-dilim na ito (kaparehong sitwasyon ng lightray ng
+  // grassmapHouse sa itaas) - kaya kung wala pang AYOS, babalik lang
+  // itong madidilim ng multiply-tint na ito (parang walang glow).
+  // PAREHONG "hole-punch" na trick (destination-out sa offscreen tint
+  // canvas) ang ginagamit dito - isang malambot na bilog na butas
+  // KADA window point, para PANATILIHIN ang liwanag na naiguhit na sa
+  // lugar na iyon.
+  const windowLightHolePoints = getWindowLightHolePoints();
+
+  if (!torchOn && !lightrayHole && windowLightHolePoints.length === 0) {
     // Walang naka-equip na torch AT walang kailangang butasin (lightray) -
     // direkta sa TALAGANG canvas, walang hole/butas.
     ctx.save();
@@ -410,6 +497,9 @@ function drawDayNight() {
   tintCtx.fillRect(0, 0, canvas.width, canvas.height);
 
   if (lightrayHole) punchGrassmapHouseLightrayHole(tintCtx, lightrayHole);
+  if (windowLightHolePoints.length > 0) {
+    punchWindowLightHoles(tintCtx, windowLightHolePoints);
+  }
 
   if (!torchOn) {
     ctx.save();
@@ -557,7 +647,13 @@ function drawHouseWindowLights() {
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
 
-  const radius = WINDOW_LIGHT_RADIUS * camera.zoom;
+  // AYOS (hiling ng user): "yung lightray ng window dapat naka ilalim
+  // sa puno at sa grass at sa character" - WORLD SPACE na ito ngayon
+  // (tinatawag na sa loob ng camera transform, draw.js, PAGKATAPOS
+  // ang drawGrass()/drawMapObjects()) - kaya WALA nang manual na
+  // camera.x/camera.zoom conversion dito (kaparehong-pareho ng ginawa
+  // na sa drawGrassmapHouseLightray).
+  const radius = WINDOW_LIGHT_RADIUS;
 
   for (const point of houseWindowLightPoints) {
     // BAGO (hiling ng user): "kapag naka off or wala pang lamp sa loob
@@ -578,15 +674,12 @@ function drawHouseWindowLights() {
       continue;
     }
 
-    const screenX = (point.x - camera.x) * camera.zoom;
-    const screenY = (point.y - camera.y) * camera.zoom;
-
     const gradient = ctx.createRadialGradient(
-      screenX,
-      screenY,
+      point.x,
+      point.y,
       0,
-      screenX,
-      screenY,
+      point.x,
+      point.y,
       radius,
     );
 
@@ -596,7 +689,7 @@ function drawHouseWindowLights() {
 
     ctx.fillStyle = gradient;
     ctx.beginPath();
-    ctx.arc(screenX, screenY, radius, 0, Math.PI * 2);
+    ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -947,18 +1040,19 @@ function drawTownWindowLights() {
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
 
-  const radius = WINDOW_LIGHT_RADIUS * camera.zoom;
+  // AYOS (hiling ng user): "yung lightray ng window dapat naka ilalim
+  // sa puno at sa grass at sa character" - WORLD SPACE na ito ngayon
+  // (tinatawag na sa loob ng camera transform, draw.js) - WALA nang
+  // manual na camera.x/camera.zoom conversion dito.
+  const radius = WINDOW_LIGHT_RADIUS;
 
   for (const point of points) {
-    const screenX = (point.x - camera.x) * camera.zoom;
-    const screenY = (point.y - camera.y) * camera.zoom;
-
     const gradient = ctx.createRadialGradient(
-      screenX,
-      screenY,
+      point.x,
+      point.y,
       0,
-      screenX,
-      screenY,
+      point.x,
+      point.y,
       radius,
     );
 
@@ -968,7 +1062,7 @@ function drawTownWindowLights() {
 
     ctx.fillStyle = gradient;
     ctx.beginPath();
-    ctx.arc(screenX, screenY, radius, 0, Math.PI * 2);
+    ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
     ctx.fill();
   }
 

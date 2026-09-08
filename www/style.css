@@ -3772,6 +3772,280 @@ body.touch-controls-active #stove-panel {
   border-color: rgba(212, 175, 55, 0.6);
 }
 
+/* "About" na popup (hiling ng user) - maikling info card (pangalan,
+   description, sell price) - pareho ng look ng .bag-action-menu pero
+   plain text na lang, walang buttons. */
+.bag-about-popup {
+  position: fixed;
+
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  max-width: 200px;
+  padding: 8px 10px;
+
+  background: rgba(24, 26, 32, 0.97);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  border-radius: 8px;
+
+  font-family: system-ui, sans-serif;
+
+  z-index: 40;
+}
+
+.bag-about-name {
+  color: #f0d78c;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.bag-about-desc {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.bag-about-price {
+  color: rgba(120, 220, 140, 0.95);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* =========================
+   BUILDER PANEL (Joseph, builder.js) - hiling ng user
+   ========================= */
+.builder-panel-overlay {
+  position: fixed;
+  inset: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(0, 0, 0, 0.55);
+
+  z-index: 60;
+}
+
+.builder-panel {
+  width: min(420px, 92vw);
+  max-height: 80vh;
+
+  display: flex;
+  flex-direction: column;
+
+  background: rgba(24, 26, 32, 0.98);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  border-radius: 10px;
+
+  font-family: system-ui, sans-serif;
+  color: white;
+
+  overflow: hidden;
+}
+
+.builder-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 10px 14px;
+
+  font-weight: 700;
+  font-size: 14px;
+  color: #f0d78c;
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.builder-panel-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.builder-panel-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 10px 0;
+}
+
+.builder-panel-tab-btn {
+  flex: 1;
+  padding: 6px 8px;
+
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px 6px 0 0;
+
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.builder-panel-tab-btn.active {
+  background: rgba(212, 175, 55, 0.22);
+  border-color: rgba(212, 175, 55, 0.6);
+  color: #f0d78c;
+}
+
+.builder-panel-body {
+  padding: 12px 14px;
+  overflow-y: auto;
+}
+
+.builder-panel-hint {
+  margin: 0 0 10px;
+
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.builder-lot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+
+  padding: 8px;
+  margin-bottom: 6px;
+
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+}
+
+.builder-lot-label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.builder-lot-sub {
+  margin-top: 2px;
+
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.builder-lot-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.builder-buy-btn,
+.builder-secondary-btn {
+  padding: 6px 10px;
+
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.builder-buy-btn {
+  background: rgba(212, 175, 55, 0.25);
+  border-color: rgba(212, 175, 55, 0.6);
+  color: #f0d78c;
+}
+
+.builder-buy-btn:hover {
+  background: rgba(212, 175, 55, 0.4);
+}
+
+.builder-secondary-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+}
+
+.builder-secondary-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.builder-size-form {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.builder-size-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.builder-size-form input {
+  width: 70px;
+  padding: 5px 6px;
+
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 5px;
+
+  color: white;
+  font-size: 12px;
+}
+
+.builder-floating-message {
+  position: fixed;
+  left: 50%;
+  top: 18%;
+  transform: translateX(-50%);
+
+  padding: 8px 14px;
+
+  background: rgba(24, 26, 32, 0.95);
+  border: 1px solid rgba(212, 175, 55, 0.6);
+  border-radius: 8px;
+
+  color: #f0d78c;
+  font-family: system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+
+  z-index: 70;
+  pointer-events: none;
+}
+
+.builder-world-choice-btn {
+  display: block;
+  width: 100%;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.builder-map-picker-panel {
+  display: flex;
+  flex-direction: column;
+
+  background: rgba(24, 26, 32, 0.98);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  border-radius: 10px;
+
+  font-family: system-ui, sans-serif;
+  color: white;
+
+  overflow: hidden;
+}
+
+.builder-map-picker-canvas {
+  display: block;
+  cursor: crosshair;
+  image-rendering: pixelated;
+}
+
 /* =========================
    MAIN MENU (Loading / Play / Load / Settings / Exit) - lumalabas BAGO
    pa man mag-umpisa ang laro (tingnan ang beginInitialWorldLoad sa

@@ -1,32 +1,30 @@
 // =========================
-// MOBILE "TAP TO ACT" (hiling ng user)
+// TAP-TO-ACT NA POPUP (mouse man o touch) - hiling ng user
 // =========================
 //
-// AYOS (BAGO, hiling ng user: "sa mobile version wala ng press hold
-// na mangyayari ah pag click na lang sa mismong item sa lahat...
-// same mo sa torch sa iba pa na may lilitaw na label... pero dun sa
-// woods, stone is meron din pero throw lang meron at pwede rin
-// malipat kahit saan stay tayo kung anung meron ngayon ang papalitan
-// lang is yung sa wood at stone na pag pindot may lilitaw din na pop
-// up na throw at slice basta lahat ng item na may quantity meron
-// slice lagi") - dating LONG-PRESS (~480ms, walang malaking galaw)
-// pa ang kailangan bago lumabas ang popup ng bag/holdable/torch/food,
-// AT hiwalay pa ang paraan ng "paglipat sa ibang slot" (basta i-drag,
-// o kaya i-long-press din para sa "Slice" lang) - dalawang HIWALAY na
-// interaksyon, magkaibang response time. TINANGGAL na ngayon ang
-// buong long-press timer - lahat ay nangyayari na sa ISANG MAIKLING
-// TAP/CLICK LANG (walang paghintay), PAREHO anuman ang item:
+// AYOS (BAGO, hiling ng user: "pag click sa mismong mga item sa
+// inventory tumataas kasi yung item e dapat nandun na lang mismo sa
+// slot niya di na tataas mag highlights lang... alisin mo na yung mga
+// item na draggable di na dapat draggable throw na lang kung sakali") -
+// dating "binubuhat"/in-a-ARM (grabWholeStackIntoFloat) muna ang buong
+// stack papunta sa isang lumulutang na ghost SA TUWING may tap/click sa
+// isang naka-fill na slot (kahit basta makita lang ang mga posibleng
+// aksyon) - TALAGANG "tumataas"/lumilipad palayo muna sa slot ang
+// item bago pa man piliin ang isang aksyon. Katulad din nito, may
+// TALAGANG press-and-drag pa rin noon (mouse) papunta sa ibang slot -
+// TALAGANG "draggable". PAREHONG TINANGGAL na ngayon ang dalawang ito
+// (tingnan ang mga paliwanag sa pointermove/pointerup, hotbar.js, at
+// handleMobileItemTap sa ibaba) - isang MAIKLING TAP/CLICK LANG na
+// lang (walang paghintay, walang paggalaw/pagdrag, PAREHO anuman ang
+// pointerType) sa isang naka-fill na hotbar slot/bag cell ang:
 //
-//   1. TAP sa isang naka-fill na hotbar slot/bag cell - AGAD na
-//      "binubuhat"/in-a-ARM ang BUONG stack papunta sa floatingPickup
-//      (parehong estado ng normal na hold-drag, hotbar.js) - kaya
-//      PWEDE na itong I-TAP sa kahit anong ibang slot para roon
-//      ILIPAT/mag-SWAP (EXISTING na mekanismo, startPointerAction sa
-//      hotbar.js - walang binago doon) - "stay muna tayo kung anong
-//      meron ngayon" (hiling ng user) para dito.
-//   2. SABAY-SABAY, may lumalabas ding maliit na popup menu (reuse ng
-//      showBagActionMenu, hotbar.js) na may mga KARAGDAGANG aksyon
-//      depende sa uri ng item (buildMobileItemActions sa ibaba):
+//   1. NANANATILI ang item sa TALAGANG kinaroroonan nito (WALANG
+//      "tumataas"/floating) - highlight/selection na lang
+//      (setMobileTapSelection sa ibaba, parehong variable na ginagamit
+//      na ng ibang bahagi ng UI - selectedInventorySlot/selectedBagItemId).
+//   2. SABAY-SABAY, lumalabas ang isang maliit na popup menu
+//      (showBagActionMenu) na may mga aksyon depende sa uri ng item
+//      (buildMobileItemActions sa ibaba):
 //        - "bag"                    -> Use / Drop
 //        - holdable (crafter/stove/
 //          light/bed)                -> Hold(/Unhold) / Throw / Drop
@@ -38,22 +36,20 @@
 //                                       ito - hiling ng user: "basta
 //                                       lahat ng item na may quantity
 //                                       meron slice lagi")
-//   3. Kung PINILI ng manlalaro ang isa sa mga buton ng popup - dahil
-//      NAKA-ARM/nakabuhat na ang buong stack (#1 sa itaas), IBINABALIK
-//      muna ito sa TALAGANG pinagmulan (settleFloatBackToSource,
-//      hotbar.js) bago talaga isagawa ang piniling aksyon (Use/Hold/
-//      Throw/Drop/Slice) - kaya gumagana ang MISMONG parehong
-//      function (holdItem/throwItem/dropItem/equipTorch/eatItem/
-//      openMobileSliceQtyPopup) nang hindi na kailangang baguhin, gaya
-//      pa rin ng dating "source-based" na paraan nila.
-//   4. Kung sa halip, TINAP ng manlalaro ang IBANG slot (hindi ang
-//      popup) - awtomatiko na lang itong lumilipat/nag-sswap doon
-//      (EXISTING na mekanismo, #1), at nasasarhan na rin ang popup
-//      (existing na "outside click closer", hotbar.js).
+//      Kung NAKA-EQUIP na ang item na ito (torch/bag) - inilalapit ang
+//      popup na ito sa TALAGANG equip slot nito sa PROFILE
+//      (getEquipAnchorPosition sa ibaba), hindi sa mismong na-tap na
+//      posisyon - mas malinaw na "doon" (profile) mapupunta ang
+//      "Unequip"/"Unuse" na aksyon.
+//   3. Kung PINILI ng manlalaro ang isa sa mga buton ng popup - direkta
+//      na itong isinasagawa sa "source" (walang na-ARM na floatingPickup
+//      na kailangan pang "ibalik" muna, kaiba sa dati).
 //
 // Ang "Slice" (paghihiwalay ng piling bilang lang, hindi ang buong
 // stack) ay bukas pa rin gamit ang parehong #mobile-slice-qty-popup
-// (parehong itsura/estilo ng #oldman-sell-qty-popup).
+// (parehong itsura/estilo ng #oldman-sell-qty-popup) - DITO pa lang
+// (TALAGANG pinili ng manlalaro ang "Slice" sa popup) TALAGANG
+// na-a-ARM ang isang floatingPickup, sadya at inaasahan.
 
 let mobileSliceState = null; // { source, itemId, maxCount }
 let lastMobileLongPressX = 0; // "huling na-tap na posisyon" (pangalan lang natira, ginagamit pa rin ng sliceStackIntoFloat)
@@ -69,70 +65,182 @@ function getAvailableCountForMobileSlice(source, itemId) {
   return getPinnedSlotEffectiveCount(source.slot, itemId);
 }
 
-// Tinatawag mula sa hotbar.js (pointerup, MAIKLING TAP - hindi drag)
-// kapag TOUCH device, para sa ISANG naka-fill na slot/bag cell. Ito
-// ang PANGUNAHING entry point ng buong bagong sistema (tingnan ang
-// paliwanag sa itaas ng file). Ibinabalik ang true kung na-arm
-// (grabbed) ang item, false kung wala (hal. 0 na ang available).
+// Tinatawag mula sa hotbar.js (pointerup, MAIKLING TAP/CLICK - hindi
+// drag) para sa ISANG naka-fill na slot/bag cell. Ito ang PANGUNAHING
+// entry point ng buong sistemang ito (tingnan ang paliwanag sa itaas
+// ng file). Ibinabalik ang true kung may lumabas na popup, false kung
+// wala (hal. walang available na aksyon).
+//
+// AYOS (hiling ng user): "pag click sa mismong mga item sa inventory
+// tumataas kasi yung item e dapat nandun na lang mismo sa slot niya di
+// na tataas mag highlights lang" - dating AGAD na "binubuhat"/in-a-ARM
+// (grabWholeStackIntoFloat) ang BUONG stack papunta sa isang lumulutang
+// na ghost DITO, kaya literal na "tumataas"/lumilipad palayo muna sa
+// slot ang item habang bukas pa lang ang popup - kahit na basta i-click
+// lang ang isang FILLED na slot para MAKITA ang mga posibleng aksyon
+// dito (hindi pa talaga pinipili). TINANGGAL na ang buong pag-ARM na
+// iyon - NANANATILI na ngayon ang item sa TALAGANG kinaroroonan nito
+// (hindi na gumagalaw/tumataas), "highlight"/selection na lang ang
+// nangyayari sa pag-tap/click (setMobileTapSelection sa ibaba) - ang
+// mga TALAGANG action mismo (Throw/Slice/Use/Hold/Drop, piniling buton
+// sa popup) na ang bahalang mag-alis/gumalaw ng item, sa TALAGANG
+// pagkakataon na piliin ito - gumagana pa rin sila nang walang binago,
+// dahil "source"-based na rin talaga ang mga ito (tingnan ang
+// throwWholeStackFromSourceToWorld/dropWholeStackFromSourceToWorld sa
+// ibaba - direkta silang tumutukoy sa "source", hindi umaasa sa isang
+// paunang floatingPickup).
+let lastMobileActionAnchorX = 0;
+let lastMobileActionAnchorY = 0;
+
 function handleMobileItemTap(source, itemId, x, y) {
   if (!itemId) return false;
-  if (typeof grabWholeStackIntoFloat !== "function") return false;
-
-  const grabbed = grabWholeStackIntoFloat(source, itemId);
-
-  if (!grabbed) return false;
-
-  lastMobileLongPressX = x;
-  lastMobileLongPressY = y;
-
-  // AYOS (BUG FIX): dating naka-default sa "left:0; top:0" (itaas-
-  // kaliwang sulok) ang ghost icon hanggang sa may susunod na
-  // pointermove - wala nito pagkatapos ng isang MAIKLING TAP (agad
-  // nakabitaw ang daliri) - kaya "lumilipad" papuntang sulok ang icon
-  // sa halip na manatili malapit sa TALAGANG na-tap na posisyon.
-  if (typeof moveFloatingGhost === "function") moveFloatingGhost(x, y);
 
   const actions = buildMobileItemActions(source, itemId);
 
-  if (actions.length > 0 && typeof showBagActionMenu === "function") {
-    showBagActionMenu(x, y, actions);
-  }
+  if (actions.length === 0) return false;
+
+  // Itinatabi pa rin ang posisyon ng tap na ito - kailangan pa rin ito
+  // ng "Slice" (openMobileSliceQtyPopup -> sliceStackIntoFloat sa
+  // ibaba) para malaman kung SAAN ilalagay ang floating ghost nito sa
+  // sandaling TALAGANG piliin ang aksyong iyon sa popup - HIWALAY ito
+  // sa bug na "tumataas ang item sa pag-tap lang" (hindi na nangyayari
+  // ito dito, tingnan ang paliwanag sa itaas).
+  lastMobileLongPressX = x;
+  lastMobileLongPressY = y;
+
+  setMobileTapSelection(source, itemId);
+
+  // AYOS (hiling ng user): "tapos yung sa bag kapag naka equip na
+  // dapat na unequip din dun mismo lalabas yung label or pop up sa
+  // tabi ng bag sa profile" - kung ITO ang item na kasalukuyang
+  // NAKA-EQUIP na (torch sa left hand, bag sa profile) - sa halip na
+  // ilagay ang popup sa mismong na-tap/na-click na posisyon (loob ng
+  // bag/hotbar), ilalapit na lang ito sa TALAGANG equip slot nito sa
+  // PROFILE (getEquipAnchorPosition sa ibaba) - mas malinaw kaya
+  // makikitang "doon" (sa profile) talaga mapupunta ang epekto ng
+  // "Unequip"/"Unuse" na aksyon sa popup.
+  const anchor = getEquipAnchorPosition(itemId) || { x, y };
+
+  // Itinatabi rin ang TALAGANG anchor na ito (hindi na basta ang
+  // orihinal na tap position) - ginagamit ng "About" na aksyon
+  // (buildMobileItemActions sa ibaba) para lumabas ang info card nito
+  // sa PAREHONG lugar kung saan lumabas ang popup ng mga aksyon, kahit
+  // "inilapit" pa ito sa profile.
+  lastMobileActionAnchorX = anchor.x;
+  lastMobileActionAnchorY = anchor.y;
+
+  showBagActionMenu(anchor.x, anchor.y, actions);
 
   return true;
 }
 
-// Binabalot ang isang popup action - IBINABALIK muna sa TALAGANG
-// pinagmulan (settleFloatBackToSource) ang naka-arm na stack BAGO
-// isagawa ang "fn" (ang TALAGANG action - Use/Hold/Throw/Drop/Slice) -
-// kaya gumagana ang parehong EXISTING/source-based na function nito
-// nang walang binago, PAREHONG resulta ng dating desktop right-click
-// na paraan.
+// Ibinabalik ang { x, y } malapit sa TALAGANG equip slot (profile) ng
+// itemId na ito, KUNG naka-equip na ito ngayon - `null` kung hindi
+// (o walang katumbas na equip slot) - gagamitin na lang dito ang
+// TALAGANG na-tap na posisyon sa halip (tingnan ang paggamit sa itaas).
+function getEquipAnchorPosition(itemId) {
+  let equipSlotId = null;
+
+  if (itemId === "torch" && typeof torchEquipped !== "undefined" && torchEquipped) {
+    equipSlotId = "equip-slot-lefthand";
+  } else if (itemId === "bag" && typeof bagEquipped !== "undefined" && bagEquipped) {
+    equipSlotId = "equip-slot-bag";
+  }
+
+  if (!equipSlotId) return null;
+
+  const equipEl = document.getElementById(equipSlotId);
+
+  if (!equipEl) return null;
+
+  const rect = equipEl.getBoundingClientRect();
+
+  return { x: rect.right + 10, y: rect.top + rect.height / 2 };
+}
+
+// I-highlight (selection lang, WALANG paggalaw/pag-angat) ang item na
+// kasalukuyang na-tap/na-click - reuse ng PAREHONG variable na
+// ginagamit na ng ibang bahagi ng UI para sa gold-highlight
+// (selectedInventorySlot para sa hotbar slot, selectedBagItemId para
+// sa master bag cell) - tingnan ang syncHotbarUI/buildBagItemSlot.
+function setMobileTapSelection(source, itemId) {
+  if (source.type === "slot") {
+    selectedInventorySlot =
+      selectedInventorySlot === source.slot ? null : source.slot;
+  } else if (source.type === "bag") {
+    selectedBagItemId = selectedBagItemId === itemId ? null : itemId;
+  }
+  // "bagSplit" - walang sariling highlight variable pa (parehong dati) -
+  // ang popup mismo (malapit sa na-tap na cell) ang sapat nang
+  // indikasyon kung alin ang piniling item dito.
+
+  if (typeof syncHotbarUI === "function") syncHotbarUI();
+  if (typeof syncBagPanel === "function") syncBagPanel();
+}
+
+// Binabalot ang isang popup action - dating "ibinabalik muna sa
+// TALAGANG pinagmulan (settleFloatBackToSource) ang naka-arm na stack
+// BAGO isagawa ang TALAGANG action" (kailangan noon dahil AGAD na
+// na-ARM/floating ang item sa simula pa lang ng pag-tap, tingnan ang
+// paliwanag sa handleMobileItemTap sa itaas) - HINDI na kailangan
+// ngayon, dahil HINDI na talaga naiaalis/na-a-ARM ang item hangga't
+// hindi pa TALAGANG pinipili ang isang partikular na aksyon dito -
+// plain pass-through na lang ito ngayon, iniwan na lang ang pangalan
+// para hindi na kailangang baguhin ang buildMobileItemActions sa ibaba.
 function withSettledSource(fn) {
-  return () => {
-    if (typeof settleFloatBackToSource === "function") settleFloatBackToSource();
-    fn();
-  };
+  return fn;
 }
 
 // "Special-case chain" ng mga item na may sariling popup - "bag" ->
 // Use/Drop; holdable (crafter/stove/light/bed) -> Hold/Throw/Drop;
 // torch -> Use/Drop; food (EDIBLE_ITEMS) -> Use; KAHIT ANO PANG
 // generic na may dami -> Throw/Slice (LAGING dalawa, hiling ng user).
+// Mga "handheld tool" na ginagawa sa Crafter (pickaxe/rake/axe/cutter) -
+// AYOS (hiling ng user): "yung sa pickaxe wag mo na i auto na mawawala
+// at mapunta sa tool-radial gawin na lang is mapunta sa inventory tapos
+// may pop up na label din use or throw" - dating direktang "Unlocked"
+// (naka-equip agad sa tool radial) ang mga ito sa sandaling makuha sa
+// crafting output (collectCraftOutput, craft.js) - ngayon, "InInventory"
+// na lang muna (normal na item sa bag/hotbar) - dito na lang, sa
+// popup na ito, TALAGANG mag-eequip/mag-i-install sa tool radial
+// (equipViaDoubleClick, hotbar.js) kapag pinili ang "Use".
+const HANDHELD_TOOL_ITEM_IDS = new Set(["pickaxe", "rake", "axe", "cutter"]);
+
 function buildMobileItemActions(source, itemId) {
+  let actions;
+
   if (itemId === "bag") {
-    return [
+    actions = [
       { label: "Use", onClick: withSettledSource(() => useBagEquip()) },
       { label: "Drop", onClick: withSettledSource(() => dropBagFromInventory()) },
     ];
-  }
-
-  if (
+  } else if (HANDHELD_TOOL_ITEM_IDS.has(itemId)) {
+    actions = [
+      {
+        label: "Use",
+        onClick: withSettledSource(() => {
+          if (typeof equipViaDoubleClick === "function") {
+            equipViaDoubleClick(
+              itemId,
+              source.type === "slot" ? source.slot : undefined,
+            );
+          }
+        }),
+      },
+      {
+        label: "Throw",
+        onClick: withSettledSource(() =>
+          throwWholeStackFromSourceToWorld(source, itemId),
+        ),
+      },
+    ];
+  } else if (
     typeof HOLDABLE_ITEM_IDS !== "undefined" &&
     HOLDABLE_ITEM_IDS.includes(itemId)
   ) {
     const alreadyHeld = typeof heldItemId !== "undefined" && heldItemId === itemId;
 
-    return [
+    actions = [
       alreadyHeld
         ? { label: "Unhold", onClick: withSettledSource(() => unholdItem()) }
         : { label: "Hold", onClick: withSettledSource(() => holdItem(itemId)) },
@@ -141,12 +249,10 @@ function buildMobileItemActions(source, itemId) {
       { label: "Throw", onClick: withSettledSource(() => throwItem(itemId)) },
       { label: "Drop", onClick: withSettledSource(() => dropItem(itemId)) },
     ];
-  }
-
-  if (itemId === "torch") {
+  } else if (itemId === "torch") {
     const torchOn = typeof torchEquipped !== "undefined" && torchEquipped;
 
-    return [
+    actions = [
       {
         label: torchOn ? "Unequip" : "Use",
         onClick: withSettledSource(() => {
@@ -160,30 +266,44 @@ function buildMobileItemActions(source, itemId) {
         ),
       },
     ];
+  } else if (typeof EDIBLE_ITEMS !== "undefined" && EDIBLE_ITEMS[itemId]) {
+    actions = [{ label: "Use", onClick: withSettledSource(() => eatItem(itemId)) }];
+  } else {
+    // Generic na item (wood/stone/atbp.) - LAGING Throw + Slice (hiling
+    // ng user: "basta lahat ng item na may quantity meron slice lagi").
+    actions = [
+      {
+        label: "Throw",
+        onClick: withSettledSource(() =>
+          throwWholeStackFromSourceToWorld(source, itemId),
+        ),
+      },
+      {
+        label: "Slice",
+        onClick: withSettledSource(() => {
+          const available = getAvailableCountForMobileSlice(source, itemId);
+
+          if (available > 0) openMobileSliceQtyPopup(source, itemId, available);
+        }),
+      },
+    ];
   }
 
-  if (typeof EDIBLE_ITEMS !== "undefined" && EDIBLE_ITEMS[itemId]) {
-    return [{ label: "Use", onClick: withSettledSource(() => eatItem(itemId)) }];
-  }
-
-  // Generic na item (wood/stone/atbp.) - LAGING Throw + Slice (hiling
-  // ng user: "basta lahat ng item na may quantity meron slice lagi").
-  return [
-    {
-      label: "Throw",
-      onClick: withSettledSource(() =>
-        throwWholeStackFromSourceToWorld(source, itemId),
-      ),
+  // AYOS (hiling ng user): "sa lahat ng labels lagyan mo ng about label
+  // lagay mo sa pinaka babang list ng pop up lahat ng items lagyan mo
+  // niyan" - LAGING idinaragdag DITO SA DULO (huling buton) ng
+  // KAHIT ANONG uri ng item ang "About" - nakapaloob dito ang item
+  // name/description/sell price (showItemAboutPopup, hotbar.js).
+  actions.push({
+    label: "About",
+    onClick: () => {
+      if (typeof showItemAboutPopup === "function") {
+        showItemAboutPopup(lastMobileActionAnchorX, lastMobileActionAnchorY, itemId);
+      }
     },
-    {
-      label: "Slice",
-      onClick: withSettledSource(() => {
-        const available = getAvailableCountForMobileSlice(source, itemId);
+  });
 
-        if (available > 0) openMobileSliceQtyPopup(source, itemId, available);
-      }),
-    },
-  ];
+  return actions;
 }
 
 // Parehong konsepto ng dropWholeStackFromSourceToWorld (ibaba) - PERO

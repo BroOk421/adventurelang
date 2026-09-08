@@ -1161,6 +1161,19 @@ function getGrassTuftDrawables() {
   const drawables = [];
 
   for (const tuft of grassTuftsCache) {
+    // AYOS (hiling ng user): "kahit sana meron automatic lang mawawala
+    // yung nakaharang na trees or rocks or grass tyaka lang babalik
+    // kapag binenta na yung bahay" - PAREHONG "itago" na ginagawa sa
+    // puno/bato (resources.js, getResourceDrawables) - hindi na
+    // iguguhit ang tumpok ng damo na ito habang natatakpan ng isang
+    // custom na bahay (builder.js).
+    if (
+      typeof isTileCoveredByCustomHouse === "function" &&
+      isTileCoveredByCustomHouse(currentWorld, tuft.col, tuft.row)
+    ) {
+      continue;
+    }
+
     // BAGO (cutter feature): huwag nang iguhit ang na-cut na tumpok
     // (tingnan ang "PAGPUTOL NG DAMO (CUTTER)" sa itaas) - blangko
     // muna ang tile hanggang sa TALAGANG tumubo ulit.

@@ -1011,6 +1011,17 @@
          variable na ito (hotbar.js/dig.js/resources.js/craft.js/
          stove.js), kaya dito na ilagay pagkatapos ng stove.js. -->
     <script src="./js/inventory-save.js?v=1799999999999"></script>
+    <!-- Si Joseph ("Builder" NPC) at ang custom na bahay (hiling ng
+         user) - kailangang nauna ang worlds.js/map.js/dig.js/decor.js/
+         placement.js/hotbar.js/minimap.js (ginagamit nito ang WORLDS/
+         DOORS/collisions/isTileInReach/isPlayerAdjacentToTile/
+         getMouseTile/showBagActionMenu/syncHotbarUI/
+         MINIMAP_WORLD_BACKGROUND_IMAGES) - SUMUSUNOD din ito sa
+         inventory-save.js (hindi bago) para hindi mabura ng
+         loadInventoryState() ang goldCollected na sample/testing value
+         na itinatakda nito (hiling ng user: "lagyan mo ako ng gold na
+         100,000"). -->
+    <script src="./js/builder.js?v=1800000000002"></script>
     <!-- settings-menu.js: ang burger-icon na menu sa itaas-kanan (I-save/
          I-load/Settings/Lumabas) - dapat SUMUNOD sa inventory-save.js
          (at sa dig/resources/player/decor) dahil tinatawag nito ang
