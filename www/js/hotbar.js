@@ -3150,28 +3150,27 @@ document.addEventListener("pointerup", (event) => {
     }
     clearDropHighlights();
 
-    // AYOS (BAGO, hiling ng user: "ganun pa rin yung bug sa pag-drag
-    // ng item papuntang slots... medyo tricky lang... kapag pindutin
-    // ko lang yung kahit anung slot is mapupunta na siya dun") -
-    // TOUCH-ONLY na alternatibo sa buong-biyaheng DRAG (na madalas
-    // "natitigil"/mahirap i-track nang tama sa touchscreen): isang
-    // MAIKLING TAP na lang (hindi kailangang i-drag) sa isang naka-
-    // fill na SLOT/BAG cell - kung may sariling popup ang item
-    // (bag/holdable/torch/food - tingnan ang showMobileItemActionMenu,
-    // mobile-slice.js), doon ipapakita ang menu; kung hindi (generic
-    // na resource, hal. wood/stone), "binubuhat"/in-a-ARM ang BUONG
-    // stack papunta sa floatingPickup - ang SUSUNOD na tap sa kahit
-    // anong ibang slot ay AWTOMATIKO nang naglalagay/nag-sswap na
-    // (EXISTING na mekanismo na, tingnan ang floatingPickup-check sa
-    // simula ng startPointerAction sa ibaba - walang binago doon).
-    // TOOLS (pickaxe/axe/rake) - nauuna pa rin ang pag-equip
-    // (equipToolItemIfApplicable) kaysa sa bagong paraan na ito, para
-    // hindi masira ang dating gawi ng pag-tap sa mga ito.
+    // AYOS (BAGO, hiling ng user: "sa mobile version wala ng press
+    // hold na mangyayari... pag click na lang sa mismong item sa
+    // lahat... pwede rin malipat kahit saan") - TOUCH-ONLY na
+    // alternatibo sa buong-biyaheng DRAG (na madalas "natitigil"/
+    // mahirap i-track nang tama sa touchscreen): isang MAIKLING TAP
+    // na lang (hindi kailangang i-drag, at HINDI na rin kailangang
+    // i-LONG-PRESS) sa isang naka-fill na SLOT/BAG cell ay AGAD na
+    // "binubuhat"/in-a-ARM ang BUONG stack papunta sa floatingPickup
+    // (tingnan ang handleMobileItemTap, mobile-slice.js) - SABAY na
+    // ring lumalabas ang popup ng mga karagdagang aksyon (Use/Hold/
+    // Throw/Drop/Slice, depende sa uri ng item - buildMobileItemActions
+    // doon) - PWEDE pa ring i-TAP sa kahit anong ibang slot para roon
+    // ilipat/mag-swap (EXISTING na floatingPickup mechanism, walang
+    // binago doon). TOOLS (pickaxe/axe/rake) - nauuna pa rin ang
+    // pag-equip (equipToolItemIfApplicable) kaysa sa bagong paraan na
+    // ito, para hindi masira ang dating gawi ng pag-tap sa mga ito.
     if (
       event.pointerType === "touch" &&
       usesFloatEconomy(dragState.source) &&
       dragState.itemId &&
-      typeof handleMobileGenericItemTap === "function"
+      typeof handleMobileItemTap === "function"
     ) {
       const isTool =
         dragState.source === "slot" &&
@@ -3185,17 +3184,12 @@ document.addEventListener("pointerup", (event) => {
               ? { type: "bagSplit", index: dragState.bagSplitIndex }
               : { type: "bag" };
 
-        if (
-          handleMobileGenericItemTap(
-            source,
-            dragState.itemId,
-            event.clientX,
-            event.clientY,
-          )
-        ) {
-          dragState = null;
-          return;
-        }
+        handleMobileItemTap(
+          source,
+          dragState.itemId,
+          event.clientX,
+          event.clientY,
+        );
       }
 
       dragState = null;
