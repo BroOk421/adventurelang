@@ -2738,7 +2738,15 @@ document.addEventListener("pointerdown", (event) => {
       alreadyHeld
         ? { label: "Unhold", onClick: () => unholdItem() }
         : { label: "Hold", onClick: () => holdItem(target.itemId) },
+      // AYOS (hiling ng user: "magkaiba ang drop sa throw - yung
+      // throw is itatapon ang item, at drop naman ay ilalapag sa
+      // sahig") - DALAWANG hiwalay na aksyon (dating "Throw" na lang
+      // pinalitan ng label papuntang "Drop" - MALI, dahil magkaiba
+      // pala talaga ang gusto - "Throw" (2 tile, parang itinapon) AT
+      // "Drop" (1 tile lang, mahinahong nilapag) ang dapat pareho
+      // ipakita, hindi lang isa sa dalawa.
       { label: "Throw", onClick: () => throwItem(target.itemId) },
+      { label: "Drop", onClick: () => dropItem(target.itemId) },
     ]);
 
     return;
@@ -3141,6 +3149,58 @@ document.addEventListener("pointerup", (event) => {
       dragGhostEl = null;
     }
     clearDropHighlights();
+
+    // AYOS (BAGO, hiling ng user: "ganun pa rin yung bug sa pag-drag
+    // ng item papuntang slots... medyo tricky lang... kapag pindutin
+    // ko lang yung kahit anung slot is mapupunta na siya dun") -
+    // TOUCH-ONLY na alternatibo sa buong-biyaheng DRAG (na madalas
+    // "natitigil"/mahirap i-track nang tama sa touchscreen): isang
+    // MAIKLING TAP na lang (hindi kailangang i-drag) sa isang naka-
+    // fill na SLOT/BAG cell - kung may sariling popup ang item
+    // (bag/holdable/torch/food - tingnan ang showMobileItemActionMenu,
+    // mobile-slice.js), doon ipapakita ang menu; kung hindi (generic
+    // na resource, hal. wood/stone), "binubuhat"/in-a-ARM ang BUONG
+    // stack papunta sa floatingPickup - ang SUSUNOD na tap sa kahit
+    // anong ibang slot ay AWTOMATIKO nang naglalagay/nag-sswap na
+    // (EXISTING na mekanismo na, tingnan ang floatingPickup-check sa
+    // simula ng startPointerAction sa ibaba - walang binago doon).
+    // TOOLS (pickaxe/axe/rake) - nauuna pa rin ang pag-equip
+    // (equipToolItemIfApplicable) kaysa sa bagong paraan na ito, para
+    // hindi masira ang dating gawi ng pag-tap sa mga ito.
+    if (
+      event.pointerType === "touch" &&
+      usesFloatEconomy(dragState.source) &&
+      dragState.itemId &&
+      typeof handleMobileGenericItemTap === "function"
+    ) {
+      const isTool =
+        dragState.source === "slot" &&
+        equipToolItemIfApplicable(dragState.itemId);
+
+      if (!isTool) {
+        const source =
+          dragState.source === "slot"
+            ? { type: "slot", slot: dragState.fromSlotIndex }
+            : dragState.source === "bagSplit"
+              ? { type: "bagSplit", index: dragState.bagSplitIndex }
+              : { type: "bag" };
+
+        if (
+          handleMobileGenericItemTap(
+            source,
+            dragState.itemId,
+            event.clientX,
+            event.clientY,
+          )
+        ) {
+          dragState = null;
+          return;
+        }
+      }
+
+      dragState = null;
+      return;
+    }
 
     if (dragState.source === "bag") {
       selectedBagItemId =

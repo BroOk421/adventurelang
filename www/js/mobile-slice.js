@@ -97,6 +97,45 @@ function isMobileSliceSurfaceEl(el) {
   );
 }
 
+// AYOS (BAGO, hiling ng user: "ganun pa rin yung bug sa pag drag ng
+// item papuntang slots... kapag naman pindot ko ng slot mag highlight
+// yung slots niya sa inventory tapos pipindutin ko lang yung kahit
+// anung slot is mapupunta na siya dun... kung meron naman mga laman
+// yung slots na yun mag swap lang sila ng pwesto") - tinatawag mula sa
+// hotbar.js (pointerup, MAIKLING TAP lang - hindi drag) kapag TOUCH
+// device. Kung may sariling popup ang item (bag/holdable/torch/food) -
+// ipinapakita iyon (showMobileItemActionMenu, itaas). Kung generic na
+// resource (wood/stone/atbp.) - "binubuhat"/in-a-ARM ang BUONG stack
+// papunta sa floatingPickup (grabWholeStackIntoFloat, hotbar.js) - ang
+// SUSUNOD na tap sa kahit anong ibang slot ay awtomatiko nang
+// naglalagay/nag-sswap (EXISTING na mekanismo, startPointerAction).
+// Ibinabalik ang true kung may nangyaring aksyon (menu o naka-arm na),
+// false kung wala (hal. walang available na stock).
+function handleMobileGenericItemTap(source, itemId, x, y) {
+  if (!itemId) return false;
+
+  const target = { source, itemId };
+
+  if (showMobileItemActionMenu(target, x, y)) return true;
+
+  if (typeof grabWholeStackIntoFloat !== "function") return false;
+
+  const grabbed = grabWholeStackIntoFloat(source, itemId);
+
+  // AYOS (BUG FIX): dating naka-default sa "left:0; top:0" (itaas-
+  // kaliwang sulok) ang ghost icon hanggang sa may susunod na
+  // pointermove (walang nangyayari nito pagkatapos ng isang MAIKLING
+  // TAP - nakabitaw na agad ang daliri) - kaya biglang "lumilipad"
+  // papuntang sulok ang icon sa halip na manatili malapit sa
+  // TALAGANG na-tap na posisyon. Itinatakda na dito agad ang tamang
+  // posisyon (ang mismong x/y ng tap).
+  if (grabbed && typeof moveFloatingGhost === "function") {
+    moveFloatingGhost(x, y);
+  }
+
+  return grabbed;
+}
+
 document.addEventListener("pointerdown", (event) => {
   if (event.pointerType !== "touch") return;
   if (!isMobileSliceSurfaceEl(event.target)) return;
@@ -184,44 +223,17 @@ function triggerMobileLongPressSlice(x, y) {
   // hotbar.js).
   dragState = null;
 
-  // PAREHONG special-case chain ng desktop right-click (contextmenu-
-  // style na pointerdown listener, hotbar.js) - "bag" -> Use/Drop;
-  // holdable (crafter/stove/light/bed) -> Hold/Throw; food
-  // (EDIBLE_ITEMS) -> Use. Wala sa mga ito ang humahantong sa
-  // "Slice" - sariling menu na lang nila (isa o dalawang buton).
-  if (target.itemId === "bag" && typeof showBagActionMenu === "function") {
-    showBagActionMenu(x, y, [
-      { label: "Use", onClick: () => useBagEquip() },
-      { label: "Drop", onClick: () => dropBagFromInventory() },
-    ]);
-
-    return;
-  }
-
-  if (
-    typeof HOLDABLE_ITEM_IDS !== "undefined" &&
-    HOLDABLE_ITEM_IDS.includes(target.itemId)
-  ) {
-    const alreadyHeld =
-      typeof heldItemId !== "undefined" && heldItemId === target.itemId;
-
-    showBagActionMenu(x, y, [
-      alreadyHeld
-        ? { label: "Unhold", onClick: () => unholdItem() }
-        : { label: "Hold", onClick: () => holdItem(target.itemId) },
-      { label: "Throw", onClick: () => throwItem(target.itemId) },
-    ]);
-
-    return;
-  }
-
-  if (typeof EDIBLE_ITEMS !== "undefined" && EDIBLE_ITEMS[target.itemId]) {
-    showBagActionMenu(x, y, [
-      { label: "Use", onClick: () => eatItem(target.itemId) },
-    ]);
-
-    return;
-  }
+  // AYOS (BAGO, hiling ng user: "kapag pinindutin ko yung item... may
+  // lilitaw popup... kapag naman pindot ko ng slot mag-highlight...
+  // tapos pipindutin ko lang yung kahit anung slot is mapupunta na
+  // siya dun") - inilipat na ang buong "special-case chain" (bag/
+  // holdable/torch/edible -> sariling popup) papunta sa hiwalay na
+  // showMobileItemActionMenu (ibaba) - PAREHONG ginagamit ito ng
+  // LONG-PRESS dito AT ng BAGONG "maikling tap" na paraan (tingnan ang
+  // handleMobileGenericItemTap sa ibaba, tinatawag mula sa hotbar.js)
+  // - kaya PAREHONG-PAREHO ang gawi anuman ang RESPONSE TIME ng
+  // pagpindot (mabilis man o matagal).
+  if (showMobileItemActionMenu(target, x, y)) return;
 
   const available = getAvailableCountForMobileSlice(
     target.source,
@@ -247,6 +259,139 @@ function triggerMobileLongPressSlice(x, y) {
         openMobileSliceQtyPopup(target.source, target.itemId, available),
     },
   ]);
+}
+
+// AYOS (BAGO, hiling ng user) - "special-case chain" ng mga item na
+// may SARILING popup menu (hindi basta Slice/cutOneIntoFloat) - "bag"
+// -> Use/Drop; holdable (crafter/stove/light/bed) -> Hold/Drop; torch
+// -> Use/Drop; food (EDIBLE_ITEMS) -> Use. PAREHONG ginagamit ito ng
+// LONG-PRESS (triggerMobileLongPressSlice, itaas) AT ng bagong
+// MAIKLING TAP na paraan (handleMobileGenericItemTap, ibaba) - kaya
+// magkatulad ang lumalabas na menu kahit gaano man katagal ang
+// pagpindot. Ibinabalik ang true kung TALAGANG may ipinakitang popup
+// (dapat itigil na ng caller ang sunod na gagawin - Slice/paglipat),
+// false kung "generic"/walang sariling menu ang item na ito.
+function showMobileItemActionMenu(target, x, y) {
+  if (target.itemId === "bag" && typeof showBagActionMenu === "function") {
+    showBagActionMenu(x, y, [
+      { label: "Use", onClick: () => useBagEquip() },
+      { label: "Drop", onClick: () => dropBagFromInventory() },
+    ]);
+
+    return true;
+  }
+
+  if (
+    typeof HOLDABLE_ITEM_IDS !== "undefined" &&
+    HOLDABLE_ITEM_IDS.includes(target.itemId)
+  ) {
+    const alreadyHeld =
+      typeof heldItemId !== "undefined" && heldItemId === target.itemId;
+
+    showBagActionMenu(x, y, [
+      alreadyHeld
+        ? { label: "Unhold", onClick: () => unholdItem() }
+        : { label: "Hold", onClick: () => holdItem(target.itemId) },
+      // AYOS (hiling ng user: "magkaiba ang drop sa throw - yung
+      // throw is itatapon ang item, at drop naman ay ilalapag sa
+      // sahig") - DALAWANG hiwalay na aksyon (hindi lang isa) - Throw
+      // (2 tile, parang itinapon) AT Drop (1 tile, mahinahong nilapag,
+      // dropItem sa hold.js).
+      { label: "Throw", onClick: () => throwItem(target.itemId) },
+      { label: "Drop", onClick: () => dropItem(target.itemId) },
+    ]);
+
+    return true;
+  }
+
+  // BAGO (hiling ng user: "halimbawa sa torch, may popup na lilitaw
+  // use, or drop") - dating WALA pang sariling special case ang torch
+  // dito - basta na-uuwi sa generic na "Slice" (kung >1) o direktang
+  // cutOneIntoFloat (kung 1 na lang) - kaya walang paraan i-equip ang
+  // torch sa left hand gamit ang menu na ito (kailangan pang i-drag
+  // papunta mismo sa left-hand slot, mahirap sa mobile). Ngayon, may
+  // sarili nang "Use"/"Unequip" + "Drop" na menu ang torch - "Use"
+  // (o "Unequip" kung naka-equip na) ay direktang nag-to-toggle ng
+  // torchEquipped (kaparehong gawi ng pag-drop sa left-hand slot,
+  // walang binabawas sa stock - boolean lang ang equip). "Drop" ay
+  // inaalis ang BUONG available na piraso mula sa pinagmulang ito at
+  // itinatapon bilang ground item sa harap ng player (tingnan ang
+  // dropWholeStackFromSourceToWorld sa ibaba).
+  if (target.itemId === "torch" && typeof showBagActionMenu === "function") {
+    const torchOn = typeof torchEquipped !== "undefined" && torchEquipped;
+
+    showBagActionMenu(x, y, [
+      {
+        label: torchOn ? "Unequip" : "Use",
+        onClick: () => {
+          if (typeof equipTorch === "function") equipTorch();
+        },
+      },
+      {
+        label: "Drop",
+        onClick: () => dropWholeStackFromSourceToWorld(target.source, target.itemId),
+      },
+    ]);
+
+    return true;
+  }
+
+  if (typeof EDIBLE_ITEMS !== "undefined" && EDIBLE_ITEMS[target.itemId]) {
+    showBagActionMenu(x, y, [
+      { label: "Use", onClick: () => eatItem(target.itemId) },
+    ]);
+
+    return true;
+  }
+
+  return false;
+}
+
+// BAGO (hiling ng user, kasama ng "Use"/"Drop" na menu ng torch sa
+// itaas) - inaalis ang BUONG available na bilang ng "itemId" mula sa
+// eksaktong "source" nito (hotbar slot o bag split-stack - PAREHONG
+// paraan ng grabWholeStackIntoFloat, hotbar.js), TAPOS itinatapon ito
+// bilang isang ordinaryong FLOATING ground item sa harap ng player
+// (dropItemFromSlotIntoWorld, ground-items.js) - hindi na ito
+// nagiging floatingPickup muna, direkta nang "nahuhulog" sa lupa,
+// PAREHONG resulta ng pag-drag ng buong hawak papunta sa mundo
+// (canvas).
+function dropWholeStackFromSourceToWorld(source, itemId) {
+  const available = getAvailableCountForMobileSlice(source, itemId);
+
+  if (available <= 0) return;
+
+  if (source.type === "slot") {
+    delete pinnedSlots[source.slot];
+    delete pinnedSlotCounts[source.slot];
+  } else if (source.type === "bagSplit") {
+    delete bagSplitStacks[source.index];
+  }
+
+  if (typeof adjustGlobalItemCount === "function") {
+    adjustGlobalItemCount(itemId, -available);
+  }
+
+  if (typeof dropItemFromSlotIntoWorld === "function") {
+    dropItemFromSlotIntoWorld(itemId, available);
+  }
+
+  // PAREHONG dahilan/gawi ng pagtapon sa basura (hotbar.js, overTrash) -
+  // kung ITO ang naka-equip na torch AT naubos na ang buong stock,
+  // awtomatikong mag-unequip (walang natitirang torch para "sunugin").
+  if (
+    itemId === "torch" &&
+    typeof torchEquipped !== "undefined" &&
+    torchEquipped &&
+    typeof torchesCollected !== "undefined" &&
+    torchesCollected <= 0 &&
+    typeof equipTorch === "function"
+  ) {
+    equipTorch();
+  }
+
+  if (typeof syncHotbarUI === "function") syncHotbarUI();
+  if (typeof syncBagPanel === "function") syncBagPanel();
 }
 
 // =========================

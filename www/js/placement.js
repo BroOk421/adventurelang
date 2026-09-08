@@ -230,7 +230,36 @@ function drawPlacementPreview() {
 
   if (!itemId) return;
 
-  const tile = typeof getMouseTile === "function" ? getMouseTile() : null;
+  // AYOS (BUG FIX, hiling ng user: "once naka-hold na... may lilitaw
+  // na tiles sa paligid niya, may lilitaw na green... pero kapag red
+  // di pwede") - dating basta getMouseTile() lang (batay sa TALAGANG
+  // posisyon ng MOUSE cursor) - PERO walang TUNAY na "mouse" sa
+  // touchscreen (walang hover state) - ang tanging paraan na
+  // na-uupdate ang mouseScreenX/mouseOnCanvas (dig.js) ay sa
+  // "mousemove"/"mouseleave" na EVENT, na HINDI kailanman umaandar sa
+  // totoong pag-tap ng daliri - kaya laging WALANG lumalabas na
+  // preview sa mobile (mouseOnCanvas laging false), kahit gumagana
+  // na PALA ang mismong PAGLALAGAY (placeCrafterInWorld, atbp.) sa
+  // pag-pindot ng action button (useEquippedToolAtFacingTile,
+  // mobile-controls.js - "sinisimulate" nito ang mismong click sa
+  // FACING TILE, hindi umaasa sa preview na ito). Ngayon, sa TOUCH
+  // devices (touch-controls-active), ang FACING TILE (getPlayerFacingTile,
+  // ground-items.js - PAREHONG tile na TALAGANG gagamitin ng action
+  // button) ang ginagamit sa halip na mouse cursor - kaya makikita na
+  // rin agad kung green (pwede) o red (hindi) ang susunod na tatamaan
+  // ng action button, bago pa man ito pindutin.
+  const isTouch =
+    typeof document !== "undefined" &&
+    document.body &&
+    document.body.classList.contains("touch-controls-active");
+
+  const tile = isTouch
+    ? typeof getPlayerFacingTile === "function"
+      ? getPlayerFacingTile()
+      : null
+    : typeof getMouseTile === "function"
+      ? getMouseTile()
+      : null;
 
   if (!tile) return;
 

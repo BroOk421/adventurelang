@@ -698,10 +698,15 @@ function drawMinimap() {
     }
   }
 
-  // Mga bahay - AKTWAL na sprite (house.png/snowhouse.png), naguguhit
-  // sa IBABAW ng generic na collision box sa itaas (para matakpan ang
-  // "sira-sira"/hiwa-hiwalay na wall-box na hugis nito).
-  drawMinimapHouses(ctx2, toMinimapX, toMinimapY);
+  // AYOS (hiling ng user: "alisin mo na yung bahay na icon dun sa
+  // minimap") - dating dito iginuguhit ang AKTWAL na sprite ng bahay
+  // (house.png/snowhouse.png, drawMinimapHouses sa ibaba) SA IBABAW
+  // ng generic na collision box - TINANGGAL na ang tawag na ito, kaya
+  // ang bahay ay makikita na lang bilang parehong generic na
+  // kayumanggi/madilim na box (parehong itsura ng ibang collision/
+  // pader) sa minimap, hindi na may sariling naka-highlight na icon.
+  // Iniiwan pa rin ang function na ito (hindi tinatanggal nang buo)
+  // kung sakaling kailanganin pa balang araw.
 
   // Mga pintuan/portal SA KASALUKUYANG mundo - gintong tuldok.
   if (typeof DOORS !== "undefined" && typeof currentWorld !== "undefined") {

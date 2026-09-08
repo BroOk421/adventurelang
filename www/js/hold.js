@@ -158,6 +158,34 @@ function throwItem(itemId) {
 }
 
 // =========================
+// DROP - hiwalay sa THROW (hiling ng user: "magkaiba ang drop sa
+// throw - itong throw is itatapon ang item, at ang drop naman ay
+// ilalapag lang sa sahig") - MAAMONG inilalapag lang ito ng 1 TILE
+// SA HARAP ng player (PAREHONG distansya/paraan ng normal na "drop"
+// ng ibang item, tingnan ang dropItemFromSlotIntoWorld, ground-items.
+// js - hindi 2 tile/parang-itinapon na distansya ng THROW sa itaas).
+// PAREHONG-PAREHONG gawi ng THROW sa pagbawas ng stock/pag-unhold -
+// ang PAGKAKAIBA lang ay ang PARAAN/DISTANSYA ng paglalapag.
+// =========================
+function dropItem(itemId) {
+  if (!HOLDABLE_ITEM_IDS.includes(itemId)) return;
+
+  if (typeof adjustGlobalItemCount === "function")
+    adjustGlobalItemCount(itemId, -1);
+  if (typeof consumeItemFromWherever === "function")
+    consumeItemFromWherever(itemId, 1);
+
+  if (heldItemId === itemId) heldItemId = null;
+
+  if (typeof dropItemFromSlotIntoWorld === "function") {
+    dropItemFromSlotIntoWorld(itemId, 1);
+  }
+
+  if (typeof playPutSfx === "function") playPutSfx();
+  if (typeof syncHotbarUI === "function") syncHotbarUI();
+}
+
+// =========================
 // PAGGUHIT - lumulutang sa ITAAS ng ulo ng player, sumusunod SAAN MAN
 // (world space, kada frame) - tingnan ang paggamit nito sa player.js
 // (drawPlayer), pagkatapos iguhit ang mismong sprite ng character.
