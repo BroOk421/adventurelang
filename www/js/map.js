@@ -2336,6 +2336,27 @@ function drawMapObjects() {
     drawables.push(...getPigDrawables());
   }
 
+  // AYOS (hiling ng user): "di parin nag appear yung mismong na upload
+  // ko na exterior house kahit sa map wala e" - SANHI: NANDITO LANG
+  // dati (sa itaas, fallback branch kapag `overlapLayerSet.size === 0`)
+  // idinagdag ang getCustomHouseDrawables/getJosephDrawables - kaya
+  // KAPAG may Tiled overlap layer pa rin ang currentWorld (hal.
+  // grassmap/grassmap2 - MAY sariling "trees"/"rocks" overlap layers
+  // pa rin ang mga ito kahit flat-PNG na ang background nito, tingnan
+  // ang drawMapBackground), DITO (ibang code path, hindi sa fallback
+  // branch) talaga bumabagsak ang Y-sort - kaya HINDI kailanman
+  // naiguhit ang custom na bahay/si Joseph dito (walang error, basta
+  // "nawawala"/hindi lumalabas). Idinagdag na rin ito dito, PAREHONG-
+  // PAREHO ng fallback branch, para GARANTISADONG lumabas kahit anong
+  // world/branch talaga ang tumakbo.
+  if (typeof getCustomHouseDrawables === "function") {
+    drawables.push(...getCustomHouseDrawables());
+  }
+
+  if (typeof getJosephDrawables === "function") {
+    drawables.push(...getJosephDrawables());
+  }
+
   // Mga damong tuft (grass.js) - dekorasyon lang, walang collision,
   // kaya puwedeng tapakan/dumaan ang player (tingnan ang grass.js).
   if (typeof getGrassTuftDrawables === "function") {
@@ -2439,7 +2460,23 @@ async function loadWorld(name, spawn) {
   currentWorldSnowVariant = useSnowMap;
 
   try {
-    const response = await fetch(mapUrl + CACHE_BUST);
+    // AYOS (hiling ng user): "kapag press ko ng e di pumapasok" -
+    // SANHI: ang CUSTOM na interior world (builder.js) ay gumagamit ng
+    // `blob:` URL (URL.createObjectURL) bilang `world.url`, HINDI
+    // regular na file path - pag-dugtong ng "?v=<timestamp>"
+    // (CACHE_BUST, para sa cache-busting ng NORMAL na .tmj files) sa
+    // isang blob: URL ay GUMAGAWA ng SIRANG URL (hindi suportado ng
+    // blob: URLs ang query string) - kaya nabibigo ang fetch() (throw),
+    // TAHIMIK na nahuhuli ng catch sa ibaba (console.error lang, walang
+    // ibang senyales) - kaya "wala munang nangyayari" kapag pumasok
+    // (parang hindi gumagana ang E), kahit tama na ang lahat ng ibang
+    // bahagi (DOORS/collision/facing check). AYOS: huwag na lang
+    // idugtong ang CACHE_BUST kapag blob: URL na talaga ang mapUrl
+    // (bagong Image()/tmj kada upload naman ito, kaya hindi na
+    // kailangan ng cache-busting - sariling unique blob URL na ito
+    // kada beses).
+    const cacheBustSuffix = mapUrl.startsWith("blob:") ? "" : CACHE_BUST;
+    const response = await fetch(mapUrl + cacheBustSuffix);
 
     if (!response.ok) {
       throw new Error("Hindi ma-load ang mapa: " + mapUrl);
@@ -2519,6 +2556,16 @@ async function loadWorld(name, spawn) {
     savePlayerPosition();
   } catch (error) {
     console.error(error);
+
+    // AYOS (hiling ng user: "ganun parin di parin pumapasok sa loob ng
+    // room") - dating TAHIMIK LANG ang pagkabigo dito (console.error
+    // lang, walang senyales sa TALAGANG UI) - kaya kung may
+    // MAPAPATONG pang error sa hinaharap (kahit anong dahilan),
+    // makikita na ngayon ito bilang floating message sa screen mismo,
+    // hindi na kailangang buksan pa ang DevTools console para malaman.
+    if (typeof showFloatingMessage === "function") {
+      showFloatingMessage("Hindi ma-load ang mundo: " + (error?.message || error));
+    }
   } finally {
     // Sapilitang hintayin ang MIN_LOADING_MS (kung mas mabilis natapos
     // ang totoong load) bago itago ang overlay AT bago payagan ulit

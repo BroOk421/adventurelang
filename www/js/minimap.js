@@ -419,6 +419,50 @@ function drawMinimapHouses(ctx2, toMinimapX, toMinimapY) {
 }
 
 // =========================
+// CUSTOM NA BAHAY (builder.js) - hiling ng user: "yung bahay na yan
+// kung anoman ma upload is mag appear din sa mismong minimap"
+// =========================
+// Kaiba ito sa mga pre-existing na bahay sa itaas (bahagi na ng
+// FLAT/hand-drawn na background image ng grassmap/grassmap2) - ang mga
+// custom na bahay ay DYNAMIC na overlay lang sa canvas (getCustomHouseDrawables,
+// builder.js) - hindi bahagi ng anumang static na larawan, kaya
+// kailangan silang iguhit nang hiwalay dito. Kapag MAY na-upload nang
+// Exterior, ang MISMONG larawan na iyon (customHouseExteriorImages) ang
+// ginuguhit, naka-scale sa TALAGANG bbox nito - kaya personalized/
+// kilala agad kung alin sa mga bahay sa mapa ang sa'yo. Kapag WALA pa
+// (Lot lang, walang Exterior), isang dashed na kahon na lang (parehong
+// kulay ng "Lot (walang Exterior)" na placeholder sa mismong mapa,
+// tingnan ang getCustomHouseDrawables) - para makita pa rin kung saan
+// ito nakatayo.
+function drawMinimapCustomHouses(ctx2, toMinimapX, toMinimapY) {
+  if (typeof customHouses === "undefined" || typeof currentWorld === "undefined") return;
+
+  for (const house of customHouses) {
+    if (house.world !== currentWorld) continue;
+
+    const x = toMinimapX(house.col * TILE_SIZE);
+    const y = toMinimapY(house.row * TILE_SIZE);
+    const w = Math.max(2, house.tilesWide * TILE_SIZE * minimapCurrentScale);
+    const h = Math.max(2, house.tilesTall * TILE_SIZE * minimapCurrentScale);
+
+    const image =
+      typeof customHouseExteriorImages !== "undefined"
+        ? customHouseExteriorImages[house.id]
+        : null;
+
+    if (image && image.complete && image.naturalWidth) {
+      ctx2.drawImage(image, x, y, w, h);
+    } else {
+      ctx2.fillStyle = "rgba(255, 210, 90, 0.5)";
+      ctx2.strokeStyle = "rgba(255, 210, 90, 0.9)";
+      ctx2.lineWidth = 1;
+      ctx2.fillRect(x, y, w, h);
+      ctx2.strokeRect(x, y, w, h);
+    }
+  }
+}
+
+// =========================
 // OLDMAN NPC (decor.js) - "navigation" na icon na GUMAGALAW kasabay
 // niya sa mundo
 // =========================
@@ -694,6 +738,21 @@ function drawMinimap() {
   // pader) sa minimap, hindi na may sariling naka-highlight na icon.
   // Iniiwan pa rin ang function na ito (hindi tinatanggal nang buo)
   // kung sakaling kailanganin pa balang araw.
+
+  // AYOS (hiling ng user): "yung bahay na yan kung anoman ma upload is
+  // mag appear din sa mismong minimap kada may bagong bahay or ano sa
+  // map is nag uupdate yung minimap" - IBA ito sa static/pre-existing
+  // na bahay sa itaas (na bahagi na ng FLAT/hand-drawn na background
+  // image ng grassmap/grassmap2, kaya makikita na roon) - ang mga
+  // CUSTOM na bahay (builder.js) ay DYNAMIC na overlay lang sa TALAGANG
+  // canvas ng laro (hindi bahagi ng static background PNG), kaya
+  // kailangan silang IGUHIT DIN nang hiwalay dito. Tinatawag ito KADA
+  // FRAME (kagaya ng LAHAT ng iba pang guhit sa drawMinimap), kaya
+  // AWTOMATIKO itong nag-a-"update" sa sandaling may bagong Lot/
+  // na-upload na Exterior - walang hiwalay na "refresh" na kailangan.
+  if (typeof drawMinimapCustomHouses === "function") {
+    drawMinimapCustomHouses(ctx2, toMinimapX, toMinimapY);
+  }
 
   // Mga pintuan/portal SA KASALUKUYANG mundo - gintong tuldok.
   if (typeof DOORS !== "undefined" && typeof currentWorld !== "undefined") {

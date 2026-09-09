@@ -107,6 +107,7 @@ fireflies → calendar-ui → update → draw → main
 | `js/stove.js` | Kalan/pagluluto. |
 | `js/settings-menu.js` | Burger-icon na menu (I-save/I-load/Settings/Lumabas). |
 | `js/atmosphere.js`, `snow.js`, `rain.js`, `fireflies.js`, `calendar.js` | Panahon, gabi/araw na ilaw, seasons. |
+| `js/builder.js` | Si **Joseph** ("Builder" NPC) + ang buong **custom house na sistema** (Lots/Exterior/Interior, 12 posisyon ng pintuan, E-key na Enter/Exit, minimap markers). Tingnan ang Entry #86 para sa MABUONG paliwanag - MALAKING/kumplikadong sistema ito. |
 
 ## 6. Mahahalagang konsepto / "gotchas"
 
@@ -4105,4 +4106,250 @@ kailangang i-adjust ang mga ito.
     (`drawTorchLongShadowForFootprint`) - `box.shadowLength <= 0` ->
     walang iguguhit AT ALL (kahit ang footprint fill mismo) para sa
     napakalapit na bagay.
-- **Cache-bust:** binump ang `?v=` ng `shadows.js` (1800000000061).
+### Entry #86 — Si JOSEPH ("Builder" NPC) + buong custom house na sistema (Lots/Exterior/Interior, 12 posisyon ng pintuan, E-key Enter/Exit, minimap, padded interior walls, tiered Lot sizes) — `js/builder.js`
+- **Files (bago):** `js/builder.js`
+- **Files (binago):** `index.html` (script tag), `style.css` (`.builder-*` classes), `js/map.js` (Y-sort drawable hook + blob: URL cache-bust fix), `js/minimap.js` (`drawMinimapCustomHouses`)
+- **Buod:** malaking sistema ito na nagpapahintulot sa manlalaro na bumili ng
+  Lot sa grassmap/grassmap2, mag-upload ng SARILING PNG na Exterior AT
+  Interior, at TALAGANG mapasok/malabasan ang bahay na iyon sa loob ng laro
+  — parehong-pareho ang gawi ng ibang bahay (Manuel/Maria/atbp, worlds.js).
+  Ito ang PINAKAMALAKI/PINAKAKUMPLIKADONG feature na idinagdag sa proyektong
+  ito - kung magbabago pa dito sa hinaharap, BASAHIN MUNA ang buong entry na
+  ito bago mag-edit, dahil maraming magkakaugnay na parte (geometry ng
+  pintuan, collision, DOORS registration, spawn positions) na madaling
+  masira kung hindi maintindihan ang buong picture.
+
+#### 1. Si Joseph
+- Static na NPC (hindi gumagala, kaiba sa Oldman), nasa loob ng sarili
+  niyang silid (`"josephHouse"`, isa sa 6 bahay sa town - tingnan
+  `worlds.js`). "E" (kaparehong-pareho ng Crafter/Stove/Bed/Oldman) para
+  makausap - bubukas ang Builder panel (`openBuilderPanel`, 3 tab:
+  Lots/Exterior/Interior).
+- Placeholder pa lang ang sprite niya (bilog + emoji, `drawJoseph()`) -
+  walang naka-upload na tunay na art para sa kanya.
+
+#### 2. Data model (`customHouses` array, `localStorage` key `tralala.customHouses.v1`)
+```
+{ id, world, col, row,
+  tilesWide, tilesTall,           // EXTERIOR footprint - FIXED sa 10x8
+                                   // (BUILDER_EXTERIOR_TILES_WIDE/TALL) sa
+                                   // LAHAT ng Lot, kahit anong presyo/tier
+  interiorTilesWide, interiorTilesTall, // BUKAS/walkable na sahig sa LOOB -
+                                   // ITO ang naiiba kada presyo/tier
+                                   // (BUILDER_LOT_SIZES), 10x8 hanggang 18x17
+  price,
+  exteriorImageDataURL,           // uploaded Exterior PNG (data: URL)
+  interiorImageDataURL,           // uploaded Interior PNG (data: URL)
+  doorPosition }                  // "top-left".."right-bottom" (12 posisyon)
+                                   // - IISA LANG ito, ginagamit ng PAREHONG
+                                   // Exterior AT Interior (tingnan #5)
+```
+- `customHouseExteriorImages`/`customHouseInteriorImages` - in-memory `Image()`
+  cache (id → Image), HIWALAY sa `customHouses` mismo (ang dataURL string
+  lang ang naka-save, kailangan pang gawan ng `Image()` object).
+- `normalizeCustomHouseDoorPositions()` - nagta-translate ng LUMANG
+  `doorPosition` values (`"left"/"center"/"right"`, bago pa ang 12-pader na
+  bersyon) papunta sa katumbas na bagong id (lahat `"bottom-*"`) - tinatawag
+  ito sa `loadCustomHouses()` sa BAWAT fresh page load.
+
+#### 3. Lot tiers - FIXED Exterior, VARYING Interior (`BUILDER_LOT_SIZES`)
+- **AYOS (hiling ng user): "puro 10x8 na siya pero yung loob lang nag
+  iiba...pilakamalaki is 20x20"** - dating iba-iba ang EXTERIOR footprint
+  kada tier (4x4/6x6/8x6/10x8) - ngayon, `BUILDER_EXTERIOR_TILES_WIDE/TALL`
+  (10x8) ang FIXED na Exterior sa LAHAT ng 4 tier - ang naiiba na lang ay
+  ang `interiorTilesWide/Tall` (ang BUKAS na sahig sa loob):
+
+  | Tier | Presyo | Interior (bukas) | + padding = Template |
+  |------|--------|-------------------|----------------------|
+  | Maliit | 300 | 10x8 | 12x11 |
+  | Katamtaman | 600 | 13x11 | 15x14 |
+  | Malaki | 900 | 15x13 | 17x16 |
+  | Napakalaki | 1400 | 18x17 | 20x20 |
+
+- Kaya PAREHONG-PAREHO ang itsura ng bahay sa LABAS (mapa/minimap) kahit
+  anong presyo, pero mas MALAKI ang SILID sa LOOB kung mas mahal ang binili.
+
+#### 4. Flow: Lots → Exterior → Interior
+- **Lots tab** (`renderBuilderLotsTab`) - bumili, saka i-click ang Grassmap/
+  Grassmap2 (`openBuilderWorldPicker` → `openBuilderMapPicker`) para itayo
+  (`isBuilderFootprintFree`/`isTileCoveredByCustomHouse` - walang collision
+  doon).
+- **Exterior tab** (`renderBuilderExteriorTab` → `renderBuilderHouseList`) -
+  SIMPLENG LISTAHAN (parang Lots tab), buong ROW clickable → diretso sa
+  **Door Picker** (`renderBuilderDoorPicker`, 12 pagpipilian - tingnan #5) →
+  "Kumpirmahin" (sine-save lang, HINDI na awtomatikong nagda-download) →
+  **"naka-kumpirma na" na screen** (`renderBuilderTemplateConfirmed`) - may
+  "Template" (download), "Baguhin ang Pintuan", "Upload".
+- **Interior tab** (`renderBuilderInteriorTab` → `renderBuilderHouseList`) -
+  WALA nang sariling pipiliing sukat/posisyon ng pintuan (AYOS, hiling ng
+  user: "hindi na mamimili ng tiles width...automatic na click lang") -
+  i-click ang row → diretso sa `renderBuilderInteriorUploadScreen` (may
+  "Template"/"Upload" lang, ipinapakita ang AWTOMATIKONG kinukuhang sukat
+  mula sa `house.interiorTilesWide/Tall` + padding, at ang doorPosition mula
+  sa Exterior).
+- **AYOS (mahalaga):** kung babaguhin ang `doorPosition` sa Exterior's Door
+  Picker PAGKATAPOS na-upload na ang Interior, kailangang i-FORCE re-
+  register ang interior (`delete customHouseInteriorImages[house.id];
+  ensureCustomHouseImagesLoaded(house);`) sa loob ng confirm handler - kung
+  hindi, MANATILING LUMA ang notch/pader sa loob (hindi awtomatikong
+  kasabay na-uupdate).
+
+#### 5. Door position system (12 pagpipilian, 4 pader x 3 posisyon)
+- `BUILDER_DOOR_POSITIONS` - `{id, label, wall, align}` x12 (`top-left`
+  .. `right-bottom`). `BUILDER_DEFAULT_DOOR_POSITION = "bottom-center"`.
+  `migrateBuilderDoorPositionId()` - luma→bago na pag-map (tingnan #2).
+- **`getBuilderDoorwayInfo(tilesWide, tilesTall, doorPosition)`** - ang
+  PUSO ng lahat ng geometry - ibinabalik ang `{wall, doorWidth, startOffset}`
+  (`startOffset` ay ALONG THE AXIS ng piniling pader - width axis para sa
+  top/bottom, height axis para sa left/right).
+- **EXTERIOR** (walang padding, `getBuilderFootprintCollisionBoxes`) - BUONG
+  footprint ay SOLID/collision MALIBAN sa notch ng pintuan (3 rektanggulo:
+  kaliwa/kanan ng pintuan buong-taas, at ang kabilang gilid buong-lapad) -
+  ito ang TALAGANG "bahay mula sa labas" (hindi lang manipis na pader).
+- **INTERIOR** (may padding, `buildBuilderPerimeterWallRects`) - MANIPIS
+  LANG na pader sa 4 gilid (`BUILDER_INTERIOR_WALL_THICKNESS`, tingnan #6),
+  BUKAS ang gitna/sahig.
+- `getBuilderDoorTileRect`/`getBuilderDoorAreaPx` - EXTERIOR notch (walang
+  padding, 0,0 frame). `getBuilderInteriorDoorTileRect`/
+  `getBuilderInteriorDoorAreaPx` - INTERIOR notch (MAY padding, PADDED
+  frame - iba ang coordinate system, huwag paghaluin).
+
+#### 6. Padded interior walls (`BUILDER_INTERIOR_WALL_THICKNESS`)
+- **AYOS (hiling ng user): "yung interior is...mag add ka na lang ng 1
+  column left and right 2 row top and 1 row bottom para sa collisions"** -
+  `{ top: 2, bottom: 1, left: 1, right: 1 }` - FIXED na padding ito, HINDI
+  nagbabago kahit anong Lot tier - ang bukas na sahig (`interiorTilesWide/
+  Tall`) ang TALAGANG naiiba kada tier (tingnan #3).
+- `getBuilderInteriorPaddedSize(tilesWide, tilesTall)` - `{wide, tall}` ng
+  BUONG silid (kasama padding) - ITO ang TALAGANG idineklarang `width`/
+  `height` ng synthetic TMJ (`buildSyntheticInteriorTmj`) AT ang
+  kailangang sukat ng na-uupload na PNG (`padded.wide/tall * TILE_SIZE`).
+
+#### 7. Spawn positions (papasok/palabas) - `getBuilderSpawnPxForDoorArea`
+- **BUG na NAHANAP AT INAYOS (mahalaga - huwag ulitin):** ang collision box
+  ng player ay MAY SARILING proportional offset mula sa `player.x/y`
+  (`getPlayerCollisionBox`, collisions.js - ~50px offset dahil maliit lang
+  ang box - 0.22x ng height, nakadikit sa ILALIM). Ang UNANG bersyon ng
+  spawn calculation dito ay basta direktang itinatakda ang "gustong
+  posisyon ng collision box" bilang `player.x/y` MISMO - kaya NAKA-BAON
+  ang player sa loob ng pader/labas ng mapa sa sandaling mag-spawn (at kapag
+  naka-baon ka na, HINDI ka na makakagalaw palabas, dahil isa-isang
+  hakbang lang ang sinusuri ng `canMoveTo` at basta may KAHIT KAUNTING
+  overlap pa, tinatanggihan pa rin - "nakakulong"). **AYOS:** ginagaya na
+  nito ang EKSAKTONG PARAAN ng `getDoorExitSpawn` (worlds.js, PROVEN na
+  gumagana) - sinasampol muna ang TALAGANG offset
+  (`getPlayerCollisionBox(0,0)`), tapos "ibinabalik" (reverse) iyon -
+  GENERALIZED na ito para sa kahit anong pader (orihinal, "bottom" lang
+  ang suportado ng `getDoorExitSpawn`).
+- `getBuilderDoorSpawnPx(...)` - EXTERIOR (walang padding). Ginagamit ng:
+  ENTRANCE trigger location sa labas (hindi spawn - `getBuilderDoorAreaPx`),
+  at ng EXIT spawn (palabas, `"outward"`, gamit ang EXTERIOR na frame).
+- `getBuilderInteriorDoorSpawnPx(...)` - INTERIOR (may padding). Ginagamit
+  ng ENTRANCE spawn (papasok, `"inward"`, gamit ang INTERIOR/padded frame),
+  at ng EXIT trigger location sa loob (`getBuilderInteriorDoorAreaPx`).
+- **MAHALAGA:** huwag paghaluin ang dalawa - ang "papasok" (`registerCustomHouseDoors`,
+  `world: house.world, to: worldName`) ay may EXTERIOR area (walang padding)
+  PERO INTERIOR spawn (may padding) - ang "palabas" ay kabaliktaran (INTERIOR
+  area, EXTERIOR spawn). Kung ito ay magkapalit, o kung `house.tilesWide/Tall`
+  (exterior) ang naipasa sa halip na `house.interiorTilesWide/Tall`
+  (interior) kahit saan dito, SISIRA ang buong spawn (na hindi obvious
+  agad - hindi mag-eerror, basta lang mali ang landing spot/babaon sa pader).
+
+#### 8. `registerCustomHouseDoors`/`registerCustomHouseInteriorWorld` - pagkakasunod-sunod
+- **BUG na NAHANAP AT INAYOS (mahalaga - huwag ulitin):** dating
+  `unregisterCustomHouseDoors()` (nililinis ang DOORS array bago mag-
+  re-register) ay BUMUBURA RIN ng `WORLDS[worldName]` bilang extra
+  "cleanup" - PERO `registerCustomHouseInteriorWorld` ay NAGTATAKDA muna ng
+  `WORLDS[worldName] = {...}` BAGO tumawag ng `registerCustomHouseDoors`
+  (na siya namang tumatawag ng `unregisterCustomHouseDoors` bilang UNANG
+  hakbang) - kaya AGAD nabubura ang WORLDS entry na KAKAGAWA LANG, isang
+  linya bago pa man ma-push ang mismong DOORS na tumuturo roon! Resulta:
+  "Walang mundong tinatawag na: customHouse_N" sa console sa sandaling
+  subukang pumasok - **AYOS:** ang `unregisterCustomHouseDoors()` ay
+  NAGLILINIS NA LANG ng DOORS array (ang TALAGANG sadya nito base sa
+  pangalan) - ang `delete WORLDS[worldName]` ay inilipat sa
+  `sellCustomHouse()` na lang (EXPLICIT, doon lang talaga dapat mangyari,
+  kapag TALAGANG binebenta/binubuwag ang bahay).
+
+#### 9. `loadWorld` at `blob:` URLs (`js/map.js`)
+- **BUG na NAHANAP AT INAYOS:** ang loob ng bahay (interior world) ay
+  gumagamit ng `blob:` URL (`URL.createObjectURL`) bilang `world.url` -
+  pero dinudugtungan ng `CACHE_BUST` (`"?v=" + Date.now()`, assets.js) ang
+  LAHAT ng world URL sa `loadWorld()` (para sa NORMAL na `.tmj` files) -
+  ang PAGDUGTONG ng query string sa isang `blob:` URL ay GUMAGAWA ng
+  SIRANG URL (hindi suportado ito ng blob: URLs) - kaya nabibigo ang
+  `fetch()` (tahimik lang, `console.error` lang, walang senyales sa UI).
+  **AYOS:** `const cacheBustSuffix = mapUrl.startsWith("blob:") ? "" :
+  CACHE_BUST;` - at nagdagdag din ng user-facing na `showFloatingMessage`
+  sa `catch` block ng `loadWorld` (dating tahimik lang, `console.error`
+  lang) para may makikita kahit anong error pang sumulpot sa hinaharap.
+
+#### 10. E-key na Enter/Exit (HINDI auto-walk)
+- **AYOS (hiling ng user): "gusto ko sana is napipindut din or press e
+  para mapasok"** - dating `auto: true` ang DOORS entries (awtomatikong
+  papasok sa sandaling madaanan) - ngayon `auto: false` - kailangan
+  NAKAHARAP (`isPlayerFacingWorldPoint`, generic na existing mechanism sa
+  `getDoorUnderPlayer`, worlds.js) AT pindutin ang "E" (lalabas ang
+  "E - Enter"/"E - Exit" na paalala, `drawDoorPrompt`, draw.js) - PAREHONG
+  mechanism ng Crafter/Stove/Oldman, walang bagong code na kinailangan sa
+  update.js/worlds.js, `auto: false` lang ang pagbabago.
+
+#### 11. Minimap markers (`js/minimap.js`)
+- **AYOS (hiling ng user): "yung bahay na yan kung anoman ma upload is mag
+  appear din sa mismong minimap"** - dating HINDI nakikita ang custom
+  houses sa minimap (dynamic overlay lang ito sa canvas, hindi bahagi ng
+  static/flat na background PNG ng grassmap/grassmap2) - bagong
+  `drawMinimapCustomHouses()` - kung may Exterior na, ang MISMONG larawan
+  (`customHouseExteriorImages`) ang ginuguhit sa minimap; kung wala pa,
+  dashed na kahon na placeholder. Awtomatikong "nag-a-update" dahil
+  kada-frame naman talaga na-re-draw ang minimap.
+
+#### 12. Mobile Template download (direkta sa Downloads folder kung kaya, may fallback)
+- **AYOS (hiling ng user: "yung template niya is dapat na dowdownload din
+  sa mobile version")** - PAREHONG isyu/paraan ng ayos ng
+  `exportSaveSlot`/`exportSaveSlotViaNativeShare` (Entry naunang settings-
+  menu.js fix). **AYOS ULIT (hiling ng user: "dapat direkta sa download
+  folder ng mobile phone")** - `downloadBuilderTemplate` ngayon:
+  1. **Naka-install na APK** (`isRunningAsNativeCapacitorApp()`) -
+     `exportBuilderTemplateViaNativeShare` ay SUSUBUKAN muna ang
+     `Filesystem.writeFile({ path: "Download/" + fileName, directory:
+     "EXTERNAL_STORAGE" })` - TALAGANG diretso sa pampublikong Downloads
+     folder, WALANG dialog/tap - PERO LIMITADO lang ito sa **Android 9
+     pababa** (opisyal na dokumentado ng Capacitor - "scoped storage" na
+     ang Android 10+, hindi na accessible ang `EXTERNAL_STORAGE`). Kapag
+     nabigo ito (mas modernong Android), FALLBACK sa Cache directory +
+     `Share.share()` (isang tap na lang, "Save"/"Files" sa share sheet -
+     ITO na talaga ang OPISYAL/tanging paraan ng Android para makapag-
+     save sa Downloads sa ilalim ng scoped storage nang walang DAGDAG
+     pang NATIVE (Java/Kotlin) na plugin/code - hindi kayang gawin ng
+     stock Filesystem plugin lang, kailangan ng MediaStore/DownloadManager
+     API kung gustong TALAGANG zero-tap sa Android 10+).
+  2. **Ordinaryong mobile browser, iOS Safari** - Web Share API
+     (`navigator.share`/`canShare`) - dahil hindi maasahan doon ang
+     `<a download>` (madalas basta BUKSAN na lang ang larawan).
+  3. **Ordinaryong mobile browser, Android Chrome (at Desktop)** -
+     dating `<a download>` + Blob na paraan DIREKTA (walang Web Share) -
+     dahil TALAGA nang diretso sa Downloads folder ang gawi ni Chrome
+     for Android sa `<a download>`, walang dialog - kaya HINDI na
+     kailangan pang idaan sa Web Share (dagdag na hakbang lang).
+     Isinasama ang isang simpleng `iP(hone|ad|od)` UA check para malaman
+     kung iOS.
+- **Upload** (`promptBuilderImageUpload`, native `<input type="file">`) -
+  gumagana na ito nang maayos sa Capacitor WebView AT sa ordinaryong
+  mobile browser nang walang dagdag na plugin (parehong-pareho ng
+  paliwanag sa `importSaveFile`, settings-menu.js) - WALANG kailangang
+  ayusin dito.
+
+#### 13. Template guide overlay (blue collision + red door)
+- `downloadBuilderTemplate(tilesWide, tilesTall, doorPosition, kind)` - ang
+  na-download na PNG ay may naka-guhit na GUIDE (hindi lang blangko) -
+  BUGHAW na collision shape (EXTERIOR: `getBuilderFootprintCollisionBoxes`,
+  halos buong canvas; INTERIOR: `buildBuilderPerimeterWallRects`, manipis
+  na border lang) + PULANG notch ng pintuan - DIREKTANG ginagamit ang
+  MISMONG parehong function ng totoong collision (hindi hiwalay na guhit),
+  kaya GARANTISADONG magkatugma ang makikita sa Template at ang mangyayari
+  sa laro.
+
+- **Cache-bust:** `builder.js` (1800000000015), `map.js` (1800000000054),
+  `minimap.js` (1800000000012), `style.css` (1800000000053).
+
