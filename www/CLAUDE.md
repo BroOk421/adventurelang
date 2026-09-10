@@ -4353,3 +4353,413 @@ kailangang i-adjust ang mga ito.
 - **Cache-bust:** `builder.js` (1800000000015), `map.js` (1800000000054),
   `minimap.js` (1800000000012), `style.css` (1800000000053).
 
+### Entry #87 — Malaking round ng ayos sa Builder (Entry #86): WASD sa loob ng name field, collision ng Exterior, TDZ crash sa `loadCustomHouses()`, at buong image-asset-store para sa Save/Load
+- **Files (binago):** `js/builder.js`, `js/settings-menu.js`, `js/input.js`,
+  `js/hotbar.js`, `js/tool-radial.js`, `js/resources.js`, `js/dig.js`,
+  `js/bed.js`, `js/map.js`, `index.html`
+- **Buod:** apat na hiwalay na bug, lahat may kinalaman sa parehong
+  Lot/Exterior/Interior na feature (Entry #86) - inilista dito nang sabay
+  dahil magkakaugnay ang mga natuklasan habang inaayos ang isa't isa.
+
+#### (a) WASD hindi nag-fu-function habang nagta-type sa name field
+- **Sanhi:** ang keyboard movement handler (`input.js`) ay naka-attach sa
+  BUONG `document`, walang guard - tumatama KAHIT nasa loob ng isang
+  `<input>` (hal. ang bagong "Pangalanan ang Lot" na dialog). Dalawang
+  epekto: `event.preventDefault()` sa w/a/s/d (kaya hindi na maita-type ang
+  mga letrang iyon), AT gumagalaw pa rin ang player habang nagta-type.
+- **Ayos:** bagong `isTypingInTextField(event)` (input.js, GLOBAL - unang
+  script na may keyboard handler) - nilalaktawan ito ng LAHAT ng gameplay
+  hotkey handler (movement, "b" = bag, "v" = tool radial, alt+numero sa
+  dig.js/resources.js) kapag ang `event.target`/`document.activeElement`
+  ay isang `INPUT`/`TEXTAREA`/`SELECT`/contenteditable. Bagong
+  `clearHeldKeys()` din, tinatawag sa `focus` ng name input (iwasan ang
+  "naka-stuck" na paggalaw kung may hawak na W bago mag-click doon).
+
+#### (b) Exterior collision - buong 10x8 ang solid, gusto ng user bukas ang itaas
+- **Hiling ng user:** "yung sa 10x8 diba gusto ko sa 8 is 6 lang may
+  collisions yung 2 sa taas na pang 8 is walang collisions".
+- **Ayos:** `BUILDER_EXTERIOR_OPEN_TOP_ROWS = 2` + `clipBuilderBoxesToSolidRows()`
+  - ginugupit ang RESULTA ng existing na `getBuilderFootprintCollisionBoxes`
+  (hindi muling kinakalkula ang hugis mula sa umpisa) sa row `openTopRows`
+  pababa - GARANTISADONG tama pa rin sa LAHAT ng 12 posisyon ng pintuan.
+  Bagong `getBuilderExteriorCollisionBoxes()` (clipped, ginagamit ng
+  TALAGANG collision + ng Template guide) vs `getCustomHouseFootprintBoxes()`
+  (BUONG 10x8, walang clip - ginagamit LANG sa PLACEMENT check, para hindi
+  puwedeng mag-overlap ang bagong Lot sa "libreng" bubong ng dati na.
+
+#### (c) CRITICAL BUG: `loadCustomHouses()` tumatawag ng function BAGO pa na-initialize ang const na kailangan nito (TDZ)
+- **Sintomas na na-report ng user:** "kapag na save ko na meron na
+  nakalagay na houses tapos reset tapos i load...di siya nasasave balik sa
+  walang bahay" - PATULOY itong nangyayari kahit pagkatapos ng maraming
+  ibang ayos sa save/load logic mismo (mga sumunod na entry sa ibaba).
+- **TALAGANG sanhi (nahanap pagkatapos ng maraming round ng debugging):**
+  ang top-level na tawag na `loadCustomHouses();` ay nasa MALAPIT SA ITAAS
+  ng file - PERO ang function na ito ay tumatawag (sa loob ng
+  `normalizeCustomHouseDoorPositions` → `migrateBuilderDoorPositionId`) ng
+  `BUILDER_DOOR_POSITIONS`/`BUILDER_DEFAULT_DOOR_POSITION`, mga `const` na
+  DEKLARADO MAS MABABA sa file (~line 480+). Sa JavaScript, ang pag-access
+  sa isang `const` BAGO pa ito ma-initialize ay THROW (temporal dead zone),
+  kaya BUMABAGSAK ang buong `loadCustomHouses()` sa try/catch nito SA
+  SANDALING may kahit isang naka-save na bahay - TAHIMIK lang ito
+  (`console.error` lang), agad binabalik ang `customHouses` sa `[]`. Kaya
+  "gumagana" ang paggawa ng bahay sa parehong session (dumidiretso lang sa
+  in-memory array), PERO sa BAWAT fresh na page load (kasama ang
+  `location.reload()` ng "Load") - agad itong BUMABAGSAK bago pa man
+  mabasa ang totoong laman ng localStorage.
+- **Ayos:** inilipat ang mismong TAWAG (`loadCustomHouses();`) papunta sa
+  PINAKADULO ng file - VERIFIED (script) na deklarado na ang LAHAT (16) ng
+  const/function na tinatawag nito (direkta o hindi) bago ang bagong
+  posisyon nito.
+
+#### (d) Bagong "Image Asset Store" - inaayos ang aktwal na dahilan ng "puno ang storage" pagkatapos ng maraming Save
+- **Sanhi:** bawat "Save" ay gumagawa ng BAGONG slot (disenyo, Entry #86
+  settings-menu.js) - dating naka-EMBED DIREKTA ang buong exterior/interior
+  PNG (bilang base64) sa loob ng BAWAT bahay record - kaya bawat Save ay
+  KINOKOPYA ULIT ang parehong larawan sa BAGONG slot. Ilang beses lang
+  mag-Save (normal na paggawi habang nagte-test) ay kayang lampasan ang
+  ~5MB na quota ng localStorage - sa sandaling mangyari iyon, TAHIMIK
+  nabibigo ang slot write, at ang susunod na "Load" ay walang mahanap na
+  bahay.
+- **Ayos:** bagong `BUILDER_ASSET_KEY_PREFIX` na sistema
+  (`saveBuilderAsset`/`loadBuilderAsset`/`deleteBuilderAsset`/
+  `getAllBuilderAssetKeys`) - bawat larawan ay isang beses lang naka-save
+  sa SARILI nitong key (`tralala.customHouseAsset.v1.<id>`) - ang house
+  record ay may maliit na `exteriorAssetId`/`interiorAssetId` na
+  reference LANG. `saveCustomHouses()` ngayon ay nag-i-STRIP ng
+  `exteriorImageDataURL`/`interiorImageDataURL` bago i-save (slim record),
+  at `loadCustomHouses()` ang nag-re-REHYDRATE nito mula sa asset store.
+  **Migration safety net:** kung may bahay pa ring may naka-embed na
+  larawan pero WALANG assetId (LUMANG format, bago ang fix na ito),
+  `saveCustomHouses()` ay awtomatikong nag-mi-migrate nito papasok sa
+  asset store SA UNANG pagkakataong ma-save - hindi na basta tinatapon.
+  `loadCustomHouses()` ay HINDI na basta nino-nullify ang
+  `exteriorImageDataURL` kung walang assetId (panatilihin ang lumang
+  naka-embed na laman hanggang ma-migrate).
+- **Export/Import (settings-menu.js):** dahil hindi na bahagi ng bundle ng
+  isang slot ang asset store (globally shared ito, hindi per-slot), ang
+  `exportSaveSlot()` ay ngayon "in-i-inflate" MUNA ang mga larawan
+  (`loadBuilderAsset`) papasok sa isang COPY ng house records bago
+  i-export - PORTABLE pa rin ang na-download na .json file. Ang
+  `importSaveFile()` naman ay "de-de-deflate" - kinukuha ang anumang
+  naka-embed na larawan sa na-import na file, isinasave sa LOCAL na asset
+  store (bagong assetId), at pinapalitan ng slim na reference bago
+  i-store ang slot - kaya hindi rin ito ma-duplicate sa susunod na Save.
+- **"Reset ang laro":** ngayon ay tinatawag din ang `getAllBuilderAssetKeys()`
+  para talagang mabura ang na-upload na artwork (dating naiiwan
+  magpakailanman dahil hiwalay ito sa `getAllSaveKeys()`).
+- **Storage-full na mensahe:** dating tahimik lang (console.error lang) -
+  ngayon may `showFloatingMessage`/`showSettingsToast` kapag nabigo ang
+  isang `localStorage.setItem` dahil sa quota (`saveBuilderAsset`,
+  `saveCustomHouses`, `saveGameToNewSlot`, `loadGameFromSlot`).
+- **Bagong marker (`SAVE_BUNDLE_KEYS_MARKER`, settings-menu.js):** bawat
+  BAGONG slot ay may nakalistang "eksaktong mga key na na-save" - kaya sa
+  `loadGameFromSlot`, alam kung ligtas bang burahin ang isang key na WALA
+  sa bundle (bagong-format na slot) o hindi (LUMANG slot, bago pa
+  naidagdag ang `BUILDER_SAVE_KEY` sa `getAllSaveKeys` - kung basta
+  babasahin ito, MABUBURA ang mga bahay na kaka-tayo lang, kahit hindi pa
+  ito talaga LUMANG slot).
+- **VERIFIED (script simulation):** 3 bahay, ~200KB bawat exterior/
+  interior (kabuuang ~1.2MB artwork), 10 sunod-sunod na Save - LAHAT
+  successful, storage stable sa ~3.15MB/5MB (dating aabot ito ng ~12MB
+  bago ang fix, sigurdong lalagpas sa quota).
+
+#### (e) Buong English translation ng LAHAT ng user-facing na text
+- **Hiling ng user:** "lahat ng tagalog is english dapat lahat walang
+  tagalog" - LAHAT ng button/popup/mensahe/tooltip/placeholder na
+  NAKIKITA ng manlalaro (buong `index.html` + lahat ng `js/*.js`) ay
+  na-translate sa English. **HINDI kasama dito ang mga CODE COMMENT** -
+  sinusunod pa rin ang project convention (seksyon 1 sa itaas, "Wika ng
+  mga comment: Tagalog") - developer-facing lang ang mga iyon, hindi
+  nakikita ng manlalaro.
+
+### Entry #88 — Bagong "Building" tab: pre-made na template (Coffee Shop, Tavern) - awtomatikong Exterior+Interior sa isang click
+- **Files (binago):** `js/builder.js`, `style.css`
+- **Files (bago):** `assets/builder-templates/coffeeshop-exterior.png`,
+  `assets/builder-templates/coffeeshop-interior.png`,
+  `assets/builder-templates/tavern-exterior.png`,
+  `assets/builder-templates/tavern-interior.png`
+- **Hiling ng user:** "gusto ko sana na idagdag mo yung parang bundle na
+  house exterior at interior lang mga grocery, coffee shop, tavern...meron
+  ng 4 tabs lots, exterior, interior at sell sa tabi ng lots tabs is mag
+  lagay ka ng 'building'...naka list...dapat kapag mag lapat ako ng lots at
+  malapag na sa map lilipat yung tab sa building tapos yung Coffee Shop at
+  tavern is parang template na automatic na kapag na buy is ma build na
+  yun dun mismo sa nabili kong lots".
+- **Buod:** bagong 5th tab (**Lots → Building → Exterior → Interior →
+  Sell**) - listahan ng "Building style" (`BUILDER_BUILDING_TEMPLATES`,
+  sa ngayon: Coffee Shop at Tavern) na PAGSAMANG Exterior+Interior na
+  nailalapat nang SABAY sa isang click - hindi na kailangang mag-download/
+  mag-guhit/mag-upload nang mano-mano. Ang Exterior/Interior tabs ay
+  NANATILING gaya ng dati (para sa CUSTOM/sariling disenyo).
+
+#### 1. Data model
+- Bawat template: `{ id, name, interiorTilesWide, interiorTilesTall,
+  doorPosition, exteriorImagePath, interiorImagePath }` - ang
+  `exteriorImagePath`/`interiorImagePath` ay STATIC na file path
+  (`./assets/builder-templates/...`), HINDI base64 upload.
+- Bagong 2 field sa `customHouses` house record: `templateId` (id ng
+  huling ginamit na template, `undefined` kung custom/wala pa).
+- **MAHALAGANG DESISYON:** `house.exteriorImageDataURL`/
+  `interiorImageDataURL` ay GINAGAMIT DIN ng template houses (parehong
+  field, static path na lang ang laman sa halip na `data:` URL) - kaya
+  LAHAT ng existing na code (`ensureCustomHouseImagesLoaded`, drawing,
+  minimap, door registration, `getCustomHouseName` sub-labels) ay
+  GUMAGANA NANG WALANG PAGBABAGO - `img.src = house.exteriorImageDataURL`
+  ay tanggap ang parehong `data:` URL at ordinaryong path.
+
+#### 2. Pagtugma ng laki (`getBuilderTemplateFit`)
+- Ang EXTERIOR ay FIXED (10x8) sa LAHAT ng Lot anyway (Entry #86 #3) -
+  hindi ito problema. Ang INTERIOR artwork (320x320 px para sa Coffee
+  Shop/Tavern) ay GINUHIT PARA SA ISANG partikular na PADDED na sukat -
+  ito ay EKSAKTONG tumutugma sa "Extra Large" tier (18x17 open floor,
+  20x20 padded). Kaya isang template ay PWEDE lang ilapat sa isang Lot
+  kung `house.interiorTilesWide/Tall === template.interiorTilesWide/Tall`
+  - EKSAKTO, walang "malapit na lang" na pagtugma.
+- Sa Template Picker (`renderBuilderTemplatePicker`), ang mga HINDI
+  tugmang template ay IPINAPAKITA PA RIN (hindi itinatago) pero
+  naka-disable (`.builder-lot-row-disabled`, walang click handler) na may
+  malinaw na dahilan ("Needs a 18x17 interior floor...") - sa halip na
+  basta itago, para malinaw sa manlalaro KUNG BAKIT hindi magagamit.
+
+#### 3. `applyBuilderTemplateToHouse(house, template)`
+- Itinatakda ang `templateId`, `doorPosition` (mula sa template - FIXED,
+  hindi na 12-pagpipilian tulad ng custom flow, dahil naka-guhit na ito
+  sa artwork), `exteriorImageDataURL`/`interiorImageDataURL` (static
+  path). Binubura ang cached `Image()` (`customHouseExteriorImages`/
+  `customHouseInteriorImages`) + `exteriorAssetId`/`interiorAssetId`
+  (walang assetId ang template houses, tingnan #4), tapos tinatawag ang
+  PAREHONG `ensureCustomHouseImagesLoaded`/`saveCustomHouses` na ginagamit
+  ng manual upload flow - IISANG code path lang, walang duplicate logic.
+
+#### 4. Hindi dumadaan sa Image Asset Store (Entry #87d)
+- Ang `saveCustomHouses()`'s migration-safety-net at slim-record na
+  stripping ay LUMALAKTAW sa mga house na may `templateId` set - dahil
+  static path lang (maiksing string) ang laman ng `exteriorImageDataURL`/
+  `interiorImageDataURL` nila, HINDI malaking base64 blob - walang
+  dahilan para i-route pa ito sa asset store (magiging wasteful lang, at
+  hindi rin naman ito "user upload" na kailangang bantayan sa quota).
+- **AYOS:** kapag ang isang templated na bahay ay MANUAL na binigyan ng
+  custom na Exterior/Interior upload (Exterior/Interior tabs pa rin,
+  hiling ng user: "yung exterior at interior kasi is parang custom lang
+  yun") - awtomatikong BINUBURA ang `templateId` (dalawang upload handler,
+  isang linyang `delete house.templateId;` bawat isa) - dumadaan na ito
+  sa TUNAY na asset store (tulad ng normal na custom upload), at hindi na
+  ito lumalabas bilang "Built as Coffee Shop" sa listahan.
+
+#### 5. Flow: Lots → (awtomatikong) Building
+- **AYOS (hiling ng user):** dating ang bagong-lapag na Lot ay DIRETSONG
+  bumubukas sa Exterior (door picker, Entry #86 #4) - PINALITAN na ito ng
+  DIRETSONG pagbukas sa **Template Picker** (`renderBuilderTemplatePicker`)
+  ng KAKALAPAG lang na bahay. Kung ayaw ng manlalaro ng template (gusto
+  niyang mag-custom), puwede pa rin siyang lumipat nang mano-mano sa
+  Exterior/Interior tabs.
+
+#### 6. Presyo
+- **WALANG dagdag na presyo** ang pagpili ng isang Building template -
+  ang Lot mismo (Lots tab) ang binabayaran; ang template ay "libreng
+  istilo" na lang na maaaring ilapat/palitan anumang oras. Kung gusto ng
+  user ng presyo per-template balang araw, dagdagan na lang ng `price`
+  field ang bawat entry sa `BUILDER_BUILDING_TEMPLATES` at gawan ng bagong
+  confirm/gold-deduction step ang `applyBuilderTemplateToHouse`.
+
+#### 7. Susunod na hakbang (hiling ng user)
+- Gagawa pa ng "grocery store" at "garden house" - kapag handa na ang
+  exterior/interior PNG nila (dapat MAGTUGMA ang interior sa laki ng isa
+  sa 4 na `BUILDER_LOT_SIZES` tier - EKSAKTO, tingnan #2), idagdag na lang
+  bilang bagong entry sa `BUILDER_BUILDING_TEMPLATES`.
+
+### Entry #89 — AYOS ULIT sa Entry #88: BALIGTAD ang daloy (Building STYLE muna, saka Lot) + max na bilang kada template
+- **Files (binago):** `js/builder.js`, `style.css`
+- **Hiling ng user:** "may gusto lang ako dun sa building na kahit wala
+  pang lots naka appear na dun yung mga building tapos click lang yung
+  isa don tapos may list ng lots kung ano ng nabiling property lots
+  pipili kung san tapos may confirm tapos yun malalagay na siguro max 2
+  lang ang meron kada building na parehas like 2 coffee shop tapos 2
+  tavern".
+- **Dating gawi (Entry #88):** Lot muna (bumili sa Lots tab) → awtomatikong
+  bubukas ang Building tab NA NAKA-FOCUS na sa Lot na iyon → doon pa lang
+  makikita ang listahan ng template (Coffee Shop/Tavern) - kaya
+  HINDI makikita ang mga template kung wala pang Lot ang manlalaro.
+- **BAGONG daloy (3 screen, baligtad ang pagkakasunod):**
+  1. **`renderBuilderBuildingTab`** - listahan ng Building STYLE
+     (Coffee Shop, Tavern) - NAKIKITA KAHIT WALANG Lot pa (bagong
+     kinakailangan) - may thumbnail, "X/2 built" na status, at
+     naka-disable (`.builder-lot-row-disabled`) kapag naabot na ang max.
+  2. **`renderBuilderTemplateLotPicker(body, template, onBack)`** - pagka-
+     click ng isang style, dito pa lang lilitaw ang listahan ng mga Lot ng
+     manlalaro na TUGMA ang laki (`getBuilderTemplateFit`) - kung wala
+     pang tugmang Lot, malinaw na sinasabi ito (hindi basta blangkong
+     listahan).
+  3. **`renderBuilderTemplateConfirm(body, house, template, onBack)`** -
+     huling kumpirmasyon (hiling ng user: "may confirm") bago talaga
+     ilapat - may preview ng exterior artwork
+     (`.builder-template-confirm-preview`), at babala kung MAY existing
+     na Exterior/Interior na (custom o ibang template) ang piniling Lot,
+     dahil PAPALITAN ito.
+- **Auto-navigate pagkatapos maglapag ng bagong Lot** (Entry #88) -
+  BINAGO rin: dating diretso sa `renderBuilderTemplatePicker` (function na
+  TINANGGAL na, gumagana lang sa DATING daloy) NG isang partikular na
+  bahay - ngayon basta `builderPanelTab = "building"; openBuilderPanel();`
+  na lang (top-level na listahan ng STYLE) - ang bagong-lapag na Lot ay
+  lalabas na lang mismo sa listahan ng Lot sa SUSUNOD na screen (#2 sa
+  itaas) kapag pumili ng isang style ang manlalaro.
+- **Max na bilang kada template (`BUILDER_TEMPLATE_MAX_COUNT = 2`):**
+  - **LIVE na kinukuwenta** (`getBuilderTemplateBuiltCount`), HINDI
+    hiwalay na counter na dapat pang i-update nang mano-mano -
+    `customHouses.filter((h) => h.templateId === template.id).length`.
+    Kaya AWTOMATIKONG tama ito sa lahat ng senaryo nang walang dagdag na
+    "bookkeeping" code: nagbenta ng isa → agad bumababa (VERIFIED, tingnan
+    sa ibaba); pinalitan ang style ng isang bahay → agad bumababa sa LUMA,
+    tumataas sa BAGO.
+  - **Shared constant** ang limitasyon (PAREHONG-PAREHO sa LAHAT ng
+    template sa ngayon, hiling ng user: "max 2 lang...na parehas") - kung
+    kailanganin ng ibang limitasyon per-template balang araw, magdagdag
+    na lang ng `maxCount` field sa entry mismo at gamitin bilang fallback.
+- **VERIFIED (script simulation, 10 hakbang):** listahan ng template
+  nakikita KAHIT walang Lot; pag-click nang walang tugmang Lot ay may
+  malinaw na mensahe; pagkatapos bumili ng Lot ay lumalabas ito sa Lot
+  picker; confirm screen may preview; 2 Coffee Shop → naka-disable na
+  ("2/2 built"), Tavern naman clickable pa rin (magkahiwalay ang counter
+  kada template); pagbenta ng isa → bumalik sa "1/2", clickable ulit.
+
+### Entry #90 — Walk animation speed sa "town" (mas mabilis kaysa grassmap/room), at pagbaba ng ilaw (town window/door/lamp + bagong Coffee Shop/Tavern na lamp glow)
+- **Files (binago):** `js/update.js`, `js/atmosphere.js`, `js/builder.js`,
+  `js/draw.js`
+- **Hiling ng user:** "may papabago lang ako yung character kasi kapag
+  nasa town is iba mag lakad parang ang bilis ng frame niya mas ok yung
+  sa grassmap at room kapag nandun yung character gusto ko i apply mo
+  yung sa town kapag naglalakad yung character tyaka yung coffeeshop at
+  tavern kapag gabi na is meron ilaw yung mga lamp nila at yung window
+  wag lang masyadong maliwanag tyaka yung sa town yung mga bahay dun sa
+  window at door is sobrang lakas ng ilaw medyo babaan mo yung light
+  niya tyaka yung 4 lamps sa gitna ng town".
+
+#### (a) Walk animation cycle mas mabilis sa "town" kaysa grassmap/room
+- **Ugat ng sanhi:** ang `player.frameTimer++` (paggalaw ng binti) ay
+  TUMATAAS NANG ISA KADA `requestAnimationFrame` CALLBACK - HINDI ito
+  naka-batay sa TALAGANG lumipas na oras, kaiba sa mismong POSISYON ng
+  player (na tama namang time-based via `speedScale`, itaas ng
+  `update()`). Ang "town" (walang live na resource/tree/rock simulation
+  - lahat naka-drawing na sa background, tingnan Entry #44) ay mas
+  magaan i-render kumpara sa grassmap (may buhay na puno/bato/damo na
+  kailangang i-simulate/i-Y-sort bawat frame) - kaya kung mas mataas
+  ang TALAGANG frame rate sa town, mas madalas umaabot ang frameTimer
+  sa threshold nito kada TUNAY na segundo, kaya "mas mabilis" tumakbo
+  ang animation ng binti kahit magkapareho lang ang TALAGANG bilis ng
+  paglipat sa screen.
+- **Ayos:** bagong `WALK_ANIM_SPEED_MULTIPLIER_BY_WORLD = { town: 1.5 }`
+  (update.js) - pinarami ang epektibong `activeFrameSpeed` (threshold
+  bago mag-advance ang frame) SPECIFICALLY sa "town" - mas kaunti na
+  ang beses na umaadvance ang leg-frame kada tunay na segundo doon,
+  bilang kabayaran sa mas mataas na TALAGANG frame rate. **TUNABLE ito**
+  - walang paraan para ma-verify ang EKSAKTONG fps ratio sa TALAGANG
+  device ng user nang walang live browser profiling - simulation lang
+  (script) ang ginamit (VERIFIED: 100 vs 70 callbacks/segundo → 1.43x na
+  pagkakaiba ay bumaba sa 0.87x pagkatapos ng multiplier) - kung sobra
+  pa rin o kulang ang bilis, ayusin na lang ang numero.
+
+#### (b) Bagong dimmer na constants para sa TOWN window/door/lamp na ilaw
+- **Ugat ng sanhi (window/door):** bawat bahay sa town ay may ILANG
+  magkakalapit na "windows"/"door" na tile (isang glow point BAWAT
+  tile - `getWindowLayerLightPoints`/`getDoorLayerLightPoints`,
+  map.js), lahat "lighter" (additive) ang pagsasama - kaya kahit
+  katamtaman ang bawat isa NANG MAG-ISA, TALAGANG SOBRA kapag
+  pinagsama-sama.
+- **Ayos:** bagong `TOWN_BUILDING_LIGHT_RADIUS` (12, dating
+  `WINDOW_LIGHT_RADIUS`=16), `TOWN_BUILDING_LIGHT_PEAK_ALPHA` (0.4,
+  dating 0.75), `TOWN_BUILDING_LIGHT_MID_ALPHA` (0.18, dating 0.35) -
+  HIWALAY na constants, GINAGAMIT LANG ng `drawTownWindowLights`/
+  `drawTownDoorLights` - **HINDI** kasama ang `drawHouseWindowLights`
+  (grassmap house/placed-Light window glow, gumagamit pa rin ng
+  ORIHINAL na `WINDOW_LIGHT_RADIUS`/COLOR, dahil hindi ito bahagi ng
+  hiling).
+- **4 lamps sa gitna ng town:** `TOWN_LAMP_LIGHT_RADIUS` binaba mula 90
+  papuntang 75, at ang alpha stops sa `drawTownLamps` mula 0.75/0.36
+  papuntang 0.55/0.24.
+
+#### (c) Bagong lamp glow para sa Coffee Shop/Tavern (Building template, Entry #88-89) kapag gabi
+- **Bagong `lightPoints` field** sa bawat entry ng
+  `BUILDER_BUILDING_TEMPLATES` (builder.js) - {x, y} relative pixel
+  coordinates sa loob ng 160x128 exterior artwork - **NA-SAMPLE mismo
+  mula sa aktwal na larawan** (Python/PIL, hinanap ang pinakamaliwanag
+  na warm/orange na pixel cluster), hindi basta hinulaan:
+  - Coffee Shop: 2 hanging lamp fixture malapit sa pintuan, (33,92) at
+    (53,92).
+  - Tavern: 2 lantern na nakabitin sa magkabilang tabi ng "TAVERN" na
+    signage, (51,88) at (95,88).
+- **Bagong `getCustomHouseLightPoints()`** (builder.js) - kinukuwenta
+  ang WORLD-SPACE na posisyon ng bawat point (`house.col/row * TILE_SIZE
+  + point.x/y`) para sa lahat ng bahay na (a) nasa KASALUKUYANG mundo,
+  at (b) may `templateId` na TALAGANG may `lightPoints` (custom/manual
+  na Exterior ay WALANG glow - walang alam ang code kung saan dapat
+  lumitaw ang ilaw sa isang larawang ini-upload lang ng manlalaro).
+- **Bagong `drawCustomHouseLights()`** (atmosphere.js, tinawag sa
+  draw.js kasunod ng `drawTownWindowLights`) - PAREHONG disenyo
+  (world-space, iginuguhit BAGO ang `drawGrass()`/`drawMapObjects()` -
+  kaya "naaapakan"/natatakpan ng puno/damo/player, pero kikinang pa rin
+  sa bukas na bahagi) - GINAGAMIT ang PAREHONG mahinang
+  `TOWN_BUILDING_LIGHT_*` constants sa (b) sa itaas (hiling ng user:
+  "wag lang masyadong maliwanag") - hindi na kailangan ng sarili pang
+  hiwalay na numero.
+- **VERIFIED (script):** walang iginuguhit kapag araw; eksaktong 2 arc
+  (isa kada lamp) kapag gabi; tamang world-space coordinates; walang
+  points kapag ibang mundo ang currentWorld o custom (hindi-template)
+  na bahay; tamang (mahinang) radius sa gradient.
+
+### Entry #91 — AYOS ULIT sa Entry #90(c): wala pa ring ilaw sa Coffee Shop/Tavern kahit "gumagana" na ang drawCustomHouseLights()
+- **Files (binago):** `js/atmosphere.js`
+- **Sintomas na na-report ng user:** "sa coffee shop at sa tavern wala
+  pang ilaw sa gabi" - kahit VERIFIED na (Entry #90) na tama ang
+  `getCustomHouseLightPoints()`/`drawCustomHouseLights()` (tamang mga
+  coordinate, tamang bilang ng arc, tamang radius).
+- **Talagang sanhi:** may isa PANG layer PAGKATAPOS ng lahat ng liwanag
+  - ang buong-screen na "multiply"-dilim na night tint (`drawDayNight`,
+  atmosphere.js) - ito ang gumagawa ng pangkalahatang pagdilim sa buong
+  mundo kapag gabi. Kung walang "butas" na pinunch dito sa eksaktong
+  posisyon ng isang glow, TATAKPAN NITO ang glow na iyon (parang WALANG
+  epekto ang glow, kahit TALAGANG naiguhit ito nang tama bago rito).
+  Ang mismong listahan ng "saan dapat magbutas" (`getWindowLightHolePoints()`)
+  ay NAKALIMUTANG i-update noong idinagdag ang bagong
+  `getCustomHouseLightPoints()` (Entry #90) - kaya TALAGANG naiguhit ang
+  glow ng Coffee Shop/Tavern, PERO agad itong natatakpan/nadidiliman
+  bago pa makita.
+- **Ayos:** idinagdag ang `getCustomHouseLightPoints()` sa loob ng
+  `getWindowLightHolePoints()` (kasama na ngayon ng
+  `houseWindowLightPoints` at `getWindowLayerLightPoints`) - iisang
+  listahan na lang ang dapat i-update sa hinaharap kung may bagong
+  klaseng "world-space glow na dapat manatiling makikita sa gabi" na
+  idadagdag pa.
+- **ARAL para sa susunod:** ANUMANG bagong world-space na "glow"
+  (`ctx.globalCompositeOperation = "lighter"`, iginuguhit bago ang
+  `drawDayNight`) ay KAILANGANG idagdag din sa
+  `getWindowLightHolePoints()`, kung hindi, TATAGO ito sa likod ng
+  night tint - hindi ito "opsyonal", kundi KAILANGAN para sa ANUMANG
+  bagong glow na dapat makita sa gabi.
+- **VERIFIED (script):** `getWindowLightHolePoints()` ay may kasamang
+  eksaktong world-space coordinates ng Coffee Shop lamp pagkatapos ng
+  ayos (dating wala); tamang 0 points pa rin kapag araw.
+
+### Entry #92 — AYOS ULIT sa Entry #90-91: idinagdag ang window + pinto (hindi lang lamp) sa Coffee Shop/Tavern na glow
+- **Files (binago):** `js/builder.js`
+- **Hiling ng user:** "ok naman kaso lamp lang yung umiilaw e dapat pati
+  yung sa window at pinto yung sa pinto parang kagaya lang ng ilaw sa
+  town na mga pintong bahay don" - kaparehong-pareho ng town (windows +
+  door layer, Entry #90b), hindi lang ang mga lamp fixture.
+- **Ayos:** hinanap ulit (Python/PIL, dark-glass color sampling +
+  bounding-box, tapos VERIFIED sa pamamagitan ng pag-guhit ng marker
+  circle sa larawan mismo bago isinama sa code - tingnan ang ginamit na
+  paraan sa Entry #90c) ang eksaktong posisyon ng bintana/pintuan sa
+  parehong artwork, idinagdag bilang dagdag na entries sa `lightPoints`:
+  - **Coffee Shop** (4 points ngayon, dating 2): 2 lamp + 1 window
+    (35,102) + 1 pinto (83,94, ang maliit na salamin sa itaas ng
+    pintuan).
+  - **Tavern** (5 points ngayon, dating 2): 2 lamp + 2 window (26,104
+    kaliwa / 109,99 kanan) + 1 pinto (73,102).
+- Walang binago sa `getCustomHouseLightPoints()`/`drawCustomHouseLights()`/
+  `getWindowLightHolePoints()` mismo - AWTOMATIKONG sinunod nila ang
+  dagdag na mga punto dahil bumabasa lang sila ng buong `lightPoints`
+  array ng template, hindi nag-a-assume ng FIXED na bilang.
+- **VERIFIED (script):** `getCustomHouseLightPoints()` ay nagbabalik ng
+  4 points para sa Coffee Shop, 5 para sa Tavern; `drawCustomHouseLights()`
+  ay gumuhit ng tumutugmang bilang ng arc; walang binago sa lahat ng
+  ibang test (save/load, Building tab, WASD, atbp).

@@ -319,6 +319,16 @@ function getWindowLightHolePoints() {
     points.push(...getWindowLayerLightPoints());
   }
 
+  // BUGFIX (hiling ng user: "sa coffee shop at sa tavern wala pang ilaw
+  // sa gabi") - nakalimutang idagdag dito ang bagong
+  // getCustomHouseLightPoints() (Entry #90) - kaya nag-a-apply na nga
+  // ang glow (drawCustomHouseLights) PERO agad itong natatakpan ng
+  // multiply-dilim na night tint sa ibaba (walang naka-punch na butas
+  // para dito), kaya parang WALANG epekto sa TALAGANG nakikita.
+  if (typeof getCustomHouseLightPoints === "function") {
+    points.push(...getCustomHouseLightPoints());
+  }
+
   return points;
 }
 
@@ -636,6 +646,22 @@ const WINDOW_LIGHT_RADIUS = 16; // world pixels, hindi pa naka-multiply sa zoom
 // garantisadong magkatugma na sila palagi.
 const WINDOW_LIGHT_COLOR = TORCH_LIGHT_COLOR;
 
+// AYOS (hiling ng user): "yung sa town yung mga bahay dun sa window at
+// door is sobrang lakas ng ilaw medyo babaan mo yung light niya" - ang
+// TALAGANG dahilan ay COMPOUNDING: bawat bahay sa town ay may ILANG
+// magkakalapit na "windows"/"door" na tile (isang glow point BAWAT
+// tile, tingnan getWindowLayerLightPoints/getDoorLayerLightPoints,
+// map.js), lahat "lighter" (additive) ang pagsasama - kaya kahit
+// mukhang katamtaman ang isang glow nang mag-isa, TALAGANG SOBRA na
+// kapag pinagsama-sama ang lahat ng magkakalapit na ilaw ng isang
+// bahay. SARILING (mas mahina) na mga constant ito, hiwalay sa
+// WINDOW_LIGHT_RADIUS/COLOR (na ginagamit pa rin ng grassmap house
+// lightray/drawHouseWindowLights, HINDI kasama sa hiling na ito) -
+// TUNABLE, kung kailangan pang babaan/taasan.
+const TOWN_BUILDING_LIGHT_RADIUS = 12; // dating WINDOW_LIGHT_RADIUS (16)
+const TOWN_BUILDING_LIGHT_PEAK_ALPHA = 0.4; // dating 0.75
+const TOWN_BUILDING_LIGHT_MID_ALPHA = 0.18; // dating 0.35
+
 function drawHouseWindowLights() {
   if (typeof houseWindowLightPoints === "undefined") return;
   if (houseWindowLightPoints.length === 0) return;
@@ -917,7 +943,7 @@ function drawGrassmapHouseLightray() {
 // Y-sort - tingnan ang drawTownLampsForeground sa map.js), kaya hindi
 // ito natatakpan kailanman - IISA lang ang "layer" ng liwanag na dapat
 // asahan (ito), hindi tulad ng bahay/puno na puwedeng mag-occlude.
-const TOWN_LAMP_LIGHT_RADIUS = 90; // world pixels, hindi pa naka-multiply sa zoom
+const TOWN_LAMP_LIGHT_RADIUS = 75; // dating 90 - hiling ng user: babaan ang ilaw
 const TOWN_LAMP_LIGHT_COLOR = "255, 196, 110";
 
 function drawTownLamps() {
@@ -949,8 +975,10 @@ function drawTownLamps() {
       radius,
     );
 
-    gradient.addColorStop(0, `rgba(${TOWN_LAMP_LIGHT_COLOR}, ${0.75 * nightAmount})`);
-    gradient.addColorStop(0.55, `rgba(${TOWN_LAMP_LIGHT_COLOR}, ${0.36 * nightAmount})`);
+    // AYOS (hiling ng user): "tyaka yung 4 lamps sa gitna ng town" -
+    // babaan din ang alpha nito (dating 0.75/0.36), TUNABLE.
+    gradient.addColorStop(0, `rgba(${TOWN_LAMP_LIGHT_COLOR}, ${0.55 * nightAmount})`);
+    gradient.addColorStop(0.55, `rgba(${TOWN_LAMP_LIGHT_COLOR}, ${0.24 * nightAmount})`);
     gradient.addColorStop(1, `rgba(${TOWN_LAMP_LIGHT_COLOR}, 0)`);
 
     ctx.fillStyle = gradient;
@@ -998,7 +1026,7 @@ function drawTownDoorLights() {
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
 
-  const radius = WINDOW_LIGHT_RADIUS * camera.zoom;
+  const radius = TOWN_BUILDING_LIGHT_RADIUS * camera.zoom;
 
   for (const point of points) {
     const screenX = (point.x - camera.x) * camera.zoom;
@@ -1013,8 +1041,8 @@ function drawTownDoorLights() {
       radius,
     );
 
-    gradient.addColorStop(0, `rgba(${WINDOW_LIGHT_COLOR}, ${0.75 * nightAmount})`);
-    gradient.addColorStop(0.55, `rgba(${WINDOW_LIGHT_COLOR}, ${0.35 * nightAmount})`);
+    gradient.addColorStop(0, `rgba(${WINDOW_LIGHT_COLOR}, ${TOWN_BUILDING_LIGHT_PEAK_ALPHA * nightAmount})`);
+    gradient.addColorStop(0.55, `rgba(${WINDOW_LIGHT_COLOR}, ${TOWN_BUILDING_LIGHT_MID_ALPHA * nightAmount})`);
     gradient.addColorStop(1, `rgba(${WINDOW_LIGHT_COLOR}, 0)`);
 
     ctx.fillStyle = gradient;
@@ -1044,7 +1072,7 @@ function drawTownWindowLights() {
   // sa puno at sa grass at sa character" - WORLD SPACE na ito ngayon
   // (tinatawag na sa loob ng camera transform, draw.js) - WALA nang
   // manual na camera.x/camera.zoom conversion dito.
-  const radius = WINDOW_LIGHT_RADIUS;
+  const radius = TOWN_BUILDING_LIGHT_RADIUS;
 
   for (const point of points) {
     const gradient = ctx.createRadialGradient(
@@ -1056,8 +1084,62 @@ function drawTownWindowLights() {
       radius,
     );
 
-    gradient.addColorStop(0, `rgba(${WINDOW_LIGHT_COLOR}, ${0.75 * nightAmount})`);
-    gradient.addColorStop(0.55, `rgba(${WINDOW_LIGHT_COLOR}, ${0.35 * nightAmount})`);
+    gradient.addColorStop(0, `rgba(${WINDOW_LIGHT_COLOR}, ${TOWN_BUILDING_LIGHT_PEAK_ALPHA * nightAmount})`);
+    gradient.addColorStop(0.55, `rgba(${WINDOW_LIGHT_COLOR}, ${TOWN_BUILDING_LIGHT_MID_ALPHA * nightAmount})`);
+    gradient.addColorStop(1, `rgba(${WINDOW_LIGHT_COLOR}, 0)`);
+
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+// =========================
+// LAMP/WINDOW GLOW NG MGA BUILDING TEMPLATE (Coffee Shop/Tavern/atbp) -
+// hiling ng user: "yung coffeeshop at tavern kapag gabi na is meron
+// ilaw yung mga lamp nila at yung window wag lang masyadong maliwanag"
+// =========================
+//
+// Kaparehong-pareho ang disenyo ng drawTownWindowLights sa itaas (world
+// space, tinatawag bago pa man ang drawGrass()/drawMapObjects() sa
+// draw.js - kaya "naaapakan"/natatakpan ng puno/damo/player, PERO
+// kikinang pa rin sa mga bahaging bukas) - ang mismong POSISYON lang
+// ang naiiba (getCustomHouseLightPoints, builder.js, base sa
+// house.col/row + ang `lightPoints` ng ginamit na template). Gamit ang
+// PAREHONG mahinang TOWN_BUILDING_LIGHT_* constants (hiling ng user:
+// "wag lang masyadong maliwanag") - hindi kailangan ng sarili pang
+// hiwalay na numero.
+function drawCustomHouseLights() {
+  if (typeof getCustomHouseLightPoints !== "function") return;
+
+  const points = getCustomHouseLightPoints();
+
+  if (points.length === 0) return;
+
+  const nightAmount = getNightAmount();
+
+  if (nightAmount <= 0.05) return; // araw pa, halos walang epekto
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+
+  const radius = TOWN_BUILDING_LIGHT_RADIUS;
+
+  for (const point of points) {
+    const gradient = ctx.createRadialGradient(
+      point.x,
+      point.y,
+      0,
+      point.x,
+      point.y,
+      radius,
+    );
+
+    gradient.addColorStop(0, `rgba(${WINDOW_LIGHT_COLOR}, ${TOWN_BUILDING_LIGHT_PEAK_ALPHA * nightAmount})`);
+    gradient.addColorStop(0.55, `rgba(${WINDOW_LIGHT_COLOR}, ${TOWN_BUILDING_LIGHT_MID_ALPHA * nightAmount})`);
     gradient.addColorStop(1, `rgba(${WINDOW_LIGHT_COLOR}, 0)`);
 
     ctx.fillStyle = gradient;

@@ -255,7 +255,7 @@ function updateBagEquipSlot() {
   if (bagIsEquipped) {
     bagSlotEl.innerHTML =
       '<img src="./assets/items/bag.png" alt="" class="hotbar-slot-item-img">';
-    bagSlotEl.title = "Bag - i-click para tanggalin";
+    bagSlotEl.title = "Bag - click to remove";
   } else {
     bagSlotEl.innerHTML = "🎒";
     bagSlotEl.title = "Bag";
@@ -877,27 +877,27 @@ document.addEventListener("pointerdown", (event) => {
 // presyo kapag ibinenta kay Oldman (mula sa OLDMAN_SHOP_ITEMS, kung
 // meron - "Hindi tinatanggap ni Oldman" kung wala pang entry doon).
 const ITEM_DESCRIPTIONS = {
-  carrot: "Sariwang gulay mula sa taniman. Puwedeng kainin o itanim ulit bilang binhi.",
-  wood: "Kahoy na galing sa pagputol ng puno. Pangunahing sangkap sa maraming gawa.",
-  stone: "Bato mula sa paghukay. Gamit sa pag-craft ng matitibay na kagamitan.",
-  meat: "Hilaw na karne mula sa baboy. Puwedeng kainin agad o lutuin muna sa Stove.",
-  torch: "Nagbibigay-liwanag sa dilim. Isuot sa kaliwang kamay, nauubos habang nasusunog.",
-  crafter: "Mesa para sa paggawa ng iba't ibang bagay. Ilagay sa mundo para magamit.",
-  charcoal: "Uling mula sa pagsunog ng kahoy sa Stove. Gasolina para sa pagluluto.",
-  cookedmeat: "Lutong karne, mas masustansya kaysa hilaw. Kainin para mapawi ang gutom.",
-  stove: "Kalan para sa pagluluto/pag-smelt. Ilagay sa mundo para magamit.",
-  light: "Ilawan na puwedeng buksan/patayin. Ilagay sa loob ng bahay.",
-  pickaxe: "Kasangkapan sa paghukay ng bato. I-Use para isuot bilang kasalukuyang tool.",
-  rake: "Kasangkapan sa paghuhukay ng lupa. I-Use para isuot bilang kasalukuyang tool.",
-  axe: "Kasangkapan sa pagputol ng puno. I-Use para isuot bilang kasalukuyang tool.",
-  cutter: "Kasangkapan sa pagputol ng damo. I-Use para isuot bilang kasalukuyang tool.",
-  sword: "Sandata para sa pakikipaglaban. Hinihintay pa ang susunod na update.",
-  bag: "Backpack na nagpapalaki ng bag slots. I-Use para isuot ito.",
-  bed: "Higaan - ilagay sa loob ng bahay para makatulog/mag-save ng oras.",
-  wool: "Malambot na materyales mula sa tupa. Sangkap sa paggawa ng Bed.",
-  silk: "Pino at premium na materyales. Sangkap din sa paggawa ng Bed.",
-  iron: "Mabigat na metal. Sangkap sa paggawa ng Refrigerator.",
-  refrigerator: "Nagpapanatiling sariwa ang pagkain. Ilagay sa loob ng bahay.",
+  carrot: "Fresh vegetable from the farm. Can be eaten or replanted as seed.",
+  wood: "Wood from chopping trees. Main ingredient for many crafts.",
+  stone: "Stone from mining. Used for crafting sturdy equipment.",
+  meat: "Raw meat from a pig. Can be eaten right away or cooked on the Stove first.",
+  torch: "Gives off light in the dark. Equip in your left hand, burns down over time.",
+  crafter: "Table for making various items. Place it in the world to use it.",
+  charcoal: "Charcoal from burning wood on the Stove. Fuel for cooking.",
+  cookedmeat: "Cooked meat, more nutritious than raw. Eat to satisfy hunger.",
+  stove: "Stove for cooking/smelting. Place it in the world to use it.",
+  light: "A lamp that can be turned on/off. Place it inside a house.",
+  pickaxe: "Tool for mining stone. Use to equip it as your current tool.",
+  rake: "Tool for digging soil. Use to equip it as your current tool.",
+  axe: "Tool for chopping trees. Use to equip it as your current tool.",
+  cutter: "Tool for cutting grass. Use to equip it as your current tool.",
+  sword: "Weapon for combat. A future update is still coming.",
+  bag: "A backpack that increases your bag slots. Use to equip it.",
+  bed: "A bed - place it inside a house to sleep/save time.",
+  wool: "Soft material from a sheep. Ingredient for making a Bed.",
+  silk: "Fine, premium material. Also an ingredient for making a Bed.",
+  iron: "Heavy metal. Ingredient for making a Refrigerator.",
+  refrigerator: "Keeps food fresh. Place it inside a house.",
 };
 
 let itemAboutPopupEl = null;
@@ -931,7 +931,7 @@ function showItemAboutPopup(x, y, itemId) {
   const item = BAG_ITEMS.find((entry) => entry.id === itemId);
   const label = item ? item.label : itemId;
   const description =
-    ITEM_DESCRIPTIONS[itemId] || "Wala pang detalyeng nakalaan para dito.";
+    ITEM_DESCRIPTIONS[itemId] || "No details available for this yet.";
 
   const popup = document.createElement("div");
 
@@ -963,7 +963,7 @@ function showItemAboutPopup(x, y, itemId) {
   const sellPrice = getItemSellPrice(itemId);
 
   if (sellPrice === null) {
-    priceEl.textContent = "Sell: Hindi tinatanggap ni Oldman";
+    priceEl.textContent = "Sell: Oldman does not buy this";
   } else {
     priceEl.textContent = "Sell: 🪙" + sellPrice;
   }
@@ -3950,9 +3950,9 @@ function syncPinnedSlots() {
       );
       slot.title = EDIBLE_ITEMS[itemId]
         ? getFoodTooltipText(itemId) +
-          "\n\nbinhi ng carrots, o right-click para gamitin (Use)"
+          "\n\ncarrot seed, or right-click to use"
         : itemId === "torch"
-          ? item.label + " - i-double click para i-equip"
+          ? item.label + " - double-click to equip"
           : item.label;
       slot.innerHTML = "";
 
@@ -4109,7 +4109,7 @@ function renderBagGridInto(gridEl) {
 
     if (row >= activeRows) {
       cell.classList.add("bag-slot-locked");
-      cell.title = "Bumili muna ng Backpack sa oldman para magamit ito";
+      cell.title = "Buy a Backpack from Oldman to use this";
     }
 
     gridEl.appendChild(cell);
@@ -4127,11 +4127,11 @@ function buildBagItemSlot(item, displayCount) {
   slot.className = "bag-item bag-item-plantable";
   slot.title = EDIBLE_ITEMS[item.id]
     ? getFoodTooltipText(item.id) +
-      "\n\ni-click para i-highlight, i-drag papunta sa right hand para itanim bilang binhi, o right-click para gamitin (Use)"
+      "\n\nclick to highlight, drag to your right hand to plant as a seed, or right-click to use"
     : DOUBLE_CLICK_EQUIPABLE_ITEMS.has(item.id)
       ? item.label +
-        " - i-click/i-drag papunta sa hotbar, o i-double click para i-equip"
-      : item.label + " - i-click o i-drag papunta sa hotbar";
+        " - click/drag to the hotbar, or double-click to equip"
+      : item.label + " - click or drag to the hotbar";
 
   // Ang "active"/gold highlight dito ay PURONG sumusunod na lang sa
   // selectedBagItemId (huling na-click na item sa loob mismo ng bag) -
@@ -4311,6 +4311,10 @@ document
   ?.addEventListener("click", () => toggleBagPanel());
 
 document.addEventListener("keydown", (event) => {
+  // BUGFIX - huwag buksan ang Bag kapag nagta-type (hal. pangalan ng
+  // bahay kay Joseph) - tingnan ang isTypingInTextField sa input.js.
+  if (typeof isTypingInTextField === "function" && isTypingInTextField(event)) return;
+
   if (event.key === "b" || event.key === "B") toggleBagPanel();
 });
 

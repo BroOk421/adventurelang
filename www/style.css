@@ -3982,6 +3982,49 @@ body.touch-controls-active #stove-panel {
   outline: none;
 }
 
+/* Building tab (renderBuilderTemplatePicker) - istilong hindi tugma sa
+   laki ng napiling Lot, hindi na-click, para makita agad kung bakit
+   walang epekto ang pag-tap dito. */
+.builder-lot-row-disabled {
+  opacity: 0.45;
+}
+
+/* Maliit na preview ng exterior ng isang Building template (Coffee
+   Shop/Tavern/atbp) sa tabi ng pangalan nito sa listahan. */
+.builder-template-thumb {
+  width: 40px;
+  height: 32px;
+
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+
+  object-fit: cover;
+  image-rendering: pixelated;
+
+  flex-shrink: 0;
+}
+
+.builder-template-row-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Preview ng exterior sa huling kumpirmasyon screen (renderBuilderTemplateConfirm)
+   - mas malaki kaysa sa maliit na thumbnail sa listahan, para talagang
+   makita ng manlalaro kung ano ang itatayo bago i-confirm. */
+.builder-template-confirm-preview {
+  display: block;
+  width: 100%;
+  max-width: 220px;
+  margin: 10px auto;
+
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+
+  image-rendering: pixelated;
+}
+
 .builder-door-group-label {
   margin-bottom: 4px;
 
@@ -4049,6 +4092,44 @@ body.touch-controls-active #stove-panel {
 
   color: white;
   font-size: 12px;
+}
+
+/* Pangalan ng Lot (openBuilderLotNameDialog, builder.js) - kaparehong
+   itsura ng .builder-size-form pero buong-lapad ang input. */
+.builder-name-form {
+  display: flex;
+  margin-bottom: 12px;
+}
+
+.builder-name-form label {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.builder-name-input {
+  width: 100%;
+  padding: 8px 9px;
+
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 5px;
+
+  color: white;
+  font-size: 13px;
+}
+
+.builder-name-input:focus {
+  outline: none;
+  border-color: rgba(255, 210, 90, 0.85);
+}
+
+.builder-name-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
 }
 
 .builder-floating-message {

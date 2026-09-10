@@ -87,6 +87,13 @@ function saveAllGameState() {
   if (typeof saveScatteredLootSchedule === "function") {
     saveScatteredLootSchedule(true);
   }
+  // BUGFIX (hiling ng user: "kapag na save ko na meron na nakalagay na
+  // houses tapos reset tapos i load yung sisave ko di siya nasasave
+  // balik sa walang bahay") - NAKALIMUTAN dati ang builder.js dito, kaya
+  // HINDI kasama sa "snapshot" ng save slot ang mga naitayong Lot/bahay
+  // (exterior/interior/posisyon/pangalan) - kaya laging "walang bahay"
+  // pagkatapos mag-load.
+  if (typeof saveCustomHouses === "function") saveCustomHouses();
 }
 
 // Lahat ng save KEY (localStorage) na ginagamit ng laro - ginagamit ng
@@ -122,6 +129,12 @@ function getAllSaveKeys() {
       ? SCATTERED_LOOT_SCHEDULE_SAVE_KEY
       : null,
     typeof GAME_TIME_SAVE_KEY !== "undefined" ? GAME_TIME_SAVE_KEY : null,
+    // BUGFIX - ang mga custom na bahay (builder.js, si Joseph) ay
+    // TALAGANG nakatabi na sa localStorage, PERO wala sila sa listahang
+    // ito - kaya (a) hindi sila naisasama sa bundle ng bawat save slot,
+    // at (b) hindi rin sila nabubura ng "I-reset ang laro". Dahil dito,
+    // parang nakadikit sila sa BROWSER sa halip na sa SAVE mo.
+    typeof BUILDER_SAVE_KEY !== "undefined" ? BUILDER_SAVE_KEY : null,
   ].filter(Boolean);
 }
 
@@ -145,6 +158,7 @@ function getAllSaveKeys() {
 // ilo-load.
 const SAVE_SLOTS_INDEX_KEY = "tralala.saveSlots.v1";
 const SAVE_SLOT_DATA_PREFIX = "tralala.saveSlotData.";
+const SAVE_BUNDLE_KEYS_MARKER = "__savedKeys";
 
 function getSaveSlots() {
   try {
@@ -183,6 +197,14 @@ function saveGameToNewSlot(name) {
   const bundle = {};
 
   try {
+    // MARKER (tingnan ang loadGameFromSlot) - ito ang nagsasabi na ang
+    // slot na ito ay ginawa ng BAGONG code, kaya ALAM natin na ang
+    // KAWALAN ng isang key dito ay TALAGANG ibig sabihin "wala nito
+    // noong nag-save" (hindi "luma lang ang save"). Hindi ito tunay na
+    // localStorage key - kaya may "__" prefix, imposibleng ma-clash sa
+    // mga "tralala.*" na tunay na key.
+    bundle[SAVE_BUNDLE_KEYS_MARKER] = JSON.stringify(getAllSaveKeys());
+
     for (const key of getAllSaveKeys()) {
       const value = localStorage.getItem(key);
 
@@ -208,10 +230,15 @@ function saveGameToNewSlot(name) {
   try {
     localStorage.setItem(SAVE_SLOT_DATA_PREFIX + id, JSON.stringify(bundle));
   } catch (error) {
-    // Naka-block ang localStorage - naitala na sa index pero walang
-    // laman - ligtas namang huwag na lang ipakita kapag ganito
-    // (tingnan ang renderLoadSlotsList, sinusuri kung meron talagang
-    // bundle bago ipakita).
+    // Naka-block/PUNO ang localStorage - naitala na sa index pero
+    // walang laman. AYOS: dating TAHIMIK ito, kaya akala mo nakasave ka
+    // na - ngayon, binubura na ang "bulok" na entry at may sinasabi na
+    // ito, dahil malalaki ang PNG ng mga custom na bahay at TALAGANG
+    // kayang mapuno ang limitasyon ng localStorage.
+    persistSaveSlotsIndex(getSaveSlots().filter((entry) => entry.id !== id));
+    showSettingsToast("Could not save - storage is full. Delete an old save. \ud83d\ude15");
+
+    return null;
   }
 
   return id;
@@ -224,6 +251,24 @@ function saveGameToNewSlot(name) {
 // PINAKA-MAASAHANG paraan (iisang lugar lang, hindi na kailangang
 // muling tawagin nang isa-isa ang bawat loadXxxState() sa tamang
 // pagkakasunod-sunod).
+// Ibinabalik ang listahan ng key na TALAGANG isinaalang-alang noong
+// ginawa ang slot na ito - o `null` kung LUMANG slot ito (walang
+// marker), na ibig sabihin ay hindi natin alam, kaya huwag nang
+// bumura ng kahit ano.
+function parseSaveBundleKeys(bundle) {
+  try {
+    const raw = bundle[SAVE_BUNDLE_KEYS_MARKER];
+
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+
+    return Array.isArray(parsed) ? parsed : null;
+  } catch (error) {
+    return null;
+  }
+}
+
 function loadGameFromSlot(id) {
   let bundle;
 
@@ -236,16 +281,37 @@ function loadGameFromSlot(id) {
   }
 
   if (!bundle || typeof bundle !== "object") {
-    showSettingsToast("Hindi mabuksan ang save na ito. 😕");
+    showSettingsToast("Could not open this save. 😕");
     return;
   }
 
   try {
+    // Ang isang key na WALA sa bundle ay dapat BURAHIN, para EKSAKTONG
+    // kung ano ang na-save, iyon ang mababalik (kung hindi, "dumadaan"
+    // ang laman ng NAKARAANG laro).
+    //
+    // BUGFIX (MAHALAGA) - dating ginagawa ito sa LAHAT ng slot - PERO
+    // ang mga LUMANG slot (ginawa bago pa naidagdag ang BUILDER_SAVE_KEY
+    // sa getAllSaveKeys) ay TALAGANG walang bahay sa loob, kaya ang
+    // pag-load ng ganoong slot ay BUMUBURA sa mga bahay na kaka-tayo mo
+    // lang. Kaya ngayon, kapag WALANG marker ang slot (= lumang save),
+    // HINDI na ito bumubura - iniiwan na lang kung ano ang meron, dahil
+    // hindi natin masasabi kung "wala talaga" o "hindi lang naisama".
+    const savedKeys = parseSaveBundleKeys(bundle);
+
+    if (savedKeys) {
+      for (const key of savedKeys) {
+        if (!(key in bundle)) localStorage.removeItem(key);
+      }
+    }
+
     for (const key of Object.keys(bundle)) {
+      if (key === SAVE_BUNDLE_KEYS_MARKER) continue;
+
       localStorage.setItem(key, bundle[key]);
     }
   } catch (error) {
-    showSettingsToast("Hindi ma-load - naka-block ang storage. 😕");
+    showSettingsToast("Could not load - storage is blocked. 😕");
     return;
   }
 
@@ -285,6 +351,31 @@ function formatSaveSlotDate(timestampMs) {
   }
 }
 
+// " \u2022 \ud83c\udfe0 2" kung may 2 bahay ang slot na ito, "" kung wala/
+// hindi mabasa - panandang-teksto lang ito, hindi kritikal, kaya
+// tahimik lang itong sumusuko kapag may problema.
+function describeSaveSlotHouses(id) {
+  try {
+    const raw = localStorage.getItem(SAVE_SLOT_DATA_PREFIX + id);
+
+    if (!raw) return "";
+
+    const bundle = JSON.parse(raw);
+    const housesRaw =
+      typeof BUILDER_SAVE_KEY !== "undefined" ? bundle[BUILDER_SAVE_KEY] : null;
+
+    if (!housesRaw) return "";
+
+    const houses = JSON.parse(housesRaw).houses;
+
+    if (!Array.isArray(houses) || houses.length === 0) return "";
+
+    return " \u2022 \ud83c\udfe0 " + houses.length;
+  } catch (error) {
+    return "";
+  }
+}
+
 function renderLoadSlotsList() {
   const listEl = document.getElementById("load-slots-list");
   const emptyEl = document.getElementById("load-slots-empty");
@@ -315,7 +406,14 @@ function renderLoadSlotsList() {
     const dateEl = document.createElement("div");
 
     dateEl.className = "load-slot-date";
-    dateEl.textContent = formatSaveSlotDate(slot.savedAt);
+    // AYOS - ipinapakita rin kung ILANG custom na bahay ang TALAGANG
+    // laman ng save na ito. Ang mga slot na ginawa BAGO pa naidagdag
+    // ang mga bahay sa save system ay WALA nito - kaya kitang-kita mo
+    // agad kung bakit "nawawala" ang mga bahay kapag lumang save ang
+    // ni-load mo (sagot: wala talaga silang laman - kailangan mo munang
+    // gumawa ng BAGONG save).
+    dateEl.textContent =
+      formatSaveSlotDate(slot.savedAt) + describeSaveSlotHouses(slot.id);
 
     info.appendChild(nameEl);
     info.appendChild(dateEl);
@@ -328,12 +426,12 @@ function renderLoadSlotsList() {
 
     loadBtn.type = "button";
     loadBtn.className = "load-slot-btn load-slot-load-btn";
-    loadBtn.textContent = "I-load";
+    loadBtn.textContent = "Load";
     loadBtn.addEventListener("click", () => {
       const confirmed = window.confirm(
-        'I-lo-load ang save na "' +
+        'Load the save "' +
           slot.name +
-          '"? Mawawala ang mga pagbabagong hindi pa na-save.',
+          '"? Any unsaved changes will be lost.',
       );
 
       if (confirmed) loadGameFromSlot(slot.id);
@@ -343,7 +441,7 @@ function renderLoadSlotsList() {
 
     exportBtn.type = "button";
     exportBtn.className = "load-slot-btn load-slot-export-btn";
-    exportBtn.title = "I-export ang save na ito bilang file";
+    exportBtn.title = "Export this save as a file";
     exportBtn.textContent = "📤";
     exportBtn.addEventListener("click", () => exportSaveSlot(slot.id));
 
@@ -351,11 +449,11 @@ function renderLoadSlotsList() {
 
     deleteBtn.type = "button";
     deleteBtn.className = "load-slot-btn load-slot-delete-btn";
-    deleteBtn.title = "Burahin ang save na ito";
+    deleteBtn.title = "Delete this save";
     deleteBtn.textContent = "🗑️";
     deleteBtn.addEventListener("click", () => {
       const confirmed = window.confirm(
-        'Burahin ang save na "' + slot.name + '"? Hindi na ito mababawi.',
+        'Delete the save "' + slot.name + '"? This cannot be undone.',
       );
 
       if (!confirmed) return;
@@ -433,7 +531,7 @@ function exportSaveSlot(id) {
   const slot = getSaveSlots().find((entry) => entry.id === id);
 
   if (!slot) {
-    showSettingsToast("Hindi mahanap ang save na ito. 😕");
+    showSettingsToast("Could not find this save. 😕");
     return;
   }
 
@@ -448,8 +546,40 @@ function exportSaveSlot(id) {
   }
 
   if (!bundle) {
-    showSettingsToast("Hindi ma-export - walang laman ang save na ito. 😕");
+    showSettingsToast("Could not export - this save is empty. 😕");
     return;
+  }
+
+  // House artwork (exterior/interior PNGs) is NOT embedded inline in
+  // BUILDER_SAVE_KEY - it lives in its own asset keys, shared across all
+  // slots, so that repeated Saves don't multiply the same images (see
+  // the "IMAGE ASSET STORE" comment in builder.js). That's great for
+  // local storage, but it means the raw bundle above only has small
+  // assetId references, not the actual image data - useless on another
+  // device/browser where those asset keys don't exist. So here, for
+  // export ONLY, re-embed ("inflate") the real image data from the
+  // local asset store back into a COPY of the house records, so the
+  // exported file is fully self-contained and portable.
+  if (typeof BUILDER_SAVE_KEY !== "undefined" && bundle[BUILDER_SAVE_KEY]) {
+    try {
+      const parsed = JSON.parse(bundle[BUILDER_SAVE_KEY]);
+
+      if (Array.isArray(parsed.houses) && typeof loadBuilderAsset === "function") {
+        for (const house of parsed.houses) {
+          if (house.exteriorAssetId) {
+            house.exteriorImageDataURL = loadBuilderAsset(house.exteriorAssetId);
+          }
+          if (house.interiorAssetId) {
+            house.interiorImageDataURL = loadBuilderAsset(house.interiorAssetId);
+          }
+        }
+      }
+
+      bundle = { ...bundle, [BUILDER_SAVE_KEY]: JSON.stringify(parsed) };
+    } catch (error) {
+      // If this fails for any reason, fall through and export the slim
+      // bundle as-is rather than blocking the export entirely.
+    }
   }
 
   // "type"/"version" - ginagamit ng importSaveFile() sa ibaba para
@@ -489,9 +619,9 @@ function exportSaveSlot(id) {
 
     URL.revokeObjectURL(url);
 
-    showSettingsToast("Na-export ang save! 📤 I-check ang Downloads.");
+    showSettingsToast("Save exported! 📤 Check your Downloads.");
   } catch (error) {
-    showSettingsToast("Hindi ma-export ang save file. 😕");
+    showSettingsToast("Could not export the save file. 😕");
   }
 }
 
@@ -518,13 +648,13 @@ async function exportSaveSlotViaNativeShare(fileName, json) {
     });
 
     await Share.share({
-      title: "I-save ang AdventureLang save file",
-      dialogTitle: "Saan mo gustong i-save/ipadala ang save file?",
+      title: "Save the AdventureLang save file",
+      dialogTitle: "Where do you want to save/send the save file?",
       url: uri,
     });
 
     showSettingsToast(
-      "Na-export ang save! 📤 Piliin kung saan i-se-save/ipadala.",
+      "Save exported! 📤 Choose where to save/send it.",
     );
   } catch (error) {
     // "Share cancelled" (kinansela lang ng user ang share sheet, hindi
@@ -534,7 +664,7 @@ async function exportSaveSlotViaNativeShare(fileName, json) {
 
     if (/cancel/i.test(message)) return;
 
-    showSettingsToast("Hindi ma-export ang save file. 😕");
+    showSettingsToast("Could not export the save file. 😕");
   }
 }
 
@@ -555,7 +685,7 @@ function importSaveFile(file) {
     try {
       payload = JSON.parse(reader.result);
     } catch (error) {
-      showSettingsToast("Hindi mabasa ang file na ito. 😕");
+      showSettingsToast("Could not read this file. 😕");
       return;
     }
 
@@ -565,7 +695,7 @@ function importSaveFile(file) {
       !payload.slot ||
       !payload.bundle
     ) {
-      showSettingsToast("Hindi ito wastong save file ng laro. 😕");
+      showSettingsToast("This is not a valid save file for this game. 😕");
       return;
     }
 
@@ -580,9 +710,47 @@ function importSaveFile(file) {
           "slot_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
       }
 
+      // Mirror image of the "inflate" step in exportSaveSlot: an
+      // imported file may have full house artwork embedded inline
+      // (exteriorImageDataURL/interiorImageDataURL). Save each image
+      // into THIS device's local asset store under a fresh assetId, and
+      // slim the house record back down to just the reference - so the
+      // stored slot stays small and consistent with every other slot
+      // (and so re-saving from here on doesn't start duplicating this
+      // imported artwork either).
+      let bundleToStore = payload.bundle;
+
+      if (typeof BUILDER_SAVE_KEY !== "undefined" && bundleToStore[BUILDER_SAVE_KEY]) {
+        try {
+          const parsed = JSON.parse(bundleToStore[BUILDER_SAVE_KEY]);
+
+          if (Array.isArray(parsed.houses) && typeof saveBuilderAsset === "function") {
+            for (const house of parsed.houses) {
+              if (house.exteriorImageDataURL) {
+                const assetId = saveBuilderAsset(house.exteriorImageDataURL);
+
+                if (assetId) house.exteriorAssetId = assetId;
+                delete house.exteriorImageDataURL;
+              }
+              if (house.interiorImageDataURL) {
+                const assetId = saveBuilderAsset(house.interiorImageDataURL);
+
+                if (assetId) house.interiorAssetId = assetId;
+                delete house.interiorImageDataURL;
+              }
+            }
+          }
+
+          bundleToStore = { ...bundleToStore, [BUILDER_SAVE_KEY]: JSON.stringify(parsed) };
+        } catch (error) {
+          // If this fails, fall back to storing the bundle exactly as
+          // given rather than blocking the import entirely.
+        }
+      }
+
       localStorage.setItem(
         SAVE_SLOT_DATA_PREFIX + newId,
-        JSON.stringify(payload.bundle),
+        JSON.stringify(bundleToStore),
       );
 
       const mergedSlots = existingSlots.slice();
@@ -597,14 +765,14 @@ function importSaveFile(file) {
 
       renderLoadSlotsList();
 
-      showSettingsToast('Na-import ang save! 📥 Pindutin ang "I-load".');
+      showSettingsToast('Save imported! 📥 Press "Load".');
     } catch (error) {
-      showSettingsToast("Hindi ma-import - naka-block ang storage. 😕");
+      showSettingsToast("Could not import - storage is blocked. 😕");
     }
   };
 
   reader.onerror = () => {
-    showSettingsToast("Hindi mabasa ang file na ito. 😕");
+    showSettingsToast("Could not read this file. 😕");
   };
 
   reader.readAsText(file);
@@ -699,7 +867,7 @@ document.getElementById("settings-menu-save")?.addEventListener("click", () => {
   // parehong save) - hinihingan ng pangalan (opsyonal, may default na
   // may petsa/oras) gamit ang simpleng window.prompt().
   const name = window.prompt(
-    "Pangalan ng save na ito (opsyonal):",
+    "Name for this save (optional):",
     defaultSaveSlotName(),
   );
 
@@ -707,7 +875,7 @@ document.getElementById("settings-menu-save")?.addEventListener("click", () => {
   if (name === null) return;
 
   saveGameToNewSlot(name);
-  showSettingsToast("Na-save ang laro! 💾");
+  showSettingsToast("Game saved! 💾");
 });
 
 document.getElementById("settings-menu-load")?.addEventListener("click", () => {
@@ -739,7 +907,7 @@ function exitGame() {
   window.close();
 
   showSettingsToast(
-    'Puwede mo nang isara ang tab. (Paalala: "Save" muna kung gusto mong itago ang progreso.)',
+    'You can close the tab now. (Reminder: hit "Save" first if you want to keep your progress.)',
   );
 }
 
@@ -794,7 +962,7 @@ document
   .getElementById("settings-reset-save")
   ?.addEventListener("click", () => {
     const confirmed = window.confirm(
-      "Sigurado ka bang burahin ang LAHAT ng save data (imbentaryo, hukay, puno, posisyon) AT lahat ng save slot? Hindi na ito puwedeng bawiin.",
+      "Are you sure you want to delete ALL save data (inventory, dug tiles, trees, position) AND every save slot? This cannot be undone.",
     );
 
     if (!confirmed) return;
@@ -813,6 +981,16 @@ document
       }
 
       localStorage.removeItem(SAVE_SLOTS_INDEX_KEY);
+
+      // Also clear uploaded house artwork (builder.js's separate asset
+      // store) - it isn't part of getAllSaveKeys() by design (that's
+      // what stops repeated Saves from duplicating it), so a full reset
+      // needs its own step to actually clear it out too.
+      if (typeof getAllBuilderAssetKeys === "function") {
+        for (const key of getAllBuilderAssetKeys()) {
+          localStorage.removeItem(key);
+        }
+      }
     } catch (error) {
       // Naka-block ang localStorage - wala nang ibang magagawa dito.
     }

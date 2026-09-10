@@ -8,7 +8,7 @@
     />
     <title>Tralala Game</title>
 
-    <link rel="stylesheet" href="./style.css?v=1800000000053" />
+    <link rel="stylesheet" href="./style.css?v=1800000000150" />
   </head>
 
   <body>
@@ -143,7 +143,7 @@
         type="button"
         class="tool-radial-option tool-radial-top tool-radial-locked"
         id="tool-radial-pickaxe"
-        title="Pickaxe - kailangan munang i-craft (wala pang crafting recipe)"
+        title="Pickaxe - needs to be crafted first (no crafting recipe yet)"
       >
         <img
           src="./assets/items/pickaxe.png"
@@ -155,7 +155,7 @@
         type="button"
         class="tool-radial-option tool-radial-right tool-radial-locked"
         id="tool-radial-rake"
-        title="Rake - kailangan munang i-craft (wala pang crafting recipe)"
+        title="Rake - needs to be crafted first (no crafting recipe yet)"
       >
         <img
           src="./assets/items/rake.png"
@@ -167,7 +167,7 @@
         type="button"
         class="tool-radial-option tool-radial-bottom tool-radial-locked"
         id="tool-radial-axe"
-        title="Axe - kailangan munang i-craft (wala pang crafting recipe)"
+        title="Axe - needs to be crafted first (no crafting recipe yet)"
       >
         <img src="./assets/items/axe.png" alt="" class="tool-radial-icon-img" />
       </button>
@@ -182,7 +182,7 @@
         type="button"
         class="tool-radial-option tool-radial-left tool-radial-locked"
         id="tool-radial-cutter"
-        title="Cutter - kailangan munang i-craft (wala pang crafting recipe)"
+        title="Cutter - needs to be crafted first (no crafting recipe yet)"
       >
         <img
           src="./assets/items/cutter.png"
@@ -210,7 +210,7 @@
           type="button"
           id="bag-panel-close"
           class="panel-no-drag"
-          title="Isara"
+          title="Close"
         >
           ✕
         </button>
@@ -291,7 +291,7 @@
             <div
               id="equip-slot-lefthand"
               class="equip-slot"
-              title="Left Hand - naka-highlight na item, o i-drag/i-double-click dito ang torch para i-equip"
+              title="Left Hand - the highlighted item, or drag/double-click a torch here to equip it"
             ></div>
             <div id="equip-slot-pet" class="equip-slot" title="Pet">🐾</div>
             <div
@@ -360,7 +360,7 @@
             <button
               type="button"
               id="bag-sort"
-              title="I-sort ang mga item sa bag (A-Z)"
+              title="Sort the items in your bag (A-Z)"
             >
               🔀
             </button>
@@ -371,7 +371,7 @@
                  lang ito sa mundo - tingnan ang hotbar.js). -->
             <div
               id="bag-trash"
-              title="I-drag dito para tanggalin/i-delete ang item"
+              title="Drag here to remove/delete the item"
             >
               🗑️
             </div>
@@ -394,7 +394,7 @@
         <div id="crafter-dock" class="hidden">
           <div id="crafter-dock-header">
             <span id="crafter-dock-label">Crafter</span>
-            <button type="button" id="crafter-dock-close" title="Isara">
+            <button type="button" id="crafter-dock-close" title="Close">
               <
             </button>
           </div>
@@ -440,7 +440,7 @@
           type="button"
           id="stove-panel-close"
           class="panel-no-drag"
-          title="Isara"
+          title="Close"
         >
           ✕
         </button>
@@ -480,7 +480,7 @@
           type="button"
           id="oldman-shop-panel-close"
           class="panel-no-drag"
-          title="Isara"
+          title="Close"
         >
           ✕
         </button>
@@ -689,7 +689,7 @@
     <div id="settings-panel" class="hidden">
       <div id="settings-panel-header">
         <span id="settings-panel-label">Settings</span>
-        <button type="button" id="settings-panel-close" title="Isara">✕</button>
+        <button type="button" id="settings-panel-close" title="Close">✕</button>
       </div>
 
       <div id="settings-panel-body">
@@ -708,7 +708,7 @@
           🎮 Controller
         </button>
         <button type="button" id="settings-reset-save">
-          🗑️ I-reset ang laro (burahin ang save)
+          🗑️ Reset the game (delete save)
         </button>
       </div>
     </div>
@@ -735,32 +735,32 @@
     <div id="controller-layout-panel" class="hidden">
       <div id="controller-layout-header">
         <span id="controller-layout-label">Controller</span>
-        <button type="button" id="controller-layout-close" title="Isara">
+        <button type="button" id="controller-layout-close" title="Close">
           ✕
         </button>
       </div>
 
       <div id="controller-layout-body">
         <button type="button" id="controller-layout-edit-toggle">
-          ✏️ I-edit ang Posisyon/Laki
+          ✏️ Edit Position/Size
         </button>
         <p id="controller-layout-hint">
-          Kapag naka-edit mode, i-TAP ang gustong button/HUD (joystick/hand
-          button/Tools/minimap/hotbar/health-stamina-food/weather/settings) sa
-          screen para ma-highlight/piliin ito - lalabas dito ang sarili nitong
-          Laki/Opacity. I-drag ito para ilipat.
+          While in edit mode, TAP the button/HUD you want (joystick/hand
+          button/Tools/minimap/hotbar/health-stamina-food/weather/settings) on
+          the screen to highlight/select it - its own Size/Opacity controls
+          will show up here. Drag it to move it.
         </p>
 
         <p id="controller-layout-empty-hint">
-          Wala pang napipiling button - i-on muna ang edit mode sa itaas, tapos
-          i-tap ang gustong i-adjust sa screen.
+          No button selected yet - turn on edit mode above, then
+          tap the one you want to adjust on the screen.
         </p>
 
         <div id="controller-layout-sliders" class="hidden">
           <div id="controller-layout-selected-name">-</div>
 
           <label class="controller-layout-slider-row">
-            <span>Laki</span>
+            <span>Size</span>
             <input
               type="range"
               id="controller-layout-scale"
@@ -785,13 +785,13 @@
         </div>
 
         <button type="button" id="controller-layout-reset">
-          🔄 I-reset ang Lahat
+          🔄 Reset All
         </button>
       </div>
     </div>
 
-    <!-- Maikling mensahe (hal. "Na-save!") - lumalabas saglit tapos
-         nawawala mag-isa. Tingnan ang showSettingsToast sa
+    <!-- Short message (e.g. "Saved!") - shows briefly then
+         disappears on its own. See showSettingsToast in
          settings-menu.js. -->
     <div id="settings-toast" class="hidden"></div>
 
@@ -809,15 +809,15 @@
     <div id="load-slots-overlay" class="hidden">
       <div id="load-slots-panel">
         <div id="load-slots-header">
-          <span id="load-slots-label">I-load ang laro</span>
+          <span id="load-slots-label">Load Game</span>
 
           <div id="load-slots-header-actions">
             <button
               type="button"
               id="load-slots-import"
-              title="I-import ang save mula sa file"
+              title="Import save from file"
             >
-              📥 I-import
+              📥 Import
             </button>
             <input
               type="file"
@@ -825,15 +825,15 @@
               accept="application/json,.json"
               style="display: none"
             />
-            <button type="button" id="load-slots-close" title="Isara">✕</button>
+            <button type="button" id="load-slots-close" title="Close">✕</button>
           </div>
         </div>
 
         <div id="load-slots-list"></div>
 
         <div id="load-slots-empty" class="hidden">
-          Wala ka pang naka-save na laro. Pindutin ang "Save" sa menu para
-          gumawa ng una mong save.
+          You do not have any saved games yet. Press "Save" in the menu
+          to create your first save.
         </div>
       </div>
     </div>
@@ -886,7 +886,7 @@
     <button
       type="button"
       id="mobile-btn-action"
-      title="Gamitin (Tap) / Tools (Hawak)"
+      title="Use (Tap) / Tools (Hold)"
     >
       <span id="mobile-btn-action-icon">✋</span>
     </button>
@@ -913,23 +913,23 @@
     <script src="./js/gametime.js?v=1787160000000"></script>
     <script src="./js/player.js?v=1790600000000"></script>
     <script src="./js/camera.js?v=1800000000041"></script>
-    <script src="./js/input.js?v=1787160000000"></script>
+    <script src="./js/input.js?v=1800000000090"></script>
     <script src="./js/collisions.js?v=1793600000001"></script>
     <!-- worlds.js ay dapat mauna sa map.js - dun nakalista ang mga mapa
          at pintuan, at ginagamit agad ito ng map.js pagka-load. -->
     <script src="./js/worlds.js?v=1793300000000"></script>
     <script src="./js/footprints.js?v=1788105286987"></script>
-    <script src="./js/map.js?v=1800000000054"></script>
+    <script src="./js/map.js?v=1800000000090"></script>
     <!-- dig.js: paghukay ng niyebe gamit ang mouse. Pagkatapos ng
          map.js dahil ginagamit nito ang drawTile at flattenTileLayers. -->
-    <script src="./js/dig.js?v=1800000000004"></script>
+    <script src="./js/dig.js?v=1800000000090"></script>
     <!-- resources.js: random na puno/bato (axe/pickaxe). Ginagamit nito
          ang getObjectCells/isTileInReach (dig.js), kaya kailangang mauna
          iyon. Dapat ito MAUNA sa hotbar.js - agad tinatawag ng hotbar.js
          ang syncHotbarUI() sa sarili nitong script (hindi lang sa
          keydown/click), kaya kailangang existing na ang axeEquipped
          (idineklara dito) bago pa man tumakbo ang hotbar.js. -->
-    <script src="./js/resources.js?v=1800000000052"></script>
+    <script src="./js/resources.js?v=1800000000090"></script>
     <!-- decor.js: purong palamuti - random na oak trees at ang oldman
          NPC malapit sa bahay (may sarili na siyang random na
          paglalakad/pagkawala-pagbalik ngayon). May click/interaction
@@ -955,7 +955,7 @@
          tumatawag dito), kaya OK lang kahit MAUNA pa ito sa
          calendar.js/gametime.js sa pagkaka-declare, basta na-load na
          ang lahat bago pa man i-click ng manlalaro ang kama. -->
-    <script src="./js/bed.js?v=1788600000000"></script>
+    <script src="./js/bed.js?v=1800000000090"></script>
     <!-- ground-items.js: mga item na nakalapag sa lupa (galing sa ani o
          inihagis) - ginagamit nito ang CARROT_ICON_IMAGE (dig.js). -->
     <script src="./js/ground-items.js?v=1800000000056"></script>
@@ -980,7 +980,7 @@
          estado/function ng dig.js/resources.js/ground-items.js
          (pickaxeEquipped, equipPickaxe, axeEquipped,
          dropItemFromSlotIntoWorld, atbp). -->
-    <script src="./js/hotbar.js?v=1800000000034"></script>
+    <script src="./js/hotbar.js?v=1800000000090"></script>
     <!-- craft.js: crafting panel (2x2 basic / 3x3 advanced, parang
          Minecraft) at ang "Crafter" (crafting table) na puwedeng
          ilagay sa mundo - ginagamit nito ang BAG_ITEMS/getItemIconHTML/
@@ -1021,13 +1021,13 @@
          loadInventoryState() ang goldCollected na sample/testing value
          na itinatakda nito (hiling ng user: "lagyan mo ako ng gold na
          100,000"). -->
-    <script src="./js/builder.js?v=1800000000015"></script>
+    <script src="./js/builder.js?v=1800000000230"></script>
     <!-- settings-menu.js: ang burger-icon na menu sa itaas-kanan (I-save/
          I-load/Settings/Lumabas) - dapat SUMUNOD sa inventory-save.js
          (at sa dig/resources/player/decor) dahil tinatawag nito ang
          save function ng bawat isa (saveInventoryState/savePlayerPosition/
          saveDugTiles/saveHarvestedResources/saveHarvestedOakTrees). -->
-    <script src="./js/settings-menu.js?v=1800000000058"></script>
+    <script src="./js/settings-menu.js?v=1800000000095"></script>
     <!-- main-menu.js: BAGONG "Loading -> Play/Load/Settings/Exit" na
          screen bago mag-umpisa ang laro (#main-menu-overlay,
          beginInitialWorldLoad sa map.js) - kailangang MAUNA ang
@@ -1037,8 +1037,8 @@
     <!-- tool-radial.js: ang roulette-style na menu sa gitna ng screen
          habang naka-hold ang "V", kapalit ng dating pickaxe/kamay/axe
          na hiwalay na slots. -->
-    <script src="./js/tool-radial.js?v=1787160000000"></script>
-    <script src="./js/atmosphere.js?v=1789400000000"></script>
+    <script src="./js/tool-radial.js?v=1800000000090"></script>
+    <script src="./js/atmosphere.js?v=1800000000210"></script>
     <script src="./js/shadows.js?v=1800000000061"></script>
     <!-- calendar.js: petsa/buwan/oras at ang schedule ng snow/ulan - dapat
          mauna sa snow.js/rain.js dahil ginagamit nila ang calendar state.
@@ -1053,9 +1053,9 @@
     <script src="./js/fireflies.js?v=1787160000000"></script>
     <!-- calendar-ui.js: ang UI sa itaas-kanan (petsa/oras/araw-gabi). -->
     <script src="./js/calendar-ui.js?v=1787160000000"></script>
-    <script src="./js/update.js?v=1800000000056"></script>
+    <script src="./js/update.js?v=1800000000200"></script>
     <script src="./js/minimap.js?v=1800000000012"></script>
-    <script src="./js/draw.js?v=1800000000060"></script>
+    <script src="./js/draw.js?v=1800000000200"></script>
     <script src="./js/main.js?v=1787160000000"></script>
     <script src="./js/mobile-controls.js?v=1800000000054"></script>
     <!-- controller-layout.js: Settings > Controller > Edit Layout -

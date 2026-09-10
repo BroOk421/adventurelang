@@ -413,7 +413,7 @@ function openMobileSliceQtyPopup(source, itemId, maxCount) {
 
   if (labelEl) {
     labelEl.textContent =
-      "Ilang " + (item ? item.label : "piraso") + " ang ihihiwalay?";
+      "How many " + (item ? item.label : "piece(s)") + " to split off?";
   }
 
   const input = document.getElementById("mobile-slice-qty-input");

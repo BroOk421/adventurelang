@@ -218,7 +218,7 @@ function fadeScreenThenBack(onBlackScreen) {
 function trySleepInBed(bed) {
   if (!isBedUsableNow()) {
     if (typeof showSettingsToast === "function") {
-      showSettingsToast("Hindi mo pa kailangang matulog - gabi ka na lang (mula 6pm).");
+      showSettingsToast("You do not need to sleep yet - only at night (from 6pm).");
     }
 
     return;
@@ -234,7 +234,7 @@ function trySleepInBed(bed) {
 
   if (typeof showSettingsToast === "function") {
     setTimeout(() => {
-      showSettingsToast("Magandang umaga! ☀️ 6:00 AM na.");
+      showSettingsToast("Good morning! \u2600\ufe0f It's 6:00 AM.");
     }, BED_FADE_MS + 250);
   }
 }

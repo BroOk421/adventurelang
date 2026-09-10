@@ -40,6 +40,19 @@ const REFERENCE_FRAME_MS = 1000 / 60;
 // hindi bigla/"tumalon" nang malayo ang player sa isang tick lang.
 const MAX_FRAME_DELTA_MS = 100;
 
+// AYOS (hiling ng user): "kapag nasa town is iba mag lakad parang ang
+// bilis ng frame niya mas ok yung sa grassmap at room" - tingnan ang
+// buong paliwanag sa loob ng update() (malapit sa `player.frameTimer`)
+// - per-world na multiplier ito sa WALK ANIMATION CYCLE lang (hindi sa
+// TALAGANG bilis ng paglipat sa screen, na PAREHO na sa lahat ng mundo
+// dahil time-based na ito via `speedScale`) - `1` = walang pagbabago,
+// `>1` = mas mabagal mag-cycle ang binti. TUNABLE - kung sobra pa ring
+// mabilis o naging masyado namang mabagal sa town, ayusin na lang itong
+// numero (hal. 1.3 kung sobra pa rin ang 1.5, o 1.7 kung kulang pa).
+const WALK_ANIM_SPEED_MULTIPLIER_BY_WORLD = {
+  town: 1.5,
+};
+
 function update(deltaMs) {
   // speedScale = 1 sa eksaktong 60fps - kung mas mabagal (mas malaki
   // ang deltaMs) o mas mabilis (mas maliit) ang frame rate, dito
@@ -393,9 +406,31 @@ function update(deltaMs) {
   // mag-cycle, para tumutugma sa mas mabilis na runSpeed (hindi na
   // "nagmamadali"/hindi tugmang itsura sa pagitan ng galaw ng binti
   // at bilis ng paglipat sa screen).
-  const activeFrameSpeed = player.running
-    ? player.runFrameSpeed
-    : player.frameSpeed;
+  //
+  // AYOS (hiling ng user): "kapag nasa town is iba mag lakad parang ang
+  // bilis ng frame niya mas ok yung sa grassmap at room" - ang
+  // `player.frameTimer++` sa itaas ay TUMATAAS NANG ISA KADA
+  // requestAnimationFrame CALLBACK (hindi naka-batay sa TALAGANG
+  // lumipas na oras, kaiba sa TALAGANG paggalaw/posisyon ng player na
+  // gumagamit ng `speedScale`, tingnan sa itaas) - kaya kung mas mabilis
+  // talaga mag-render ang "town" (mas kaunting live na simulation dito
+  // kumpara sa grassmap - walang random na puno/bato/damo doon, tingnan
+  // worlds.js), mas madalas umabot ang frameTimer sa threshold nito
+  // kada TUNAY na segundo, kaya mas "mabilis" ang tila galaw ng binti
+  // kahit PAREHO lang ang TALAGANG bilis ng paglipat sa screen. AYOS:
+  // bagong per-world na multiplier (WALK_ANIM_SPEED_MULTIPLIER_BY_WORLD,
+  // sa ibaba) - pinapataas ang epektibong threshold sa "town" (mas
+  // kaunting beses lang mag-a-advance ang frame kada tunay na segundo),
+  // para tumugma sa itsura sa grassmap/room. TUNABLE ito - kung hindi
+  // pa rin eksaktong tama ang bilis, ayusin na lang ang numerong ito.
+  const worldAnimMultiplier =
+    typeof WALK_ANIM_SPEED_MULTIPLIER_BY_WORLD !== "undefined" &&
+    WALK_ANIM_SPEED_MULTIPLIER_BY_WORLD[currentWorld]
+      ? WALK_ANIM_SPEED_MULTIPLIER_BY_WORLD[currentWorld]
+      : 1;
+
+  const activeFrameSpeed =
+    (player.running ? player.runFrameSpeed : player.frameSpeed) * worldAnimMultiplier;
 
   if (player.frameTimer >= activeFrameSpeed) {
     player.frame++;

@@ -826,7 +826,7 @@ const GRASSMAP_RESOURCES_LOADED = Promise.all([
     .then((response) => {
       if (!response.ok) {
         throw new Error(
-          "Hindi ma-load ang grassmap-resources.json: " + response.status,
+          "Could not load grassmap-resources.json: " + response.status,
         );
       }
 
@@ -856,7 +856,7 @@ const GRASSMAP_RESOURCES_LOADED = Promise.all([
     .then((response) => {
       if (!response.ok) {
         throw new Error(
-          "Hindi ma-load ang grassmap-resources-test.json: " + response.status,
+          "Could not load grassmap-resources-test.json: " + response.status,
         );
       }
 
@@ -880,7 +880,7 @@ const GRASSMAP2_RESOURCES_LOADED = fetch(GRASSMAP2_RESOURCES_URL + CACHE_BUST)
   .then((response) => {
     if (!response.ok) {
       throw new Error(
-        "Hindi ma-load ang grassmap2-resources.json: " + response.status,
+        "Could not load grassmap2-resources.json: " + response.status,
       );
     }
 

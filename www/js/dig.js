@@ -206,7 +206,7 @@ function breakTool(toolId) {
 
   if (typeof showSettingsToast === "function") {
     showSettingsToast(
-      "Nasira ang " + label + " mo! Kailangan mo nang mag-craft ulit.",
+      "Your " + label + " broke! You need to craft it again.",
     );
   }
 
@@ -242,7 +242,7 @@ function equipPickaxe() {
   // magagamit ang alinman sa 3 "right hand" na working tool na ito.
   if (typeof bagEquipped !== "undefined" && !bagEquipped) {
     if (typeof showSettingsToast === "function") {
-      showSettingsToast("Kailangan mo munang isuot ang bag! 🎒");
+      showSettingsToast("You need to equip a bag first! 🎒");
     }
     return;
   }
@@ -262,7 +262,7 @@ function equipRake() {
 
   if (typeof bagEquipped !== "undefined" && !bagEquipped) {
     if (typeof showSettingsToast === "function") {
-      showSettingsToast("Kailangan mo munang isuot ang bag! 🎒");
+      showSettingsToast("You need to equip a bag first! 🎒");
     }
     return;
   }
@@ -276,6 +276,9 @@ function equipRake() {
 }
 
 document.addEventListener("keydown", (event) => {
+  // BUGFIX - tingnan ang isTypingInTextField (input.js).
+  if (typeof isTypingInTextField === "function" && isTypingInTextField(event)) return;
+
   if (event.altKey && event.key === "1") {
     event.preventDefault();
     equipPickaxe();
@@ -2265,7 +2268,7 @@ function validateDugTiles() {
   }
 
   if (dropped > 0) {
-    console.log("Tinanggal ang", dropped, "nahukay na tile - nabago ang mapa.");
+    console.log("Removed", dropped, "dug tile(s) - the map changed.");
     saveDugTiles();
   }
 

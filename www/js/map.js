@@ -71,7 +71,7 @@ function parseTileset(source, text) {
   const imageNode = document.querySelector("image");
 
   if (!tilesetNode || !imageNode) {
-    console.warn("Hindi tileset file:", source);
+    console.warn("Not a tileset file:", source);
     return null;
   }
 
@@ -97,7 +97,7 @@ async function loadTilesets(map) {
       const image = await loadTilesetImage(parsed.image);
 
       if (!image) {
-        console.warn("Hindi mahanap ang larawan ng tileset:", parsed.image);
+        console.warn("Could not find the tileset image:", parsed.image);
         return null;
       }
 
@@ -134,13 +134,13 @@ async function fetchTileset(source) {
     const response = await fetch(MAP_DIR + source + CACHE_BUST);
 
     if (!response.ok) {
-      console.warn("Wala ang tileset file:", source);
+      console.warn("Tileset file not found:", source);
       return null;
     }
 
     return parseTileset(source, await response.text());
   } catch (error) {
-    console.warn("Hindi mabasa ang tileset:", source, error);
+    console.warn("Could not read the tileset:", source, error);
     return null;
   }
 }
@@ -1332,7 +1332,7 @@ function readTilesetPixels(tileset) {
     // Nangyayari ito kapag binuksan ang laro nang diretso sa file://
     // - "tainted" ang canvas, bawal basahin ang pixels. Babalik na lang
     // tayo sa ilalim ng tile grid (tulad ng dati).
-    console.warn("Hindi mabasa ang pixels ng tileset:", error);
+    console.warn("Could not read the tileset pixels:", error);
 
     tileset.pixels = null;
   }
@@ -2416,7 +2416,7 @@ async function loadWorld(name, spawn) {
   const world = WORLDS[name];
 
   if (!world) {
-    console.error("Walang mundong tinatawag na:", name);
+    console.error("No world called:", name);
     return;
   }
 
@@ -2479,7 +2479,7 @@ async function loadWorld(name, spawn) {
     const response = await fetch(mapUrl + cacheBustSuffix);
 
     if (!response.ok) {
-      throw new Error("Hindi ma-load ang mapa: " + mapUrl);
+      throw new Error("Could not load the map: " + mapUrl);
     }
 
     const map = await response.json();
@@ -2539,7 +2539,7 @@ async function loadWorld(name, spawn) {
     }
 
     console.log(
-      "Mundo:",
+      "World:",
       name,
       "|",
       map.width + "x" + map.height,
@@ -2564,7 +2564,7 @@ async function loadWorld(name, spawn) {
     // makikita na ngayon ito bilang floating message sa screen mismo,
     // hindi na kailangang buksan pa ang DevTools console para malaman.
     if (typeof showFloatingMessage === "function") {
-      showFloatingMessage("Hindi ma-load ang mundo: " + (error?.message || error));
+      showFloatingMessage("Could not load the world: " + (error?.message || error));
     }
   } finally {
     // Sapilitang hintayin ang MIN_LOADING_MS (kung mas mabilis natapos

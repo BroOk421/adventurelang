@@ -2364,7 +2364,7 @@ function buyFromOldManQuantity(itemId, qty) {
   // ito ang bug).
   if (!canAffordOldManBuy(item, amount)) {
     if (typeof showSettingsToast === "function")
-      showSettingsToast("Kulang ang gold mo!");
+      showSettingsToast("You do not have enough gold!");
 
     return;
   }
@@ -2601,7 +2601,7 @@ function openOldManSellQtyPopup() {
 
   const labelEl = document.getElementById("oldman-sell-qty-label");
 
-  if (labelEl) labelEl.textContent = "Ilang " + item.label + " ang ibebenta?";
+  if (labelEl) labelEl.textContent = "How many " + item.label + " to sell?";
 
   const input = document.getElementById("oldman-sell-qty-input");
 
@@ -2651,7 +2651,7 @@ function updateOldManSellQtyTotal() {
   const qty = clampOldManSellQtyInput();
   const totalEl = document.getElementById("oldman-sell-qty-total");
 
-  if (totalEl) totalEl.textContent = "Matatanggap: 🪙" + item.sellPrice * qty;
+  if (totalEl) totalEl.textContent = "You will receive: 🪙" + item.sellPrice * qty;
 }
 
 document
@@ -2770,7 +2770,7 @@ function startOldManBuyFlow(itemId) {
   if (maxCount <= 0) {
     // UNLIMITED ang stock kaya hindi na ito dapat maabot.
     if (typeof showSettingsToast === "function") {
-      showSettingsToast("Ubos na ang stock!");
+      showSettingsToast("Out of stock!");
     }
 
     return;
@@ -2808,7 +2808,7 @@ function openOldManBuyQtyPopup() {
 
   const labelEl = document.getElementById("oldman-buy-qty-label");
 
-  if (labelEl) labelEl.textContent = "Ilang " + item.label + " ang bibilhin?";
+  if (labelEl) labelEl.textContent = "How many " + item.label + " to buy?";
 
   const input = document.getElementById("oldman-buy-qty-input");
 
@@ -2870,9 +2870,9 @@ function updateOldManBuyQtyTotal() {
   const affordable = canAffordOldManBuy(item, qty);
 
   totalEl.textContent =
-    "Babayaran: 🪙" +
+    "To pay: 🪙" +
     getOldManBuyCost(item, qty) +
-    (affordable ? "" : " (kulang ang gold mo)");
+    (affordable ? "" : " (not enough gold)");
   totalEl.style.color = affordable ? "" : "#ff6b6b";
 }
 
@@ -2927,7 +2927,7 @@ document
     // isara at simulan ulit ang buong drag).
     if (!canAffordOldManBuy(item, qty)) {
       if (typeof showSettingsToast === "function")
-        showSettingsToast("Kulang ang gold mo!");
+        showSettingsToast("You do not have enough gold!");
 
       return;
     }

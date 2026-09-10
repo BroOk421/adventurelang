@@ -103,6 +103,9 @@ function confirmToolRadialAim() {
 }
 
 document.addEventListener("keydown", (event) => {
+  // BUGFIX - tingnan ang isTypingInTextField (input.js).
+  if (typeof isTypingInTextField === "function" && isTypingInTextField(event)) return;
+
   if (event.key !== "v") return;
 
   event.preventDefault();

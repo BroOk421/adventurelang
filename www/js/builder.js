@@ -58,11 +58,117 @@ const BUILDER_EXTERIOR_TILES_WIDE = 10;
 const BUILDER_EXTERIOR_TILES_TALL = 8;
 
 const BUILDER_LOT_SIZES = [
-  { id: "small", label: "Maliit", interiorTilesWide: 10, interiorTilesTall: 8, price: 300 },
-  { id: "medium", label: "Katamtaman", interiorTilesWide: 13, interiorTilesTall: 11, price: 600 },
-  { id: "large", label: "Malaki", interiorTilesWide: 15, interiorTilesTall: 13, price: 900 },
-  { id: "xlarge", label: "Napakalaki", interiorTilesWide: 18, interiorTilesTall: 17, price: 1400 },
+  { id: "small", label: "Small", interiorTilesWide: 10, interiorTilesTall: 8, price: 300 },
+  { id: "medium", label: "Medium", interiorTilesWide: 13, interiorTilesTall: 11, price: 600 },
+  { id: "large", label: "Large", interiorTilesWide: 15, interiorTilesTall: 13, price: 900 },
+  { id: "xlarge", label: "Extra Large", interiorTilesWide: 18, interiorTilesTall: 17, price: 1400 },
 ];
+
+// =========================
+// BUILDING TEMPLATES (user request: pre-made exterior+interior "bundles"
+// like Coffee Shop / Tavern - pick one and it's built instantly, no manual
+// upload needed) - a "Building" tab next to "Lots" lists these.
+// =========================
+// Each template is a ready-made pair of PNGs shipped with the game (NOT
+// something the player uploads - these live in assets/builder-templates/).
+// `interiorTilesWide`/`interiorTilesTall` here is the OPEN/walkable floor
+// size the template's interior artwork was drawn for - it must match one
+// of the BUILDER_LOT_SIZES tiers exactly (the interior PNG's pixel size is
+// ALWAYS `getBuilderInteriorPaddedSize(...) * TILE_SIZE`, same rule as a
+// custom-uploaded Interior). A template can only be applied to a Lot whose
+// own `interiorTilesWide/Tall` matches - see getBuilderTemplateFit().
+// `doorPosition` is FIXED per template (baked into the artwork, not
+// player-chosen like the custom Exterior/Interior flow).
+const BUILDER_BUILDING_TEMPLATES = [
+  {
+    id: "coffee-shop",
+    name: "Coffee Shop",
+    interiorTilesWide: 18,
+    interiorTilesTall: 17,
+    doorPosition: "bottom-center",
+    exteriorImagePath: "./assets/builder-templates/coffeeshop-exterior.png",
+    interiorImagePath: "./assets/builder-templates/coffeeshop-interior.png",
+    // AYOS (hiling ng user): "yung coffeeshop at tavern kapag gabi na is
+    // meron ilaw yung mga lamp nila at yung window wag lang masyadong
+    // maliwanag" - {x, y} sa RELATIVE pixel coordinates ng exterior
+    // artwork mismo (160x128, itaas-kaliwa = 0,0) - dito nakikita ang
+    // 2 hanging lamp fixture sa harapan (dalawang bombilyang nakabitin
+    // malapit sa pintuan) - ginawa NA-SAMPLE ito direkta mula sa
+    // artwork (hinanap ang pinakamaliwanag na warm/orange pixel), hindi
+    // basta hula.
+    //
+    // AYOS ULIT (hiling ng user): "ok naman kaso lamp lang yung
+    // umiilaw e dapat pati yung sa window at pinto yung sa pinto
+    // parang kagaya lang ng ilaw sa town na mga pintong bahay don" -
+    // dinagdagan ng 2 pang punto (window + pinto), kaparehong disenyo
+    // ng town (windows + door layer, tingnan Entry #90/#91) - hinanap
+    // din ito sa pamamagitan ng pag-sample sa artwork (dark glass
+    // color ng bintana/pintuan), VERIFIED sa pamamagitan ng pag-guhit
+    // ng marker circle sa larawan bago isinama dito.
+    lightPoints: [
+      { x: 33, y: 92 }, // lamp (kaliwa)
+      { x: 53, y: 92 }, // lamp (kanan)
+      { x: 35, y: 102 }, // window
+      { x: 83, y: 94 }, // pinto (maliit na salamin sa itaas)
+    ],
+  },
+  {
+    id: "tavern",
+    name: "Tavern",
+    interiorTilesWide: 18,
+    interiorTilesTall: 17,
+    doorPosition: "bottom-center",
+    exteriorImagePath: "./assets/builder-templates/tavern-exterior.png",
+    interiorImagePath: "./assets/builder-templates/tavern-interior.png",
+    // Dalawang lantern na nakabitin sa magkabilang tabi ng "TAVERN" na
+    // signage sa itaas ng pintuan - kaparehong paraan ng pag-sample.
+    // AYOS ULIT (hiling ng user) - dinagdagan din ng 2 window (kaliwa/
+    // kanan) + 1 pinto, kaparehong dahilan sa itaas.
+    lightPoints: [
+      { x: 51, y: 88 }, // lamp (kaliwa)
+      { x: 95, y: 88 }, // lamp (kanan)
+      { x: 26, y: 104 }, // window (kaliwa)
+      { x: 109, y: 99 }, // window (kanan)
+      { x: 73, y: 102 }, // pinto
+    ],
+  },
+  // Planned (user: "gagawa pa ako ng iba like grocery store, at garden
+  // house") - add more entries here once their exterior/interior PNGs are
+  // ready, matching whichever BUILDER_LOT_SIZES tier they were drawn for.
+];
+
+// Preloaded once at parse-time (same pattern as MINIMAP_WORLD_BACKGROUND_IMAGES,
+// minimap.js) - one `Image()` per path, reused for every house built from
+// that template (never duplicated into localStorage - see saveCustomHouses,
+// where template houses are deliberately excluded from the asset store).
+const BUILDER_TEMPLATE_IMAGES = {};
+
+for (const template of BUILDER_BUILDING_TEMPLATES) {
+  const exteriorImg = new Image();
+
+  exteriorImg.src = template.exteriorImagePath;
+
+  const interiorImg = new Image();
+
+  interiorImg.src = template.interiorImagePath;
+
+  BUILDER_TEMPLATE_IMAGES[template.id] = { exterior: exteriorImg, interior: interiorImg };
+}
+
+function getBuilderTemplateById(templateId) {
+  return BUILDER_BUILDING_TEMPLATES.find((template) => template.id === templateId) || null;
+}
+
+// True kung magkatugma ang OPEN interior floor size ng isang Lot at ang
+// kailangan ng isang template - ang TANGING bagay na pumipigil sa isang
+// template na ilapat kahit saang Lot (parehong-pareho naman ang Exterior
+// footprint sa LAHAT ng Lot, 10x8, kaya iyon ay hindi problema).
+function getBuilderTemplateFit(house, template) {
+  return (
+    house.interiorTilesWide === template.interiorTilesWide &&
+    house.interiorTilesTall === template.interiorTilesTall
+  );
+}
 
 // Ibabalik na gold kapag "Sell"/gibain ang isang bahay (80% ng
 // TALAGANG binayaran para sa Lot nito - hiling ng user: "- 20%").
@@ -171,14 +277,171 @@ let customHouseIdCounter = 0;
 
 const BUILDER_SAVE_KEY = "tralala.customHouses.v1";
 
+// =========================
+// IMAGE ASSET STORE (fixes: houses disappearing after Save -> Load)
+// =========================
+// ROOT CAUSE: every "Save" creates a brand-new slot (by design), and
+// each slot used to embed a full copy of every house's exterior AND
+// interior PNG (as base64 text) directly inside it. A single house's
+// artwork can be a few hundred KB - saving repeatedly (which is exactly
+// what testing/iterating does) multiplies that same data across every
+// slot, and it is very easy to blow past the browser's ~5MB localStorage
+// quota after just a handful of saves. Once that happens, the slot
+// write silently fails (or, in a worse case, throws partway through) -
+// the next "Load" then finds no house data at all, which matches
+// exactly what was reported: houses are fine right after building them,
+// but vanish after Save -> Load.
+//
+// FIX: house artwork (the big base64 strings) is no longer embedded
+// inline in the house record. Instead each image is written ONCE to
+// its own key (BUILDER_ASSET_KEY_PREFIX + assetId), and the house
+// record only keeps a small reference (`exteriorAssetId`/
+// `interiorAssetId`). Saving 10 times no longer multiplies the image
+// data 10x - the image bytes exist exactly once, no matter how many
+// save slots reference them. `exteriorImageDataURL`/`interiorImageDataURL`
+// still exist on the in-memory house object exactly as before (nothing
+// else in the codebase needs to change) - they are simply rehydrated
+// from the asset store on load instead of being persisted directly.
+const BUILDER_ASSET_KEY_PREFIX = "tralala.customHouseAsset.v1.";
+
+function builderAssetKey(assetId) {
+  return BUILDER_ASSET_KEY_PREFIX + assetId;
+}
+
+let builderAssetIdCounter = 0;
+
+function generateBuilderAssetId() {
+  builderAssetIdCounter++;
+
+  return Date.now() + "_" + builderAssetIdCounter + "_" + Math.floor(Math.random() * 100000);
+}
+
+// Writes one image to its own key and returns the new assetId, or
+// `null` if it could not be written (storage full/blocked) - callers
+// should leave the house's existing image untouched in that case
+// rather than losing it.
+function saveBuilderAsset(dataUrl) {
+  const assetId = generateBuilderAssetId();
+
+  try {
+    localStorage.setItem(builderAssetKey(assetId), dataUrl);
+
+    return assetId;
+  } catch (err) {
+    console.error("Could not save house artwork (storage may be full):", err);
+
+    if (typeof showFloatingMessage === "function") {
+      showFloatingMessage("STORAGE FULL - could not save that image! Delete an old save slot first.");
+    }
+
+    return null;
+  }
+}
+
+function loadBuilderAsset(assetId) {
+  if (!assetId) return null;
+
+  try {
+    return localStorage.getItem(builderAssetKey(assetId));
+  } catch (err) {
+    return null;
+  }
+}
+
+function deleteBuilderAsset(assetId) {
+  if (!assetId) return;
+
+  try {
+    localStorage.removeItem(builderAssetKey(assetId));
+  } catch (err) {
+    // Not critical.
+  }
+}
+
+// Lists every asset key currently on disk - used by "Reset the game"
+// (settings-menu.js) to make sure a full reset really does clear
+// uploaded artwork too, and by Export (also settings-menu.js) to
+// re-embed images into a portable save file.
+function getAllBuilderAssetKeys() {
+  const keys = [];
+
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+
+      if (key && key.indexOf(BUILDER_ASSET_KEY_PREFIX) === 0) keys.push(key);
+    }
+  } catch (err) {
+    // Not critical.
+  }
+
+  return keys;
+}
+
 function saveCustomHouses() {
   try {
+    // MIGRATION SAFETY NET: a house built with an OLDER version of this
+    // code (before images were split into their own asset keys) still
+    // has its image directly on `exteriorImageDataURL`/
+    // `interiorImageDataURL`, with NO `exteriorAssetId`/`interiorAssetId`
+    // yet. If we just stripped those two fields below like normal, that
+    // image would be thrown away with nothing left to recover it from -
+    // the house would come back with a blank Exterior/Interior (or the
+    // whole house could look "gone" once its picture disappears). So:
+    // for any house that has embedded image data but no asset id yet,
+    // migrate it into the asset store right here, once, before slimming.
+    //
+    // EXCEPTION - a Building-template house (`house.templateId` set, see
+    // applyBuilderTemplateToHouse) has its `exteriorImageDataURL`/
+    // `interiorImageDataURL` pointing at a small STATIC asset path
+    // (assets/builder-templates/...), not a big base64 upload - there is
+    // nothing to "migrate", it costs nothing to keep those two fields as
+    // plain strings, and routing them through the asset store would just
+    // waste an asset key on a path that's already tiny.
+    for (const house of customHouses) {
+      if (house.templateId) continue;
+
+      if (house.exteriorImageDataURL && !house.exteriorAssetId) {
+        const assetId = saveBuilderAsset(house.exteriorImageDataURL);
+
+        if (assetId) house.exteriorAssetId = assetId;
+      }
+      if (house.interiorImageDataURL && !house.interiorAssetId) {
+        const assetId = saveBuilderAsset(house.interiorImageDataURL);
+
+        if (assetId) house.interiorAssetId = assetId;
+      }
+    }
+
+    // Only the SMALL fields are persisted here - `exteriorImageDataURL`/
+    // `interiorImageDataURL` are deliberately left out for CUSTOM houses
+    // (see the "IMAGE ASSET STORE" comment above); they live in their own
+    // asset keys and get rehydrated by loadCustomHouses(). This keeps
+    // BUILDER_SAVE_KEY itself small no matter how much artwork has been
+    // uploaded. Template houses are the one exception - their image
+    // fields are cheap static paths, so they're kept as-is (and there is
+    // no assetId to rehydrate from for them anyway).
+    const slimHouses = customHouses.map((house) => {
+      if (house.templateId) return house;
+
+      const { exteriorImageDataURL, interiorImageDataURL, ...rest } = house;
+
+      return rest;
+    });
+
     localStorage.setItem(
       BUILDER_SAVE_KEY,
-      JSON.stringify({ idCounter: customHouseIdCounter, houses: customHouses }),
+      JSON.stringify({ idCounter: customHouseIdCounter, houses: slimHouses }),
     );
+    return true;
   } catch (err) {
-    console.error("Hindi na-save ang mga custom house (baka puno na ang storage):", err);
+    console.error("Could not save custom houses (storage may be full):", err);
+
+    if (typeof showFloatingMessage === "function") {
+      showFloatingMessage("STORAGE FULL - could not save your houses! Delete an old save slot first.");
+    }
+
+    return false;
   }
 }
 
@@ -203,6 +466,33 @@ function ensureCustomHouseImagesLoaded(house) {
   }
 }
 
+// Instantly gives a house BOTH its Exterior AND Interior from a pre-made
+// Building template (Coffee Shop/Tavern/etc, see BUILDER_BUILDING_TEMPLATES
+// above) - no upload needed. Re-uses the exact same fields/pipeline as a
+// manual custom upload (`exteriorImageDataURL`/`interiorImageDataURL` just
+// hold the template's static asset path here instead of a data: URL - both
+// work identically everywhere else in the codebase, since drawing/minimap/
+// door-registration all just do `img.src = house.exteriorImageDataURL`
+// without caring whether that's a path or a data: URL).
+function applyBuilderTemplateToHouse(house, template) {
+  house.templateId = template.id;
+  house.doorPosition = template.doorPosition;
+  house.exteriorImageDataURL = template.exteriorImagePath;
+  house.interiorImageDataURL = template.interiorImagePath;
+
+  // Clear both custom-house image fields, matching the migration-safety-net
+  // in saveCustomHouses() - a template house should NEVER carry an asset
+  // store reference (its art isn't a user upload, so it isn't persisted as
+  // one either - see the template special-case in saveCustomHouses).
+  delete house.exteriorAssetId;
+  delete house.interiorAssetId;
+
+  delete customHouseExteriorImages[house.id];
+  delete customHouseInteriorImages[house.id];
+  ensureCustomHouseImagesLoaded(house);
+  saveCustomHouses();
+}
+
 // LUMANG saved house (bago pa ang door-position feature) - walang pang
 // `doorPosition` field, kaya "bottom-center" na lang (ang dating
 // FIXED/tanging posisyon) ang ipapalagay dito - walang mababago sa
@@ -224,15 +514,29 @@ function loadCustomHouses() {
 
     for (const house of customHouses) {
       normalizeCustomHouseDoorPositions(house);
+
+      // Rehydrate the actual image data from the asset store (see the
+      // "IMAGE ASSET STORE" comment above) - the saved house record only
+      // has the small `exteriorAssetId`/`interiorAssetId` references.
+      // BUGFIX: only OVERWRITE with the asset-store lookup when an
+      // assetId actually exists - a house saved by an OLDER version of
+      // this code (before the asset store existed) still has its image
+      // directly embedded as `exteriorImageDataURL`/`interiorImageDataURL`
+      // with no assetId yet; blindly overwriting those fields with
+      // `loadBuilderAsset(undefined)` (which is always null) would erase
+      // that legacy artwork outright. Leaving the embedded value alone
+      // here means saveCustomHouses()'s migration step (see there) gets
+      // a chance to move it into the asset store on the next save.
+      if (house.exteriorAssetId) house.exteriorImageDataURL = loadBuilderAsset(house.exteriorAssetId);
+      if (house.interiorAssetId) house.interiorImageDataURL = loadBuilderAsset(house.interiorAssetId);
+
       ensureCustomHouseImagesLoaded(house);
     }
   } catch (err) {
-    console.error("Hindi na-load ang mga custom house:", err);
+    console.error("Could not load custom houses:", err);
     customHouses = [];
   }
 }
-
-loadCustomHouses();
 
 // AYOS (hiling ng user): "sample muna lagyan mo ako ng gold na
 // 100,000" - para MADALING masubukan/ma-test ang buong Lot/Exterior/
@@ -244,6 +548,41 @@ loadCustomHouses();
 // na kailangan ang testing/sample na gold na ito.
 if (typeof goldCollected !== "undefined") {
   goldCollected = 100000;
+}
+
+// =========================
+// LAMP/WINDOW GLOW NG MGA BUILDING TEMPLATE (hiling ng user: "yung
+// coffeeshop at tavern kapag gabi na is meron ilaw yung mga lamp nila
+// at yung window") - ibinabalik ang mga WORLD-SPACE na punto (base sa
+// house.col/row + ang `lightPoints` ng template nito, tingnan
+// BUILDER_BUILDING_TEMPLATES) para sa lahat ng bahay na (a) nasa
+// KASALUKUYANG mundo, at (b) may template na TALAGANG may `lightPoints`
+// (custom/manual na Exterior ay wala nito - walang alam ang code kung
+// saan dapat lumitaw ang ilaw sa isang larawang ini-upload lang ng
+// manlalaro). Ginagamit ito ni drawCustomHouseLights (atmosphere.js).
+// =========================
+function getCustomHouseLightPoints() {
+  if (typeof currentWorld === "undefined") return [];
+
+  const points = [];
+
+  for (const house of customHouses) {
+    if (house.world !== currentWorld) continue;
+    if (!house.templateId) continue;
+
+    const template = getBuilderTemplateById(house.templateId);
+
+    if (!template || !Array.isArray(template.lightPoints)) continue;
+
+    const houseX = house.col * TILE_SIZE;
+    const houseY = house.row * TILE_SIZE;
+
+    for (const point of template.lightPoints) {
+      points.push({ x: houseX + point.x, y: houseY + point.y });
+    }
+  }
+
+  return points;
 }
 
 // =========================
@@ -291,9 +630,14 @@ function getCustomHouseDrawables() {
             ctx.font = "9px sans-serif";
             ctx.fillStyle = "white";
             ctx.textAlign = "center";
-            ctx.fillText("Lot (walang Exterior)", boxX + boxWidth / 2, boxY + boxHeight / 2);
+            ctx.fillText("Lot (no Exterior)", boxX + boxWidth / 2, boxY + boxHeight / 2);
             ctx.restore();
           }
+
+          // AYOS (hiling ng user: "may label sa taas ng house dapat wag
+          // mo na lagyan ng label sa mismong [mapa], process lang kay
+          // joseph") - WALANG pangalan na nakasulat dito sa mapa - sa
+          // mga panel/listahan na lang kay Joseph ito lumalabas.
         },
       };
     });
@@ -325,18 +669,18 @@ function getCustomHouseDrawables() {
 // downloadBuilderTemplate) kaya GARANTISADO pa ring magkatugma ang
 // lahat, kahit anong pader/posisyon ang piniling.
 const BUILDER_DOOR_POSITIONS = [
-  { id: "top-left", label: "Itaas-Kaliwa", wall: "top", align: "start" },
-  { id: "top-center", label: "Itaas-Gitna", wall: "top", align: "center" },
-  { id: "top-right", label: "Itaas-Kanan", wall: "top", align: "end" },
-  { id: "left-top", label: "Kaliwa-Itaas", wall: "left", align: "start" },
-  { id: "left-center", label: "Kaliwa-Gitna", wall: "left", align: "center" },
-  { id: "left-bottom", label: "Kaliwa-Ibaba", wall: "left", align: "end" },
-  { id: "bottom-left", label: "Ibaba-Kaliwa", wall: "bottom", align: "start" },
-  { id: "bottom-center", label: "Ibaba-Gitna", wall: "bottom", align: "center" },
-  { id: "bottom-right", label: "Ibaba-Kanan", wall: "bottom", align: "end" },
-  { id: "right-top", label: "Kanan-Itaas", wall: "right", align: "start" },
-  { id: "right-center", label: "Kanan-Gitna", wall: "right", align: "center" },
-  { id: "right-bottom", label: "Kanan-Ibaba", wall: "right", align: "end" },
+  { id: "top-left", label: "Top-Left", wall: "top", align: "start" },
+  { id: "top-center", label: "Top-Center", wall: "top", align: "center" },
+  { id: "top-right", label: "Top-Right", wall: "top", align: "end" },
+  { id: "left-top", label: "Left-Top", wall: "left", align: "start" },
+  { id: "left-center", label: "Left-Center", wall: "left", align: "center" },
+  { id: "left-bottom", label: "Left-Bottom", wall: "left", align: "end" },
+  { id: "bottom-left", label: "Bottom-Left", wall: "bottom", align: "start" },
+  { id: "bottom-center", label: "Bottom-Center", wall: "bottom", align: "center" },
+  { id: "bottom-right", label: "Bottom-Right", wall: "bottom", align: "end" },
+  { id: "right-top", label: "Right-Top", wall: "right", align: "start" },
+  { id: "right-center", label: "Right-Center", wall: "right", align: "center" },
+  { id: "right-bottom", label: "Right-Bottom", wall: "right", align: "end" },
 ];
 
 const BUILDER_DEFAULT_DOOR_POSITION = "bottom-center";
@@ -494,6 +838,79 @@ function getBuilderFootprintCollisionBoxes(colPx, rowPx, tilesWide, tilesTall, d
   return boxes;
 }
 
+// =========================
+// "WALKABLE" NA BUBONG - ITAAS NA 2 ROW NG EXTERIOR, WALANG COLLISION
+// =========================
+// AYOS (hiling ng user): "yung sa 10x8 diba gusto ko sa 8 is 6 lang
+// may collisions yung 2 sa taas na pang 8 is walang collisions" -
+// dating BUONG 10x8 na footprint ang solid (minus lang ang notch ng
+// pintuan), kaya hindi ka makakalakad sa LIKOD ng bahay. Ngayon, ang
+// ITAAS na 2 row ay BUKAS/walkable (bubong/likod ng bahay) - 6 na row
+// na lang sa ibaba ang TALAGANG may collision.
+//
+// TANDAAN: PAGGUHIT/placement lang ang naiiba dito - ang FOOTPRINT pa
+// rin (buong 10x8) ang ginagamit para sa (a) pag-check kung pwedeng
+// itayo doon ang bagong Lot, at (b) pagtatago ng puno/bato sa ilalim
+// (isTileCoveredByCustomHouse) - COLLISION lang talaga ang binago.
+const BUILDER_EXTERIOR_OPEN_TOP_ROWS = 2;
+
+// Ginugupit (clip) ang isang listahan ng box para MANATILI LANG ang
+// bahaging nasa SOLID na rehiyon (mula sa row `openTopRows` pababa) -
+// ginagawa itong GENERIC/clip sa halip na muling kalkulahin ang hugis,
+// para GARANTISADONG tama pa rin ito sa LAHAT ng 12 posisyon ng
+// pintuan (kasama na ang mga nasa "top"/"left"/"right" na pader).
+function clipBuilderBoxesToSolidRows(boxes, rowPx, tilesTall, openTopRows) {
+  const solidTopY = rowPx + Math.min(openTopRows, tilesTall) * TILE_SIZE;
+  const solidBottomY = rowPx + tilesTall * TILE_SIZE;
+  const clipped = [];
+
+  for (const box of boxes) {
+    const top = Math.max(box.y, solidTopY);
+    const bottom = Math.min(box.y + box.height, solidBottomY);
+
+    if (bottom - top <= 0) continue;
+
+    clipped.push({ x: box.x, y: top, width: box.width, height: bottom - top });
+  }
+
+  return clipped;
+}
+
+// Ang TALAGANG collision shape ng isang EXTERIOR na bahay: buong
+// footprint MINUS ang notch ng pintuan, MINUS pa ang bukas na itaas na
+// 2 row. IISANG function na lang ang gamit ng LAHAT (mapa, at ang
+// bughaw na guide sa Template) - kaya EKSAKTONG magkatugma ang nakikita
+// mo sa Template at ang TALAGANG nararamdaman sa laro.
+function getBuilderExteriorCollisionBoxes(colPx, rowPx, tilesWide, tilesTall, doorPosition) {
+  return clipBuilderBoxesToSolidRows(
+    getBuilderFootprintCollisionBoxes(colPx, rowPx, tilesWide, tilesTall, doorPosition),
+    rowPx,
+    tilesTall,
+    BUILDER_EXTERIOR_OPEN_TOP_ROWS,
+  );
+}
+
+// BUONG footprint (walang notch, walang clip) - para sa PLACEMENT lang
+// (isBuilderTileFree) - kung ang clipped na collision ang gagamitin
+// doon, PWEDENG MAG-OVERLAP ang bagong Lot sa bubong ng dati nang
+// bahay (dahil "libre" na nga ang itaas na 2 row).
+function getCustomHouseFootprintBoxes(worldName) {
+  const boxes = [];
+
+  for (const house of customHouses) {
+    if (house.world !== worldName) continue;
+
+    boxes.push({
+      x: house.col * TILE_SIZE,
+      y: house.row * TILE_SIZE,
+      width: house.tilesWide * TILE_SIZE,
+      height: house.tilesTall * TILE_SIZE,
+    });
+  }
+
+  return boxes;
+}
+
 // AYOS (hiling ng user): "wag mo na ipunta sa mismong map yung
 // character dapat dun parin sa place ni joseph" - tumatanggap na ito
 // ng EXPLICIT na worldName (dating basta currentWorld lang, na
@@ -513,7 +930,7 @@ function getCustomHouseCollisionBoxes(worldName) {
     if (house.world !== targetWorld) continue;
 
     boxes.push(
-      ...getBuilderFootprintCollisionBoxes(
+      ...getBuilderExteriorCollisionBoxes(
         house.col * TILE_SIZE,
         house.row * TILE_SIZE,
         house.tilesWide,
@@ -587,7 +1004,10 @@ function isBuilderTileFree(worldName, col, row) {
     }
   }
 
-  if (getCustomHouseCollisionBoxes(worldName).some((box) => isColliding(tileBox, box))) {
+  // AYOS: BUONG footprint ang tinitingnan dito (hindi ang collision
+  // shape) - tingnan ang getCustomHouseFootprintBoxes sa itaas, dahil
+  // "libre" na ngayon ang itaas na 2 row ng bawat bahay.
+  if (getCustomHouseFootprintBoxes(worldName).some((box) => isColliding(tileBox, box))) {
     return false;
   }
 
@@ -607,24 +1027,39 @@ function isBuilderFootprintFree(worldName, col, row, tilesWide, tilesTall) {
 }
 
 // =========================
-// "MAP PICKER" - PUMILI NG MUNDO (Grassmap/Grassmap2), TAPOS BUONG
-// MAPA NA NAKA-ZOOM-OUT PARA MAKITA/MAPILI KUNG SAAN ILALAGAY (hiling
-// ng user: "lilitaw yung na grassmap or grassmap2 tapos kapag pindot
-// sa isa don lilitaw yung buong map... naka zoom out")
+// PANGALAN NG LOT (hiling ng user: "sana yung kapag may lots bago
+// bumili is may lalabas na pwede kong ilagay na name tyaka magpunta sa
+// map at mailagay")
 // =========================
 //
-// AYOS: dating "armed" na mode ito (i-close ang panel, i-click ang
-// TALAGANG canvas ng laro sa KASALUKUYANG zoom/posisyon) - TINANGGAL
-// na ito, PALIT sa isang HIWALAY na "picker" na canvas (hindi ang
-// canvas ng laro): (1) piliin muna ang mundo, (2) i-LOAD (loadWorld)
-// iyon kung hindi pa ito ang currentWorld (para TALAGANG TAMA ang
-// collision data), (3) iguhit ang BUONG larawan ng mundong iyon
-// (parehong Image na ginagamit na ng minimap.js - MINIMAP_WORLD_
-// BACKGROUND_IMAGES) naka-SCALE/"contain"-fit sa loob ng modal (kaya
-// "naka-zoom-out"/nakalatag ang buong mapa) - MOUSEMOVE/CLICK dito
-// (hindi sa TALAGANG canvas ng laro) ang gagamitin para pumili ng
-// eksaktong (col,row).
-function openBuilderWorldPicker(lotSize) {
+// DALOY: Lots tab -> pindutin ang presyo -> PANGALAN -> Map Picker ->
+// i-click ang lugar -> Exterior -> Interior. Ang pangalan ay dala-dala
+// lang sa buong daloy (hindi pa nase-save hangga't hindi TALAGANG
+// naitayo ang bahay) - kaya kung isasara mo ang alinman sa mga screen,
+// walang mababawas na gold at walang maiiwang basura.
+const BUILDER_LOT_NAME_MAX_LENGTH = 20;
+
+// Pinapayat ang sunod-sunod na espasyo at pinuputol sa max length -
+// hindi ito nagbabawal ng emoji/anumang karakter, gusto lang natin na
+// laging kasya ang label sa mga listahan.
+function sanitizeBuilderLotName(value) {
+  return String(value == null ? "" : value)
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, BUILDER_LOT_NAME_MAX_LENGTH);
+}
+
+// Ang IPAPAKITANG pangalan ng isang bahay - may fallback para sa mga
+// LUMANG naitayo na (bago pa ang feature na ito, walang `name` field)
+// at para sa mga blangkong sinagot ng user.
+function getCustomHouseName(house) {
+  const name = house && typeof house.name === "string" ? house.name.trim() : "";
+
+  return name || "Unnamed";
+}
+
+// Screen 1 ng pagbili - pangalan muna bago ang mapa.
+function openBuilderLotNameDialog(lotSize) {
   closeBuilderPanel();
 
   const overlay = document.createElement("div");
@@ -638,14 +1073,17 @@ function openBuilderWorldPicker(lotSize) {
   const header = document.createElement("div");
 
   header.className = "builder-panel-header";
-  header.innerHTML = "<span>Pumili ng Mundo</span>";
+  header.innerHTML = "<span>Name the Lot</span>";
 
   const closeBtn = document.createElement("button");
 
   closeBtn.type = "button";
   closeBtn.className = "builder-panel-close";
-  closeBtn.textContent = "✕";
-  closeBtn.addEventListener("click", () => overlay.remove());
+  closeBtn.textContent = "\u2715";
+  closeBtn.addEventListener("click", () => {
+    overlay.remove();
+    openBuilderPanel();
+  });
   header.appendChild(closeBtn);
 
   const body = document.createElement("div");
@@ -656,41 +1094,116 @@ function openBuilderWorldPicker(lotSize) {
 
   hint.className = "builder-panel-hint";
   hint.textContent =
-    "Saang mundo mo gustong itayo ang Lot na ito (Exterior " +
-    BUILDER_EXTERIOR_TILES_WIDE +
-    "x" +
-    BUILDER_EXTERIOR_TILES_TALL +
-    ", Interior " +
-    lotSize.interiorTilesWide +
-    "x" +
-    lotSize.interiorTilesTall +
-    ")?";
+    "What do you want to call this house (" +
+    lotSize.label +
+    ", \ud83e\ude99" +
+    lotSize.price +
+    ")? The name only shows up in Joseph's lists - nothing is written on the map itself. After this, you will choose where to build it - the gold is only deducted once you place it there.";
   body.appendChild(hint);
 
-  const worldOptions = [
-    { id: "grassmap", label: "Grassmap" },
-    { id: "grassmap2", label: "Grassmap 2" },
-  ];
+  const form = document.createElement("div");
 
-  for (const option of worldOptions) {
-    const btn = document.createElement("button");
+  form.className = "builder-name-form";
 
-    btn.type = "button";
-    btn.className = "builder-buy-btn builder-world-choice-btn";
-    btn.textContent = option.label;
-    btn.addEventListener("click", () => {
-      overlay.remove();
-      openBuilderMapPicker(option.id, lotSize);
-    });
+  const label = document.createElement("label");
 
-    body.appendChild(btn);
-  }
+  label.textContent = "Pangalan";
+
+  const input = document.createElement("input");
+
+  input.type = "text";
+  input.className = "builder-name-input";
+  input.maxLength = BUILDER_LOT_NAME_MAX_LENGTH;
+  input.placeholder = "e.g. Ana's House";
+
+  // BUGFIX (hiling ng user: "di nag fufunction yung wasd") - kapag
+  // hawak mo pa ang W/A/S/D nang mag-click ka rito, mananatili silang
+  // "naka-hawak" (walang keyup na darating habang naka-focus ang
+  // input) - kaya binubura natin sila sa sandaling mag-focus dito.
+  // Ang MISMONG pag-type naman ay inaayos na ng isTypingInTextField
+  // (input.js) - doon nagmumula ang tunay na bug.
+  input.addEventListener("focus", () => {
+    if (typeof clearHeldKeys === "function") clearHeldKeys();
+  });
+
+  label.appendChild(input);
+  form.appendChild(label);
+  body.appendChild(form);
+
+  const actions = document.createElement("div");
+
+  actions.className = "builder-lot-actions";
+
+  const backBtn = document.createElement("button");
+
+  backBtn.type = "button";
+  backBtn.className = "builder-secondary-btn";
+  backBtn.textContent = "Back";
+  backBtn.addEventListener("click", () => {
+    overlay.remove();
+    openBuilderPanel();
+  });
+
+  const nextBtn = document.createElement("button");
+
+  nextBtn.type = "button";
+  nextBtn.className = "builder-buy-btn";
+  nextBtn.textContent = "Choose on Map \u2192";
+
+  const proceed = () => {
+    const lotName = sanitizeBuilderLotName(input.value);
+
+    if (!lotName) {
+      input.focus();
+
+      if (typeof showFloatingMessage === "function") {
+        showFloatingMessage("Enter a name for the house first.");
+      }
+      return;
+    }
+
+    overlay.remove();
+    // AYOS (hiling ng user: "dapat pag confirm is mag map na") - dating
+    // may HIWALAY pang "Pumili ng Mundo" na screen dito - TINANGGAL na,
+    // nakalagay na lang ang pagpili ng Grassmap/Grassmap 2 sa MISMONG
+    // taas ng Map Picker (isang pindot, hindi na dagdag na screen).
+    openBuilderMapPicker(BUILDER_DEFAULT_PLACEMENT_WORLD, lotSize, lotName);
+  };
+
+  nextBtn.addEventListener("click", proceed);
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      proceed();
+    }
+  });
+
+  actions.appendChild(backBtn);
+  actions.appendChild(nextBtn);
+  body.appendChild(actions);
 
   panel.appendChild(header);
   panel.appendChild(body);
   overlay.appendChild(panel);
   document.body.appendChild(overlay);
+
+  input.focus();
 }
+
+// =========================
+// "MAP PICKER" - BUONG MAPA NA NAKA-ZOOM-OUT, PILIIN KUNG SAAN ILALAGAY
+// =========================
+//
+// AYOS (hiling ng user: "dapat pag confirm is mag map na") - dating may
+// hiwalay pang screen para pumili ng mundo bago ito - NASA LOOB NA ITO
+// ngayon (mga buton sa itaas ng mapa), kaya DIRETSO na dito galing sa
+// pangalanan-screen.
+const BUILDER_DEFAULT_PLACEMENT_WORLD = "grassmap";
+
+const BUILDER_PLACEMENT_WORLD_OPTIONS = [
+  { id: "grassmap", label: "Grassmap" },
+  { id: "grassmap2", label: "Grassmap 2" },
+];
 
 // Kinukuha ang PAREHONG buong-mapa na Image na ginagamit na ng
 // minimap.js (MINIMAP_WORLD_BACKGROUND_IMAGES) - iisang eksaktong
@@ -717,13 +1230,13 @@ function getBuilderMapPickerImage(worldName) {
 // buong Picker (tingnan ang getBuilderWorldTileSize/
 // getCustomHouseCollisionBoxes(worldName) sa itaas) - hindi na
 // kailangang kumilos ang player, manatili siyang kasama ni Joseph.
-function openBuilderMapPicker(worldName, lotSize) {
+function openBuilderMapPicker(worldName, lotSize, lotName) {
   const bgImage = getBuilderMapPickerImage(worldName);
   const size = getBuilderWorldTileSize(worldName);
 
   if (!bgImage || !size) {
     if (typeof showFloatingMessage === "function") {
-      showFloatingMessage("Hindi pa handa ang larawan ng mapa - subukan ulit.");
+      showFloatingMessage("The map image is not ready yet - try again.");
     }
     return;
   }
@@ -743,7 +1256,9 @@ function openBuilderMapPicker(worldName, lotSize) {
 
   header.className = "builder-panel-header";
   header.innerHTML =
-    "<span>I-click ang gustong lugar (" +
+    "<span>" +
+    (lotName ? lotName + " - " : "") +
+    "click where you want to build (" +
     BUILDER_EXTERIOR_TILES_WIDE +
     "x" +
     BUILDER_EXTERIOR_TILES_TALL +
@@ -757,11 +1272,37 @@ function openBuilderMapPicker(worldName, lotSize) {
   closeBtn.addEventListener("click", () => overlay.remove());
   header.appendChild(closeBtn);
 
+  // AYOS (hiling ng user) - dito na ang pagpili ng mundo (dating
+  // hiwalay na screen bago pa mapunta dito) - kapag ibang mundo ang
+  // pinindot, muling binubuksan lang ang PAREHONG picker para sa
+  // mundong iyon (dala pa rin ang lotSize/lotName).
+  const worldTabs = document.createElement("div");
+
+  worldTabs.className = "builder-panel-tabs";
+
+  for (const option of BUILDER_PLACEMENT_WORLD_OPTIONS) {
+    const worldBtn = document.createElement("button");
+
+    worldBtn.type = "button";
+    worldBtn.className = "builder-panel-tab-btn";
+    worldBtn.textContent = option.label;
+    worldBtn.classList.toggle("active", option.id === worldName);
+    worldBtn.addEventListener("click", () => {
+      if (option.id === worldName) return;
+
+      overlay.remove();
+      openBuilderMapPicker(option.id, lotSize, lotName);
+    });
+
+    worldTabs.appendChild(worldBtn);
+  }
+
   const pickerCanvas = document.createElement("canvas");
 
   pickerCanvas.className = "builder-map-picker-canvas";
 
   panel.appendChild(header);
+  panel.appendChild(worldTabs);
   panel.appendChild(pickerCanvas);
   overlay.appendChild(panel);
   document.body.appendChild(overlay);
@@ -858,13 +1399,13 @@ function openBuilderMapPicker(worldName, lotSize) {
       )
     ) {
       if (typeof showFloatingMessage === "function") {
-        showFloatingMessage("May bumabara dito - pumili ng ibang lugar.");
+        showFloatingMessage("Something is blocking this spot - pick another location.");
       }
       return;
     }
 
     if (typeof goldCollected !== "undefined" && goldCollected < lotSize.price) {
-      if (typeof showFloatingMessage === "function") showFloatingMessage("Kulang ang gold mo.");
+      if (typeof showFloatingMessage === "function") showFloatingMessage("You do not have enough gold.");
       overlay.remove();
       return;
     }
@@ -875,6 +1416,10 @@ function openBuilderMapPicker(worldName, lotSize) {
 
     const house = {
       id: customHouseIdCounter,
+      // AYOS (hiling ng user) - pangalan na inilagay sa unang screen ng
+      // pagbili (openBuilderLotNameDialog) - nase-save kasama ng iba
+      // pang detalye ng bahay (saveCustomHouses).
+      name: sanitizeBuilderLotName(lotName),
       world: worldName,
       col: tile.col,
       row: tile.row,
@@ -895,6 +1440,17 @@ function openBuilderMapPicker(worldName, lotSize) {
 
     if (typeof syncHotbarUI === "function") syncHotbarUI();
 
+    // AYOS (hiling ng user: "kapag mag lapat ako ng lots at malapag na sa
+    // map lilipat yung tab sa building") - dating diretso sa Exterior
+    // (door picker) ang bagong-lapag na Lot. AYOS ULIT (hiling ng user):
+    // baligtad na ang daloy - Building STYLE (Coffee Shop/Tavern) muna
+    // ang pinipili, SAKA lang Lot - kaya dito, ang Building panel ang
+    // basta binubuksan (top-level, listahan ng STYLE), HINDI na diretso
+    // sa isang partikular na Lot picker (mismong bagong-lapag na Lot na
+    // ito ang lalabas mismo sa listahan ng Lot sa susunod na screen).
+    builderPanelTab = "building";
+    openBuilderPanel();
+
     // AYOS (hiling ng user): "wag mo na ipunta sa mismong map yung
     // character... puntahan ko na lang yung bahay after matapos yung
     // gusto ko kay Joseph, alisin mo na rin yung fade out and in" -
@@ -902,7 +1458,7 @@ function openBuilderMapPicker(worldName, lotSize) {
     // manatili na lang ang player kung nasaan man siya (kasama ni
     // Joseph), lalapitan na lang niya mismo ang bahay balang araw.
     if (typeof showFloatingMessage === "function") {
-      showFloatingMessage("Naitayo ang Lot! I-upload na ang Exterior/Interior kay Joseph.");
+      showFloatingMessage("Built \"" + getCustomHouseName(house) + "\"!");
     }
   });
 
@@ -966,7 +1522,9 @@ function sellCustomHouse(house) {
   if (typeof syncHotbarUI === "function") syncHotbarUI();
 
   if (typeof showFloatingMessage === "function") {
-    showFloatingMessage("Naibenta ang bahay - +" + refund + " gold.");
+    showFloatingMessage(
+      "Sold \"" + getCustomHouseName(house) + "\" - +" + refund + " gold.",
+    );
   }
 }
 
@@ -1595,7 +2153,7 @@ function downloadBuilderTemplate(tilesWide, tilesTall, doorPosition, kind) {
 
   const collisionRects = isInterior
     ? buildBuilderPerimeterWallRects(tilesWide, tilesTall, doorPosition)
-    : getBuilderFootprintCollisionBoxes(0, 0, tilesWide, tilesTall, doorPosition);
+    : getBuilderExteriorCollisionBoxes(0, 0, tilesWide, tilesTall, doorPosition);
 
   templateCtx.fillStyle = "rgba(40, 110, 220, 0.45)";
   templateCtx.strokeStyle = "rgba(20, 70, 180, 0.9)";
@@ -1686,7 +2244,7 @@ function downloadBuilderTemplate(tilesWide, tilesTall, doorPosition, kind) {
           .share({ files: [shareFile], title: "Template" })
           .then(() => {
             if (typeof showFloatingMessage === "function") {
-              showFloatingMessage("Piliin kung saan i-se-save/ipadala ang Template. 📤");
+              showFloatingMessage("Choose where to save/send the Template. 📤");
             }
           })
           .catch((error) => {
@@ -1696,7 +2254,7 @@ function downloadBuilderTemplate(tilesWide, tilesTall, doorPosition, kind) {
             if (error?.name === "AbortError") return;
 
             if (typeof showFloatingMessage === "function") {
-              showFloatingMessage("Hindi ma-download ang Template. 😕");
+              showFloatingMessage("Could not download the Template. 😕");
             }
           });
         return;
@@ -1730,7 +2288,7 @@ function downloadBuilderTemplate(tilesWide, tilesTall, doorPosition, kind) {
     URL.revokeObjectURL(url);
   } catch (err) {
     if (typeof showFloatingMessage === "function") {
-      showFloatingMessage("Hindi ma-download ang Template. 😕");
+      showFloatingMessage("Could not download the Template. 😕");
     }
   }
 }
@@ -1770,7 +2328,7 @@ async function exportBuilderTemplateViaNativeShare(fileName, dataUrl) {
     });
 
     if (typeof showFloatingMessage === "function") {
-      showFloatingMessage("Na-save sa Downloads folder! 📥");
+      showFloatingMessage("Saved to your Downloads folder! 📥");
     }
 
     return;
@@ -1792,13 +2350,13 @@ async function exportBuilderTemplateViaNativeShare(fileName, dataUrl) {
     });
 
     await Share.share({
-      title: "I-save ang Template",
-      dialogTitle: "Saan mo gustong i-save/ipadala ang Template? (Piliin ang \"Files\"/\"Downloads\" para diretso sa Downloads folder)",
+      title: "Save the Template",
+      dialogTitle: "Where do you want to save/send the Template? (Choose \"Files\"/\"Downloads\" to go straight to your Downloads folder)",
       url: uri,
     });
 
     if (typeof showFloatingMessage === "function") {
-      showFloatingMessage("Piliin ang \"Save\"/\"Downloads\" para diretso sa Downloads folder. 📤");
+      showFloatingMessage("Choose \"Save\"/\"Downloads\" to go straight to your Downloads folder. 📤");
     }
   } catch (error) {
     // "Share cancelled" (kinansela lang ng user ang share sheet, hindi
@@ -1809,7 +2367,7 @@ async function exportBuilderTemplateViaNativeShare(fileName, dataUrl) {
     if (/cancel/i.test(message)) return;
 
     if (typeof showFloatingMessage === "function") {
-      showFloatingMessage("Hindi ma-download ang Template. 😕");
+      showFloatingMessage("Could not download the Template. 😕");
     }
   }
 }
@@ -1837,11 +2395,11 @@ function promptBuilderImageUpload(requiredWidthPx, requiredHeightPx, onSuccess) 
       img.onload = () => {
         if (img.naturalWidth !== requiredWidthPx || img.naturalHeight !== requiredHeightPx) {
           alert(
-            "Maling sukat ng larawan.\n\nKailangan: " +
+            "Wrong image size.\n\nRequired: " +
               requiredWidthPx +
               "x" +
               requiredHeightPx +
-              " px\nNa-upload: " +
+              " px\nUploaded: " +
               img.naturalWidth +
               "x" +
               img.naturalHeight +
@@ -1853,7 +2411,7 @@ function promptBuilderImageUpload(requiredWidthPx, requiredHeightPx, onSuccess) 
         onSuccess(dataUrl);
       };
 
-      img.onerror = () => alert("Hindi mabuksan ang larawan - siguraduhing PNG file.");
+      img.onerror = () => alert("Could not open that image - make sure it is a PNG file.");
       img.src = dataUrl;
     };
 
@@ -1876,7 +2434,12 @@ function closeBuilderPanel() {
   }
 }
 
-function openBuilderPanel() {
+// `afterOpen` (opsyonal) - tinatawag na dala ang BODY element sa
+// sandaling bukas na ang panel - ginagamit ng "guided" na daloy ng
+// pagbili (hiling ng user: pagkalapag sa mapa -> DIRETSO sa Exterior,
+// pagka-upload ng Exterior -> DIRETSO sa Interior) para hindi na
+// kailangan pang manwal na hanapin ang bahay sa listahan.
+function openBuilderPanel(afterOpen) {
   closeBuilderPanel();
 
   const overlay = document.createElement("div");
@@ -1909,6 +2472,7 @@ function openBuilderPanel() {
 
   const tabDefs = [
     { id: "lots", label: "Lots" },
+    { id: "building", label: "Building" },
     { id: "exterior", label: "Exterior" },
     { id: "interior", label: "Interior" },
     { id: "sell", label: "Sell" },
@@ -1949,12 +2513,15 @@ function openBuilderPanel() {
   builderPanelEl = overlay;
 
   renderBuilderPanelBody(body);
+
+  if (typeof afterOpen === "function") afterOpen(body);
 }
 
 function renderBuilderPanelBody(body) {
   body.innerHTML = "";
 
   if (builderPanelTab === "lots") renderBuilderLotsTab(body);
+  else if (builderPanelTab === "building") renderBuilderBuildingTab(body);
   else if (builderPanelTab === "exterior") renderBuilderExteriorTab(body);
   else if (builderPanelTab === "interior") renderBuilderInteriorTab(body);
   else renderBuilderSellTab(body);
@@ -1965,11 +2532,11 @@ function renderBuilderLotsTab(body) {
 
   intro.className = "builder-panel-hint";
   intro.textContent =
-    "Pumili ng laki ng Lot - pagkatapos, i-click ang gustong lugar sa Grassmap para itayo (kahit saan, basta walang bumabara). Parehong-pareho ang sukat ng Exterior (" +
+    "Choose a Lot size - then click where you want to build it on the Grassmap (anywhere, as long as nothing is in the way). The Exterior size is the same (" +
     BUILDER_EXTERIOR_TILES_WIDE +
     "x" +
     BUILDER_EXTERIOR_TILES_TALL +
-    " tiles) sa LAHAT ng laki - ang naiiba ay ang SUKAT NG LOOB (Interior) - mas mataas na presyo, mas malaki ang SILID sa loob, kahit magkapareho lang ang itsura sa labas.";
+    " tiles) for EVERY size - what differs is the ROOM SIZE (Interior) - the higher the price, the bigger the room inside, even though the outside looks the same.";
   body.appendChild(intro);
 
   for (const lot of BUILDER_LOT_SIZES) {
@@ -2001,7 +2568,7 @@ function renderBuilderLotsTab(body) {
       padded.wide +
       "x" +
       padded.tall +
-      " tiles, may kasamang pader)";
+      " tiles, walls included)";
 
     label.appendChild(sub);
 
@@ -2010,7 +2577,8 @@ function renderBuilderLotsTab(body) {
     buyBtn.type = "button";
     buyBtn.className = "builder-buy-btn";
     buyBtn.textContent = "🪙" + lot.price;
-    buyBtn.addEventListener("click", () => openBuilderWorldPicker(lot));
+    // AYOS (hiling ng user) - PANGALAN muna bago ang mapa.
+    buyBtn.addEventListener("click", () => openBuilderLotNameDialog(lot));
 
     row.appendChild(label);
     row.appendChild(buyBtn);
@@ -2047,7 +2615,7 @@ function renderBuilderHouseList(body, kind) {
     const empty = document.createElement("p");
 
     empty.className = "builder-panel-hint";
-    empty.textContent = "Wala ka pang Lot - bumili muna sa tab na 'Lots'.";
+    empty.textContent = "You do not have a Lot yet - buy one in the 'Lots' tab first.";
     body.appendChild(empty);
     return;
   }
@@ -2062,8 +2630,18 @@ function renderBuilderHouseList(body, kind) {
     const label = document.createElement("div");
 
     label.className = "builder-lot-label";
-    label.textContent =
+    // AYOS (hiling ng user) - PANGALAN na ang pangunahing label ngayon
+    // (mas madaling makilala kaysa "10x8 Lot (grassmap)" na pare-pareho
+    // ang itsura sa lahat) - nasa maliit na linya sa ibaba na lang ang
+    // sukat/mundo.
+    label.textContent = getCustomHouseName(house);
+
+    const where = document.createElement("div");
+
+    where.className = "builder-lot-sub";
+    where.textContent =
       house.tilesWide + "x" + house.tilesTall + " Lot (" + house.world + ")";
+    label.appendChild(where);
 
     const sub = document.createElement("div");
 
@@ -2074,21 +2652,21 @@ function renderBuilderHouseList(body, kind) {
         ? "May Exterior na (" +
           getBuilderDoorPositionDef(house.doorPosition).label +
           ") - i-click para baguhin."
-        : "Wala pang Exterior - i-click para piliin ang pintuan at mag-upload.";
+        : "No Exterior yet - click to choose the door and upload.";
     } else {
       const padded = getBuilderInteriorPaddedSize(house.interiorTilesWide, house.interiorTilesTall);
 
       sub.textContent = house.interiorImageDataURL
-        ? "May Interior na (" +
+        ? "Has an Interior (" +
           padded.wide +
           "x" +
           padded.tall +
-          " tiles, may extra pader) - i-click para palitan."
-        : "Wala pang Interior - i-click para mag-download ng Template (" +
+          " tiles, extra walls) - click to replace."
+        : "No Interior yet - click to download the Template (" +
           padded.wide +
           "x" +
           padded.tall +
-          " tiles) at mag-upload.";
+          " tiles) and upload.";
     }
 
     label.appendChild(sub);
@@ -2156,21 +2734,21 @@ function renderBuilderInteriorUploadScreen(body, house, onBack) {
     padded.wide * TILE_SIZE +
     "x" +
     padded.tall * TILE_SIZE +
-    " px) ang kailangan - " +
+    " px is needed - " +
     house.interiorTilesWide +
     "x" +
     house.interiorTilesTall +
-    " na BUKAS na sahig (batay sa laki ng Lot mo) + " +
+    " OPEN floor (based on your Lot size) + " +
     T.left +
-    " column pader sa kaliwa, " +
+    " column of wall on the left, " +
     T.right +
-    " sa kanan, " +
+    " on the right, " +
     T.top +
-    " row sa itaas, " +
+    " row(s) on top, " +
     T.bottom +
-    " row sa ibaba. Pintuan: " +
+    " row on the bottom. Door: " +
     def.label +
-    " (parehong napili sa Exterior). I-download ang Template, iguhit ang loob ng bahay mo (bukas ang gitna, pader/guide lang sa paligid), tapos i-Upload.";
+    " (same as chosen for the Exterior). Download the Template, draw the inside of your house (open in the middle, walls/guide only around the edge), then Upload it.";
   body.appendChild(intro);
 
   const actions = document.createElement("div");
@@ -2181,7 +2759,7 @@ function renderBuilderInteriorUploadScreen(body, house, onBack) {
 
   backBtn.type = "button";
   backBtn.className = "builder-secondary-btn";
-  backBtn.textContent = "Bumalik";
+  backBtn.textContent = "Back";
   backBtn.addEventListener("click", () => onBack());
 
   const downloadBtn = document.createElement("button");
@@ -2203,14 +2781,34 @@ function renderBuilderInteriorUploadScreen(body, house, onBack) {
       padded.wide * TILE_SIZE,
       padded.tall * TILE_SIZE,
       (dataUrl) => {
-        house.interiorImageDataURL = dataUrl;
+        // Store the image in its own asset key (see "IMAGE ASSET STORE"
+        // above) instead of inline on the house - this is what stops
+        // repeated Saves from multiplying the image data. If storage is
+        // full, saveBuilderAsset() already shows an error and returns
+        // null - keep whatever image the house already had rather than
+        // losing it.
+        const assetId = saveBuilderAsset(dataUrl);
+
+        if (assetId) {
+          const oldAssetId = house.interiorAssetId;
+
+          house.interiorAssetId = assetId;
+          house.interiorImageDataURL = dataUrl;
+          // Manually uploading now, in a Custom capacity - clear any
+          // Building-template tag (user request) so the house list no
+          // longer shows this as e.g. "Built as Coffee Shop" once its art
+          // has actually been replaced with something else.
+          delete house.templateId;
+          if (oldAssetId && oldAssetId !== assetId) deleteBuilderAsset(oldAssetId);
+        }
+
         delete customHouseInteriorImages[house.id];
         ensureCustomHouseImagesLoaded(house);
         saveCustomHouses();
         closeBuilderPanel();
 
-        if (typeof showFloatingMessage === "function") {
-          showFloatingMessage("Na-upload ang Interior! Pwede nang pasukin ang bahay.");
+        if (assetId && typeof showFloatingMessage === "function") {
+          showFloatingMessage("Interior uploaded! You can now enter the house.");
         }
       },
     );
@@ -2222,12 +2820,287 @@ function renderBuilderInteriorUploadScreen(body, house, onBack) {
   body.appendChild(actions);
 }
 
+// =========================
+// BUILDING TAB (user request) - pick a ready-made template (Coffee Shop,
+// Tavern, ...) and it's applied instantly, both Exterior AND Interior at
+// once - no manual upload. Exterior/Interior tabs still exist separately
+// for players who want to draw their own custom design instead.
+// =========================
+// =========================
+// BUILDING TAB (hiling ng user: "kahit wala pang lots naka appear na dun
+// yung mga building tapos click lang yung isa don tapos may list ng lots
+// kung ano ng nabiling property lots pipili kung san tapos may confirm") -
+// Coffee Shop/Tavern ang UNANG makikita (kahit WALANG Lot ang manlalaro),
+// pinipili MUNA ang STYLE, TAPOS lang pinipili kung SAAN (alin sa mga
+// Lot na tugma ang laki) ilalagay - baligtad sa dating Lot-muna-bago-
+// Building na daloy.
+// =========================
+
+// Max na bilang ng bawat Building type na pwedeng itayo NANG SABAY (hiling
+// ng user: "max 2 lang ang meron kada building na parehas like 2 coffee
+// shop tapos 2 tavern") - PAREHONG-PAREHO ang limitasyon sa LAHAT ng
+// template sa ngayon, kaya isang shared constant na lang - kung sakaling
+// kailanganin ng ibang limitasyon kada template balang araw, magdagdag na
+// lang ng sariling `maxCount` field sa BUILDER_BUILDING_TEMPLATES entry at
+// gamitin iyon dito bilang fallback sa halip nito.
+const BUILDER_TEMPLATE_MAX_COUNT = 2;
+
+// Bilang ng bahay na TALAGANG naka-set sa template na ito NGAYON - LIVE
+// itong kinukuwenta mula mismo sa `customHouses` (hindi hiwalay na
+// counter na dapat pang i-update nang mano-mano) - kaya AWTOMATIKONG
+// tama ito kapag nagbenta/nagpalit ng style ang manlalaro (isang slot
+// agad na "napalaya" sa lumang template, isa namang "naubos" sa bago).
+function getBuilderTemplateBuiltCount(template) {
+  return customHouses.filter((house) => house.templateId === template.id).length;
+}
+
+// Screen 1 - listahan ng mga Building STYLE (Coffee Shop, Tavern, ...) -
+// nakikita KAHIT WALANG Lot pa ang manlalaro (hiling ng user) - ang
+// pagkakaroon (o wala) ng tugmang Lot ay tsinetsek na lang sa SUSUNOD na
+// screen (renderBuilderTemplateLotPicker), hindi dito.
+function renderBuilderBuildingTab(body) {
+  const intro = document.createElement("p");
+
+  intro.className = "builder-panel-hint";
+  intro.textContent =
+    "Pick a Building style below - then choose which of your Lots to put it on. Both the Exterior and Interior are applied instantly, no drawing/uploading needed. Prefer to design your own instead? Use the Exterior/Interior tabs.";
+  body.appendChild(intro);
+
+  if (BUILDER_BUILDING_TEMPLATES.length === 0) {
+    const empty = document.createElement("p");
+
+    empty.className = "builder-panel-hint";
+    empty.textContent = "No Building styles are available yet.";
+    body.appendChild(empty);
+    return;
+  }
+
+  for (const template of BUILDER_BUILDING_TEMPLATES) {
+    const builtCount = getBuilderTemplateBuiltCount(template);
+    const atMax = builtCount >= BUILDER_TEMPLATE_MAX_COUNT;
+
+    const row = document.createElement("div");
+
+    row.className =
+      "builder-lot-row" + (atMax ? " builder-lot-row-disabled" : " builder-lot-row-clickable");
+
+    const content = document.createElement("div");
+
+    content.className = "builder-template-row-content";
+
+    const thumb = document.createElement("img");
+
+    thumb.className = "builder-template-thumb";
+    thumb.src = template.exteriorImagePath;
+    thumb.alt = template.name;
+    content.appendChild(thumb);
+
+    const label = document.createElement("div");
+
+    label.className = "builder-lot-label";
+    label.textContent = template.name;
+
+    const sub = document.createElement("div");
+
+    sub.className = "builder-lot-sub";
+    sub.textContent = atMax
+      ? "Maximum reached (" + builtCount + "/" + BUILDER_TEMPLATE_MAX_COUNT + " built)."
+      : "Needs a " +
+        template.interiorTilesWide +
+        "x" +
+        template.interiorTilesTall +
+        " interior floor Lot - " +
+        builtCount +
+        "/" +
+        BUILDER_TEMPLATE_MAX_COUNT +
+        " built.";
+    label.appendChild(sub);
+    content.appendChild(label);
+    row.appendChild(content);
+
+    if (!atMax) {
+      const openPicker = () => {
+        renderBuilderTemplateLotPicker(body, template, () => renderBuilderPanelBody(body));
+      };
+
+      row.tabIndex = 0;
+      row.setAttribute("role", "button");
+      row.addEventListener("click", openPicker);
+      row.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openPicker();
+        }
+      });
+    }
+
+    body.appendChild(row);
+  }
+}
+
+// Screen 2 - listahan ng mga Lot ng manlalaro na TUGMA ang laki sa
+// template na pinili (getBuilderTemplateFit) - hiling ng user: "may list
+// ng lots kung ano ng nabiling property lots pipili kung san". Kung wala
+// pang tugmang Lot, malinaw na sinasabi ito (sa halip na blangkong
+// listahan lang) kasama ang kailangang bilhin.
+function renderBuilderTemplateLotPicker(body, template, onBack) {
+  body.innerHTML = "";
+
+  const intro = document.createElement("p");
+
+  intro.className = "builder-panel-hint";
+  intro.textContent =
+    "Choose which Lot to build the \"" +
+    template.name +
+    "\" on - needs a " +
+    template.interiorTilesWide +
+    "x" +
+    template.interiorTilesTall +
+    " interior floor.";
+  body.appendChild(intro);
+
+  const fittingHouses = customHouses.filter((house) => getBuilderTemplateFit(house, template));
+
+  if (fittingHouses.length === 0) {
+    const empty = document.createElement("p");
+
+    empty.className = "builder-panel-hint";
+    empty.textContent =
+      "You do not have a matching Lot yet - buy one with a " +
+      template.interiorTilesWide +
+      "x" +
+      template.interiorTilesTall +
+      " interior in the 'Lots' tab first.";
+    body.appendChild(empty);
+  }
+
+  for (const house of fittingHouses) {
+    const row = document.createElement("div");
+
+    row.className = "builder-lot-row builder-lot-row-clickable";
+    row.tabIndex = 0;
+    row.setAttribute("role", "button");
+
+    const label = document.createElement("div");
+
+    label.className = "builder-lot-label";
+    label.textContent = getCustomHouseName(house);
+
+    const sub = document.createElement("div");
+
+    sub.className = "builder-lot-sub";
+
+    const currentTemplate = house.templateId ? getBuilderTemplateById(house.templateId) : null;
+
+    sub.textContent =
+      house.tilesWide + "x" + house.tilesTall + " Lot (" + house.world + ") - " +
+      (currentTemplate
+        ? "currently \"" + currentTemplate.name + "\""
+        : house.exteriorImageDataURL
+          ? "currently a custom design"
+          : "empty, no building yet");
+    label.appendChild(sub);
+    row.appendChild(label);
+
+    const openConfirm = () => {
+      renderBuilderTemplateConfirm(body, house, template, onBack);
+    };
+
+    row.addEventListener("click", openConfirm);
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openConfirm();
+      }
+    });
+
+    body.appendChild(row);
+  }
+
+  const actions = document.createElement("div");
+
+  actions.className = "builder-lot-actions";
+
+  const backBtn = document.createElement("button");
+
+  backBtn.type = "button";
+  backBtn.className = "builder-secondary-btn";
+  backBtn.textContent = "Back";
+  backBtn.addEventListener("click", () => onBack());
+
+  actions.appendChild(backBtn);
+  body.appendChild(actions);
+}
+
+// Screen 3 - huling kumpirmasyon (hiling ng user: "tapos may confirm")
+// bago talaga ilapat ang template - lalo na mahalaga ito kung MAY
+// existing na Exterior/Interior (custom man o ibang template) ang
+// napiling Lot, dahil PAPALITAN ito (walang "undo" pagkatapos).
+function renderBuilderTemplateConfirm(body, house, template, onBack) {
+  body.innerHTML = "";
+
+  const currentTemplate = house.templateId ? getBuilderTemplateById(house.templateId) : null;
+
+  const intro = document.createElement("p");
+
+  intro.className = "builder-panel-hint";
+  intro.textContent =
+    "Build \"" +
+    template.name +
+    "\" on \"" +
+    getCustomHouseName(house) +
+    "\"?" +
+    (currentTemplate
+      ? " This will REPLACE its current \"" + currentTemplate.name + "\" building."
+      : house.exteriorImageDataURL
+        ? " This will REPLACE its current custom Exterior/Interior."
+        : "");
+  body.appendChild(intro);
+
+  const preview = document.createElement("img");
+
+  preview.className = "builder-template-confirm-preview";
+  preview.src = template.exteriorImagePath;
+  preview.alt = template.name;
+  body.appendChild(preview);
+
+  const actions = document.createElement("div");
+
+  actions.className = "builder-lot-actions";
+
+  const backBtn = document.createElement("button");
+
+  backBtn.type = "button";
+  backBtn.className = "builder-secondary-btn";
+  backBtn.textContent = "Back";
+  backBtn.addEventListener("click", () => renderBuilderTemplateLotPicker(body, template, onBack));
+
+  const confirmBtn = document.createElement("button");
+
+  confirmBtn.type = "button";
+  confirmBtn.className = "builder-buy-btn";
+  confirmBtn.textContent = "Confirm";
+  confirmBtn.addEventListener("click", () => {
+    applyBuilderTemplateToHouse(house, template);
+
+    if (typeof showFloatingMessage === "function") {
+      showFloatingMessage("Built \"" + template.name + "\" on \"" + getCustomHouseName(house) + "\"! You can now enter the house.");
+    }
+
+    onBack();
+  });
+
+  actions.appendChild(backBtn);
+  actions.appendChild(confirmBtn);
+  body.appendChild(actions);
+}
+
 function renderBuilderExteriorTab(body) {
   const intro = document.createElement("p");
 
   intro.className = "builder-panel-hint";
   intro.textContent =
-    "Piliin ang Lot na gustong bigyan ng Exterior - i-click ang Template, piliin ang pader at posisyon ng pintuan (12 pagpipilian - 4 pader x 3 posisyon bawat isa) at Kumpirmahin para ma-download, iguhit gamit ang Aseprite/LibreSprite/Photoshop, i-save bilang PNG (parehong eksaktong sukat), tapos i-Upload. May pulang guide sa Template - iyon ang EKSAKTONG posisyon ng pintuan, doon dapat ilagay ang guhit ng pintuan mo (puwede mo nang burahin/tabunan ang guide bago i-export).";
+    "Choose the Lot you want to give an Exterior - click the Template, choose the wall and door position (12 choices - 4 walls x 3 positions each) and Confirm to download it, draw on it using Aseprite/LibreSprite/Photoshop, save it as a PNG (same exact size), then Upload it. There is a red guide on the Template - that is the EXACT door position, that is where your door drawing should go (you can erase/cover the guide before exporting it).";
   body.appendChild(intro);
 
   renderBuilderHouseList(body, "exterior");
@@ -2238,7 +3111,7 @@ function renderBuilderInteriorTab(body) {
 
   intro.className = "builder-panel-hint";
   intro.textContent =
-    "Piliin ang Lot na gustong bigyan ng sariling disenyo ng SILID (interior) - AWTOMATIKONG parehong posisyon ng pintuan ng Exterior mo ang gagamitin dito (wala nang hiwalay na pipiliin). May EXTRA na pader idinadagdag sa paligid ng open na sahig (1 column sa kaliwa't kanan, 2 row sa itaas, 1 row sa ibaba) - kaya mas malaki ng konti ang kailangang i-download/i-upload na Template kumpara sa Exterior.";
+    "Choose the Lot you want to give its own ROOM design (interior) - it AUTOMATICALLY uses the same door position as your Exterior (there is nothing separate to choose). EXTRA walls are added around the open floor (1 column left and right, 2 rows on top, 1 row on the bottom) - so the Template you download/upload is a bit bigger than the Exterior.";
   body.appendChild(intro);
 
   renderBuilderHouseList(body, "interior");
@@ -2255,7 +3128,7 @@ function renderBuilderSellTab(body) {
 
   intro.className = "builder-panel-hint";
   intro.textContent =
-    "Piliin ang Lot na gustong ibenta/gibain - matatanggal ito sa mapa (kasama ang Exterior/Interior nito) at makakatanggap ka ng " +
+    "Choose the Lot you want to sell/demolish - it will be removed from the map (along with its Exterior/Interior) and you will get " +
     Math.round(BUILDER_SELL_REFUND_RATIO * 100) +
     "% pabalik na gold.";
   body.appendChild(intro);
@@ -2264,7 +3137,7 @@ function renderBuilderSellTab(body) {
     const empty = document.createElement("p");
 
     empty.className = "builder-panel-hint";
-    empty.textContent = "Wala ka pang Lot na maibebenta.";
+    empty.textContent = "You do not have a Lot to sell.";
     body.appendChild(empty);
     return;
   }
@@ -2277,16 +3150,22 @@ function renderBuilderSellTab(body) {
     const label = document.createElement("div");
 
     label.className = "builder-lot-label";
-    label.textContent =
+    label.textContent = getCustomHouseName(house);
+
+    const where = document.createElement("div");
+
+    where.className = "builder-lot-sub";
+    where.textContent =
       house.tilesWide + "x" + house.tilesTall + " Lot (" + house.world + ")";
+    label.appendChild(where);
 
     const sub = document.createElement("div");
 
     sub.className = "builder-lot-sub";
     sub.textContent =
-      (house.exteriorImageDataURL ? "May Exterior" : "Walang Exterior") +
+      (house.exteriorImageDataURL ? "Has Exterior" : "No Exterior") +
       " • " +
-      (house.interiorImageDataURL ? "May Interior" : "Walang Interior");
+      (house.interiorImageDataURL ? "Has Interior" : "No Interior");
 
     label.appendChild(sub);
     row.appendChild(label);
@@ -2336,7 +3215,7 @@ function renderBuilderDoorPicker(body, house, kind, tilesWide, tilesTall, onBack
 
   intro.className = "builder-panel-hint";
   intro.textContent =
-    "Piliin ang pader AT posisyon ng pintuan (makikita ang guide sa Template) - saka Kumpirmahin para ma-download.";
+    "Choose the wall AND door position (you will see the guide on the Template) - then Confirm to download it.";
   body.appendChild(intro);
 
   // AYOS (hiling ng user): "sa interior is may selection din kung san
@@ -2349,10 +3228,10 @@ function renderBuilderDoorPicker(body, house, kind, tilesWide, tilesTall, onBack
   // masyadong magulo ang 12 buton.
   const optionButtons = [];
   const wallGroups = [
-    { wall: "top", label: "Pader sa ITAAS" },
-    { wall: "left", label: "Pader sa KALIWA" },
-    { wall: "bottom", label: "Pader sa IBABA" },
-    { wall: "right", label: "Pader sa KANAN" },
+    { wall: "top", label: "TOP Wall" },
+    { wall: "left", label: "LEFT Wall" },
+    { wall: "bottom", label: "BOTTOM Wall" },
+    { wall: "right", label: "RIGHT Wall" },
   ];
 
   for (const group of wallGroups) {
@@ -2395,14 +3274,14 @@ function renderBuilderDoorPicker(body, house, kind, tilesWide, tilesTall, onBack
 
   backBtn.type = "button";
   backBtn.className = "builder-secondary-btn";
-  backBtn.textContent = "Bumalik";
+  backBtn.textContent = "Back";
   backBtn.addEventListener("click", () => onBack());
 
   const confirmBtn = document.createElement("button");
 
   confirmBtn.type = "button";
   confirmBtn.className = "builder-buy-btn";
-  confirmBtn.textContent = "Kumpirmahin";
+  confirmBtn.textContent = "Confirm";
   confirmBtn.addEventListener("click", () => {
     house.doorPosition = selected;
 
@@ -2471,13 +3350,13 @@ function renderBuilderTemplateConfirmed(body, house, kind, tilesWide, tilesTall,
 
   intro.className = "builder-panel-hint";
   intro.textContent =
-    "Napiling pintuan: " +
+    "Chosen door: " +
     def.label +
     " (" +
     tilesWide * TILE_SIZE +
     "x" +
     tilesTall * TILE_SIZE +
-    " px). I-guhit ang bahay mo sa Template na ito (huwag kalimutang burahin/tabunan ang pulang guide), i-save bilang PNG, tapos i-Upload dito.";
+    " px). Draw your house on this Template (remember to erase/cover the red guide), save it as a PNG, then Upload it here.";
   body.appendChild(intro);
 
   const summary = document.createElement("div");
@@ -2492,7 +3371,7 @@ function renderBuilderTemplateConfirmed(body, house, kind, tilesWide, tilesTall,
   const summarySub = document.createElement("div");
 
   summarySub.className = "builder-lot-sub";
-  summarySub.textContent = "Pader: " + def.wall + " • Sukat: " + tilesWide + "x" + tilesTall + " tiles";
+  summarySub.textContent = "Wall: " + def.wall + " \u2022 Size: " + tilesWide + "x" + tilesTall + " tiles";
 
   summaryLabel.appendChild(summarySub);
   summary.appendChild(summaryLabel);
@@ -2506,14 +3385,14 @@ function renderBuilderTemplateConfirmed(body, house, kind, tilesWide, tilesTall,
 
   backBtn.type = "button";
   backBtn.className = "builder-secondary-btn";
-  backBtn.textContent = "Bumalik";
+  backBtn.textContent = "Back";
   backBtn.addEventListener("click", () => onBack());
 
   const changeDoorBtn = document.createElement("button");
 
   changeDoorBtn.type = "button";
   changeDoorBtn.className = "builder-secondary-btn";
-  changeDoorBtn.textContent = "Baguhin ang Pintuan";
+  changeDoorBtn.textContent = "Change Door";
   changeDoorBtn.addEventListener("click", () => {
     renderBuilderDoorPicker(body, house, kind, tilesWide, tilesTall, onBack);
   });
@@ -2534,14 +3413,44 @@ function renderBuilderTemplateConfirmed(body, house, kind, tilesWide, tilesTall,
   uploadBtn.textContent = "Upload";
   uploadBtn.addEventListener("click", () => {
     promptBuilderImageUpload(tilesWide * TILE_SIZE, tilesTall * TILE_SIZE, (dataUrl) => {
-      house.exteriorImageDataURL = dataUrl;
+      // Store the image in its own asset key (see "IMAGE ASSET STORE"
+      // above) instead of inline on the house.
+      const assetId = saveBuilderAsset(dataUrl);
+
+      if (assetId) {
+        const oldAssetId = house.exteriorAssetId;
+
+        house.exteriorAssetId = assetId;
+        house.exteriorImageDataURL = dataUrl;
+        // Same reasoning as the Interior upload handler above - manual
+        // upload means this is no longer a Building template.
+        delete house.templateId;
+        if (oldAssetId && oldAssetId !== assetId) deleteBuilderAsset(oldAssetId);
+      }
+
       delete customHouseExteriorImages[house.id];
       ensureCustomHouseImagesLoaded(house);
       saveCustomHouses();
+
+      // Chain straight into Interior if it does not have one yet -
+      // keeps the flow going: name -> map -> exterior -> interior. If
+      // it already has an Interior (this was just a re-upload of the
+      // Exterior), fall back to the normal list.
+      if (!house.interiorImageDataURL) {
+        builderPanelTab = "interior";
+        renderBuilderInteriorUploadScreen(body, house, () => renderBuilderPanelBody(body));
+
+        if (typeof showFloatingMessage === "function") {
+          showFloatingMessage("Exterior uploaded! Now the Interior.");
+        }
+
+        return;
+      }
+
       renderBuilderPanelBody(body);
 
       if (typeof showFloatingMessage === "function") {
-        showFloatingMessage("Na-upload ang Exterior!");
+        showFloatingMessage("Exterior uploaded!");
       }
     });
   });
@@ -2552,3 +3461,22 @@ function renderBuilderTemplateConfirmed(body, house, kind, tilesWide, tilesTall,
   actions.appendChild(uploadBtn);
   body.appendChild(actions);
 }
+
+// BUGFIX (nagdulot ng "nawawala ang bahay sa bawat reload/Load"): dating
+// tinatawag ang loadCustomHouses() malapit sa itaas ng file, PERO kailangan
+// nito ang BUILDER_DOOR_POSITIONS/BUILDER_DEFAULT_DOOR_POSITION (sa loob ng
+// normalizeCustomHouseDoorPositions -> migrateBuilderDoorPositionId), na
+// mga `const` na hindi pa na-i-i-INITIALIZE sa oras na iyon (deklarado pa
+// lang sila MAS MABABA sa file). Sa JavaScript, ang pag-access sa isang
+// `const`/`let` BAGO pa ito ma-initialize ay THROW (temporal dead zone),
+// kahit hoisted na ang pangalan nito - kaya ANG BUONG loadCustomHouses()
+// ay palaging bumabagsak sa try/catch nito sa SANDALING may kahit isang
+// naka-save na bahay, tahimik na binabalik ang customHouses sa [] (walang
+// error na makikita sa normal na paggamit, console.error lang). Ito talaga
+// ang dahilan kung bakit laging "bumabalik sa walang bahay" pagkatapos
+// mag-reload (kasama na ang location.reload() ng "Load") - HINDI dahil sa
+// localStorage mismo (nandoon pa rin talaga ang data), kundi dahil bumagsak
+// bago pa man ito nabasa. Ang AYOS: ITINULAK ang mismong TAWAG na ito
+// papunta sa PINAKADULO ng file - sa puntong ito, TAPOS NA talagang
+// na-deklara ang LAHAT ng const/function na ginagamit nito.
+loadCustomHouses();

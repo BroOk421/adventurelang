@@ -68,7 +68,7 @@ function equipAxe() {
   // equipRake (dig.js).
   if (typeof bagEquipped !== "undefined" && !bagEquipped) {
     if (typeof showSettingsToast === "function") {
-      showSettingsToast("Kailangan mo munang isuot ang bag! 🎒");
+      showSettingsToast("You need to equip a bag first! 🎒");
     }
     return;
   }
@@ -121,7 +121,7 @@ function equipCutter() {
   // working tool (pickaxe/rake/axe) - tingnan ang equipAxe sa itaas.
   if (typeof bagEquipped !== "undefined" && !bagEquipped) {
     if (typeof showSettingsToast === "function") {
-      showSettingsToast("Kailangan mo munang isuot ang bag! 🎒");
+      showSettingsToast("You need to equip a bag first! 🎒");
     }
     return;
   }
@@ -232,6 +232,9 @@ function updateTorchBurn(deltaMs) {
 }
 
 document.addEventListener("keydown", (event) => {
+  // BUGFIX - tingnan ang isTypingInTextField (input.js).
+  if (typeof isTypingInTextField === "function" && isTypingInTextField(event)) return;
+
   if (event.altKey && event.key === "3") {
     event.preventDefault();
     equipAxe();

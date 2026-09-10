@@ -251,8 +251,8 @@ function setControllerEditMode(active) {
 
   if (toggleBtn) {
     toggleBtn.textContent = active
-      ? "✅ Tapos sa Pag-edit"
-      : "✏️ I-edit ang Posisyon/Laki";
+      ? "✅ Done Editing"
+      : "✏️ Edit Position/Size";
     toggleBtn.classList.toggle("active", active);
   }
 
@@ -416,7 +416,7 @@ document
   .getElementById("controller-layout-reset")
   ?.addEventListener("click", () => {
     const confirmed = window.confirm(
-      "I-reset ang laki/opacity/posisyon ng LAHAT ng control pabalik sa default?",
+      "Reset the size/opacity/position of ALL controls back to default?",
     );
 
     if (!confirmed) return;
@@ -426,6 +426,6 @@ document
     syncControllerSelectionUI();
 
     if (typeof showSettingsToast === "function") {
-      showSettingsToast("Na-reset ang controller layout. 🔄");
+      showSettingsToast("Controller layout reset. 🔄");
     }
   });

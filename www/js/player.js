@@ -53,6 +53,7 @@ const player = {
   // mabilis lang ang leg-cycle, hindi biglaan.
   runFrameSpeed: 2,
 
+
   moving: false,
 
   // Kapag nagdadampot ng nakalapag na bagay (carrot/wood/stone) - tingnan

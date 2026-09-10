@@ -58,6 +58,7 @@ function draw() {
   // bumabara dito.
   if (typeof drawHouseWindowLights === "function") drawHouseWindowLights();
   if (typeof drawTownWindowLights === "function") drawTownWindowLights();
+  if (typeof drawCustomHouseLights === "function") drawCustomHouseLights();
 
   // Ang damo (kapag matagal nang tila ang niyebe) - sa ibabaw ng snow
   // layer, sa ilalim ng mga hinukay na tile.
