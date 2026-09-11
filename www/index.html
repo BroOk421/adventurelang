@@ -232,114 +232,15 @@
           <div id="craft-dock-label">Craft</div>
         </div>
 
-        <!-- Equipment - RPG-style na paperdoll. Walang asset pa ang
-             helmet/tshirt/armor/gauntlets/boots/pet (emoji placeholder
-             muna) - wala pang paraan makakuha nito sa laro, naka-laan
-             lang para sa susunod na feature. Ang left/right hand lang
-             ang may aktwal na gawi ngayon (tingnan ang syncEquipmentPanel
-             sa hotbar.js): right hand = kasalukuyang naka-equip na
-             kasangkapan (Alt radial - puwedeng magkasabay sa torch, iba
-             itong kamay); left hand = kasalukuyang naka-highlight na
-             item sa hotbar, O ang torch kapag i-drag/i-double-click ito
-             papunta rito (tingnan ang "TORCH SA LEFT HAND" sa
-             hotbar.js). Puwede ring i-drag PABALIK sa bag ang laman ng
-             left/right hand para alisin ito. -->
-        <div id="equipment-column">
-          <div id="equipment-panel">
-            <div id="equip-character"></div>
-            <div id="equip-slot-ring-left" class="equip-slot" title="Ring">
-              💍
-            </div>
-            <div id="equip-slot-helmet" class="equip-slot" title="Helmet">
-              🪖
-            </div>
-            <div id="equip-slot-ring-right" class="equip-slot" title="Ring">
-              💍
-            </div>
-            <!-- AYOS (hiling ng user): "alisin mo na yung gauntlet icon
-                 dun sa mismong left center ng profile, palit mo yung
-                 bag" - dating "equip-slot-gauntlet-left" (may 🧤
-                 placeholder, pinapalitan LANG ng bag icon kapag naka-
-                 "Use"/naka-suot) - ngayon, DEDIKADONG "bag" na ang
-                 slot na ito.
-
-                 AYOS (bug: "yung bag sa profile mukhang naka-equip na
-                 agad kahit hindi pa na-Use") - dating naka-HARDCODE
-                 dito ang <img src="/www/assets/items/bag.png"> (isang
-                 pink/red na bag na LAGING lumalabas pagka-load, kaya
-                 mukhang naka-suot na agad kahit hindi pa; at MALI pa
-                 ang path - absolute "/www/..." imbes na relative
-                 "./..."). TINANGGAL na ito - BLANGKO na ang slot dito
-                 sa HTML; ang laman nito ay BUONG kontrolado na ngayon
-                 ng syncEquipmentPanel() (hotbar.js): 🎒 placeholder
-                 kapag WALANG naka-suot, at ang MISMONG bag.png (tamang
-                 relative path) kapag naka-"Use" (bagEquipped). Dito rin
-                 dapat mapunta ang bag kapag binili kay Oldman (decor.js)
-                 at ginamit. -->
-            <div id="equip-slot-bag" class="equip-slot" title="Bag"></div>
-            <div
-              id="equip-slot-gauntlet-right"
-              class="equip-slot"
-              title="Gauntlet"
-            >
-              🧤
-            </div>
-            <div id="equip-slot-tshirt" class="equip-slot" title="T-Shirt">
-              👕
-            </div>
-            <div id="equip-slot-boots" class="equip-slot" title="Boots">🥾</div>
-            <div
-              id="equip-slot-lefthand"
-              class="equip-slot"
-              title="Left Hand - the highlighted item, or drag/double-click a torch here to equip it"
-            ></div>
-            <div id="equip-slot-pet" class="equip-slot" title="Pet">🐾</div>
-            <div
-              id="equip-slot-righthand"
-              class="equip-slot"
-              title="Right Hand - kasalukuyang naka-equip na kasangkapan"
-            ></div>
-          </div>
-
-          <!-- Stats - purong placeholder/cosmetic pa lang (wala pang
-               tunay na combat/leveling system) - naka-laan para sa
-               susunod na feature. Tingnan ang syncEquipmentStats sa
-               hotbar.js. -->
-          <div id="equipment-stats">
-            <div class="stat-row" id="stat-row-health">
-              <span class="stat-icon">❤️</span>
-              <div class="stat-bar">
-                <div class="stat-bar-fill" id="stat-fill-health"></div>
-              </div>
-            </div>
-            <div class="stat-row" id="stat-row-exp">
-              <span class="stat-icon">✨</span>
-              <div class="stat-bar">
-                <div class="stat-bar-fill" id="stat-fill-exp"></div>
-              </div>
-            </div>
-            <div class="stat-line">
-              <span class="stat-line-label">LVL</span>
-              <span class="stat-line-value" id="stat-value-level">1</span>
-            </div>
-            <div class="stat-line">
-              <span class="stat-line-label">ATK</span>
-              <span class="stat-line-value" id="stat-value-atk">0</span>
-            </div>
-            <div class="stat-line">
-              <span class="stat-line-label">DEF</span>
-              <span class="stat-line-value" id="stat-value-def">0</span>
-            </div>
-            <div class="stat-line">
-              <span class="stat-line-label">Crit DMG</span>
-              <span class="stat-line-value" id="stat-value-critdmg">0%</span>
-            </div>
-            <div class="stat-line">
-              <span class="stat-line-label">Crit Chance</span>
-              <span class="stat-line-value" id="stat-value-critchance">0%</span>
-            </div>
-          </div>
-        </div>
+        <!-- Equipment - moved out to its own #profile-panel (tingnan
+             sa ibaba, pagkatapos ng #bag-panel) - hiling ng user:
+             "yung profile section hide, ipakita lang pag click yung
+             top-left health bar, lagyan ng x button". Dati ay
+             kasabay/nakadikit ito sa #bag-panel-body (parte ng bag),
+             kaya LAGING kasama itong lumalabas tuwing bubuksan ang
+             bag - ngayon HIWALAY na itong panel (sariling open/close
+             state, profilePanelOpen sa hotbar.js), kaya "bag lang"
+             ang lumalabas kapag "B"/bag hotbar slot ang pinindot. -->
 
         <div id="bag-panel-main">
           <div id="bag-panel-grid"></div>
@@ -410,6 +311,137 @@
           <div id="craft-recipe-guide">
             <div id="craft-recipe-guide-label">Craftable Items</div>
             <div id="craft-recipe-guide-icons"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profile panel: paperdoll/equipment + stats - HIWALAY na ngayon
+         sa #bag-panel (hiling ng user: "profile section hide it only
+         show when i click the top left section of health bar have x
+         button"). Bukas/sara sa pag-click ng #player-hud (itaas-
+         kaliwa, tingnan ang toggleProfilePanel sa hotbar.js), may
+         sariling "X" close button - EKSAKTONG istruktura/estilo ng
+         #oldman-shop-panel (parehong CSS ID rules, tingnan ang
+         comma-selector sa style.css). -->
+    <div id="profile-panel" class="hidden">
+      <div id="profile-panel-header">
+        <span id="profile-panel-label">Profile</span>
+        <button
+          type="button"
+          id="profile-panel-close"
+          class="panel-no-drag"
+          title="Close"
+        >
+          ✕
+        </button>
+      </div>
+
+      <!-- Equipment - RPG-style na paperdoll. Walang asset pa ang
+           helmet/tshirt/armor/gauntlets/boots/pet (emoji placeholder
+           muna) - wala pang paraan makakuha nito sa laro, naka-laan
+           lang para sa susunod na feature. Ang left/right hand lang
+           ang may aktwal na gawi ngayon (tingnan ang syncEquipmentPanel
+           sa hotbar.js): right hand = kasalukuyang naka-equip na
+           kasangkapan (Alt radial - puwedeng magkasabay sa torch, iba
+           itong kamay); left hand = kasalukuyang naka-highlight na
+           item sa hotbar, O ang torch kapag i-drag/i-double-click ito
+           papunta rito (tingnan ang "TORCH SA LEFT HAND" sa
+           hotbar.js). Puwede ring i-drag PABALIK sa bag ang laman ng
+           left/right hand para alisin ito. -->
+      <div id="equipment-column">
+        <div id="equipment-panel">
+          <div id="equip-character"></div>
+          <div id="equip-slot-ring-left" class="equip-slot" title="Ring">
+            💍
+          </div>
+          <div id="equip-slot-helmet" class="equip-slot" title="Helmet">
+            🪖
+          </div>
+          <div id="equip-slot-ring-right" class="equip-slot" title="Ring">
+            💍
+          </div>
+          <!-- AYOS (hiling ng user): "alisin mo na yung gauntlet icon
+               dun sa mismong left center ng profile, palit mo yung
+               bag" - dating "equip-slot-gauntlet-left" (may 🧤
+               placeholder, pinapalitan LANG ng bag icon kapag naka-
+               "Use"/naka-suot) - ngayon, DEDIKADONG "bag" na ang
+               slot na ito.
+
+               AYOS (bug: "yung bag sa profile mukhang naka-equip na
+               agad kahit hindi pa na-Use") - dating naka-HARDCODE
+               dito ang <img src="/www/assets/items/bag.png"> (isang
+               pink/red na bag na LAGING lumalabas pagka-load, kaya
+               mukhang naka-suot na agad kahit hindi pa; at MALI pa
+               ang path - absolute "/www/..." imbes na relative
+               "./..."). TINANGGAL na ito - BLANGKO na ang slot dito
+               sa HTML; ang laman nito ay BUONG kontrolado na ngayon
+               ng syncEquipmentPanel() (hotbar.js): 🎒 placeholder
+               kapag WALANG naka-suot, at ang MISMONG bag.png (tamang
+               relative path) kapag naka-"Use" (bagEquipped). Dito rin
+               dapat mapunta ang bag kapag binili kay Oldman (decor.js)
+               at ginamit. -->
+          <div id="equip-slot-bag" class="equip-slot" title="Bag"></div>
+          <div
+            id="equip-slot-gauntlet-right"
+            class="equip-slot"
+            title="Gauntlet"
+          >
+            🧤
+          </div>
+          <div id="equip-slot-tshirt" class="equip-slot" title="T-Shirt">
+            👕
+          </div>
+          <div id="equip-slot-boots" class="equip-slot" title="Boots">🥾</div>
+          <div
+            id="equip-slot-lefthand"
+            class="equip-slot"
+            title="Left Hand - the highlighted item, or drag/double-click a torch here to equip it"
+          ></div>
+          <div id="equip-slot-pet" class="equip-slot" title="Pet">🐾</div>
+          <div
+            id="equip-slot-righthand"
+            class="equip-slot"
+            title="Right Hand - kasalukuyang naka-equip na kasangkapan"
+          ></div>
+        </div>
+
+        <!-- Stats - purong placeholder/cosmetic pa lang (wala pang
+             tunay na combat/leveling system) - naka-laan para sa
+             susunod na feature. Tingnan ang syncEquipmentStats sa
+             hotbar.js. -->
+        <div id="equipment-stats">
+          <div class="stat-row" id="stat-row-health">
+            <span class="stat-icon">❤️</span>
+            <div class="stat-bar">
+              <div class="stat-bar-fill" id="stat-fill-health"></div>
+            </div>
+          </div>
+          <div class="stat-row" id="stat-row-exp">
+            <span class="stat-icon">✨</span>
+            <div class="stat-bar">
+              <div class="stat-bar-fill" id="stat-fill-exp"></div>
+            </div>
+          </div>
+          <div class="stat-line">
+            <span class="stat-line-label">LVL</span>
+            <span class="stat-line-value" id="stat-value-level">1</span>
+          </div>
+          <div class="stat-line">
+            <span class="stat-line-label">ATK</span>
+            <span class="stat-line-value" id="stat-value-atk">0</span>
+          </div>
+          <div class="stat-line">
+            <span class="stat-line-label">DEF</span>
+            <span class="stat-line-value" id="stat-value-def">0</span>
+          </div>
+          <div class="stat-line">
+            <span class="stat-line-label">Crit DMG</span>
+            <span class="stat-line-value" id="stat-value-critdmg">0%</span>
+          </div>
+          <div class="stat-line">
+            <span class="stat-line-label">Crit Chance</span>
+            <span class="stat-line-value" id="stat-value-critchance">0%</span>
           </div>
         </div>
       </div>

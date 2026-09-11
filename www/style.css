@@ -378,13 +378,16 @@ button.hotbar-slot {
   border-left: 1px solid rgba(212, 175, 55, 0.3);
 }
 
-/* #stove-panel-grid ay "copy"/mirror ng parehong bag grid (PAREHONG
-   DATA - tingnan ang renderBagGridInto sa hotbar.js), kaya pareho rin
-   ang estilo. */
-#bag-panel-grid,
-#stove-panel-grid {
+/* AYOS (hiling ng user): "gawin mo yung inventory ko 5 columns at 7
+   rows na lang, pero same pa rin yung bilang ng slots" - dating 8
+   kolum (magkatugma dati sa #stove-panel-grid) - HIWALAY na ngayon
+   ang dalawa (tingnan ang BAG_GRID_COLUMNS sa hotbar.js, DAPAT
+   magkatugma ang bilang dito) - 5 kolum na lang ang #bag-panel-grid,
+   pinananatili pa rin ang #stove-panel-grid sa dati (8 kolum) dahil
+   hindi ito hiningi/hiwalay na panel. */
+#bag-panel-grid {
   display: grid;
-  grid-template-columns: repeat(8, 40px);
+  grid-template-columns: repeat(5, 40px);
   grid-auto-rows: 40px;
   gap: 4px;
 
@@ -393,14 +396,34 @@ button.hotbar-slot {
   /* 7 hanay lang ang nakikita nang sabay (para lumiit ang panel at
      mabawasan ang patay na espasyo sa footer/trash/gold) - ang TOTAL
      na kapasidad ng bag mismo ay DINAMIKO na ngayon (tingnan ang
-     getActiveBagGridRows sa hotbar.js): 2 hanay lang (16 slot) kapag
-     wala pang naka-suot na bag, hanggang 15 hanay (120 slot) kapag
+     getActiveBagGridRows sa hotbar.js): 4 hanay lang (20 slot) kapag
+     wala pang naka-suot na bag, hanggang 24 hanay (120 slot) kapag
      naka-"Use"/naka-suot na - mag-scroll na lang kapag lumagpas sa 7
      hanay: 7*40 + 6*4(gap) + 2*8(padding) */
-  max-height: 320px;
+  max-height: 230px;
   overflow-y: auto;
 
   /* Manipis na gold scrollbar, kapareho ng tema ng bag - Firefox. */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(212, 175, 55, 0.65) rgba(255, 255, 255, 0.06);
+}
+
+/* #stove-panel-grid ay "copy"/mirror ng parehong bag grid (PAREHONG
+   DATA - tingnan ang renderBagGridInto sa hotbar.js) - PERO hiwalay na
+   ngayon ang column count laban sa #bag-panel-grid sa itaas (tingnan
+   ang paliwanag doon), kaya inulit na lang dito ang mga shared na
+   estilo (padding/max-height/scrollbar) sa halip na comma-selector. */
+#stove-panel-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 40px);
+  grid-auto-rows: 40px;
+  gap: 4px;
+
+  padding: 8px;
+
+  max-height: 320px;
+  overflow-y: auto;
+
   scrollbar-width: thin;
   scrollbar-color: rgba(212, 175, 55, 0.65) rgba(255, 255, 255, 0.06);
 }
@@ -914,12 +937,11 @@ button.hotbar-slot {
 }
 
 /* =========================
-   EQUIPMENT PANEL (paperdoll, kaliwang bahagi ng bag)
+   EQUIPMENT PANEL (paperdoll, ngayon sa loob ng sariling #profile-panel -
+   tingnan ang paliwanag sa itaas ng #profile-panel)
    ========================= */
 
-/* Iisang column - equipment grid sa taas, stats sa ibaba - para
-   magkasunod silang bumaba sa loob ng flex ROW ng #bag-panel-body
-   (kaliwang bahagi = equipment+stats, kanan = bag grid). */
+/* Iisang column - equipment grid sa taas, stats sa ibaba. */
 #equipment-column {
   display: flex;
   flex-direction: column;
@@ -1127,6 +1149,110 @@ button.hotbar-slot {
 }
 
 /* =========================
+   PROFILE PANEL (#profile-panel) - HIWALAY na floating panel para sa
+   equipment/paperdoll + stats (dating parte ng #bag-panel-body, tingnan
+   ang index.html) - hiling ng user: "profile section hide it only show
+   when i click the top left section of health bar have x button".
+   EKSAKTONG istruktura/estilo ng #oldman-shop-panel (parehong header/
+   close button/drag), pero walang gold-row/grid - equipment-column lang
+   ang laman ng katawan nito.
+   ========================= */
+#profile-panel {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+
+  width: max-content;
+  max-height: 85vh;
+
+  display: flex;
+  flex-direction: column;
+
+  background: rgba(20, 22, 28, 0.92);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  border-radius: 10px;
+
+  font-family: system-ui, sans-serif;
+  color: white;
+  user-select: none;
+  z-index: 11;
+}
+
+#profile-panel.hidden {
+  display: none;
+}
+
+#profile-panel-header {
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  height: 20px;
+  padding: 0 6px 0 10px;
+
+  background: linear-gradient(
+    180deg,
+    rgba(212, 175, 55, 0.35),
+    rgba(212, 175, 55, 0.12)
+  );
+  border-bottom: 1px solid rgba(212, 175, 55, 0.5);
+  border-radius: 9px 9px 0 0;
+
+  cursor: grab;
+  touch-action: none;
+}
+
+#profile-panel-header:active {
+  cursor: grabbing;
+}
+
+#profile-panel-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(212, 175, 55, 0.85);
+}
+
+#profile-panel-close {
+  flex-shrink: 0;
+
+  width: 16px;
+  height: 16px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 11px;
+  line-height: 1;
+
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.75);
+
+  cursor: pointer;
+  touch-action: auto;
+}
+
+#profile-panel-close:hover {
+  background: rgba(255, 90, 90, 0.35);
+  color: white;
+}
+
+/* AYOS: si #equipment-column mismo (equipment-panel + equipment-stats)
+   na ang KATAWAN ng #profile-panel ngayon (hindi na nakadikit sa
+   #bag-panel-body) - kaya kailangan ng sariling overflow/scroll kung
+   sakaling lumagpas sa max-height ng panel. */
+#equipment-column {
+  overflow-y: auto;
+}
+
+/* =========================
    TOP-LEFT HUD (#player-hud) - laging nakikita, LABAS ng bag panel.
    Kaparehong "salamin/frame" na itsura ng #calendar-panel (itaas-
    kanan) - madilim na translucent na background, bilog na sulok.
@@ -1156,6 +1282,18 @@ button.hotbar-slot {
   font-family: system-ui, sans-serif;
   color: white;
   user-select: none;
+
+  /* AYOS (hiling ng user): "i-click ang top left section ng health
+     bar para lumabas ang profile" - CLICKABLE na ngayon ang buong
+     #player-hud (tingnan ang toggleProfilePanel sa hotbar.js) -
+     pointer cursor + bahagyang paglamlam ng border kapag naka-hover
+     bilang visual cue. */
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+#player-hud:hover {
+  border-color: rgba(212, 175, 55, 0.55);
 }
 
 #player-hud-name {
@@ -1262,7 +1400,13 @@ button.hotbar-slot {
   box-sizing: border-box;
   padding: 0 14px 14px;
 
-  border-radius: 0 0 0 9px;
+  /* AYOS: dating "0 0 0 9px" (bottom-LEFT lang) - noon ay #equipment-
+     column pa ang KALIWANG column ng #bag-panel-body (may bag grid pa
+     sa kanan nito). Ngayon, IISA na lang itong nakikita sa loob ng
+     sarili nitong #profile-panel (walang kapitbahay sa kanan), kaya
+     PAREHONG sulok (kaliwa AT kanan) ang dapat mabilog para tumugma sa
+     border-radius ng panel mismo. */
+  border-radius: 0 0 9px 9px;
 }
 
 .stat-row {
@@ -1845,7 +1989,12 @@ button.hotbar-slot {
   top: 50%;
   transform: translate(-50%, -50%);
 
-  width: 380px;
+  /* AYOS (hiling ng user): "5 columns at 5 rows na lang ipakita" -
+     dating fixed na 380px (para sa dating 8-kolum na grid) - ngayon
+     "max-content" na lang (kagaya ng #bag-panel), para awtomatikong
+     mag-shrink papunta sa TUNAY na laki ng bagong 5-kolum na grid sa
+     halip na iwanan ng malaking patay na espasyo sa gilid. */
+  width: max-content;
   max-height: 85vh;
 
   display: flex;
@@ -1964,7 +2113,6 @@ button.hotbar-slot {
 #oldman-shop-body,
 #maria-shop-body {
   padding: 10px 12px 12px;
-  overflow-y: auto;
 }
 
 #oldman-shop-hint,
@@ -1975,11 +2123,53 @@ button.hotbar-slot {
   text-align: center;
 }
 
+/* AYOS (hiling ng user): "5 columns at 5 rows na lang ipakita, pero
+   pa-scroll pa rin, same pa rin yung bilang ng slots" - dating fluid
+   na "repeat(8, 1fr)" (walang max-height, kaya minsan buong 8x8 grid
+   ay LUMALABAS lahat kung sapat ang taas ng screen) - ngayon FIXED na
+   ang cell size (40px, kagaya ng #bag-panel-grid) para eksaktong
+   makwenta ang taas ng 5 hanay, at inilipat DITO (sa grid mismo, hindi
+   sa #oldman-shop-body/#maria-shop-body sa itaas) ang overflow-y:auto
+   - kaya LAGING 5 hanay lang ang makikita nang sabay, kahit gaano
+   pa "kataas" ang screen, mag-sscroll na lang ang LABIS (parehong
+   bilang pa rin ng TOTAL na cells - tingnan ang OLDMAN_SHOP_TOTAL_CELLS
+   sa decor.js, hindi ito binago, "reflow" lang papuntang 5 kolum). */
 #oldman-shop-grid,
 #maria-shop-grid {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  grid-template-columns: repeat(5, 40px);
+  grid-auto-rows: 40px;
   gap: 6px;
+
+  /* Eksaktong 5 hanay: 5*40 + 4*6(gap) */
+  max-height: 224px;
+  overflow-y: auto;
+
+  scrollbar-width: thin;
+  scrollbar-color: rgba(212, 175, 55, 0.65) rgba(255, 255, 255, 0.06);
+}
+
+#oldman-shop-grid::-webkit-scrollbar,
+#maria-shop-grid::-webkit-scrollbar {
+  width: 4px;
+}
+
+#oldman-shop-grid::-webkit-scrollbar-track,
+#maria-shop-grid::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+}
+
+#oldman-shop-grid::-webkit-scrollbar-thumb,
+#maria-shop-grid::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.65);
+  border-radius: 4px;
+  min-height: 7px;
+}
+
+#oldman-shop-grid::-webkit-scrollbar-thumb:hover,
+#maria-shop-grid::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 175, 55, 0.9);
 }
 
 .oldman-shop-cell {
@@ -1994,11 +2184,11 @@ button.hotbar-slot {
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 8px;
 
-  cursor: grab;
-}
-
-.oldman-shop-cell:active:not(:disabled) {
-  cursor: grabbing;
+  /* AYOS (hiling ng user): "wag na i-drag, i-click na lang" - dating
+     "grab" (drag cursor) - hindi na TALAGANG drag ang bili ngayon
+     (tingnan ang buildOldManShopCell sa decor.js), kaya "pointer" na
+     lang, kagaya na rin ng .maria-shop-cell sa ibaba. */
+  cursor: pointer;
 }
 
 .oldman-shop-cell:hover:not(:disabled) {
@@ -3319,7 +3509,9 @@ body.touch-controls-active #mobile-btn-action {
 #mobile-btn-tools {
   position: fixed;
   right: calc(max(18px, env(safe-area-inset-right)) + 30px);
-  bottom: calc(max(66px, calc(66px + env(safe-area-inset-bottom))) + 108px + 14px);
+  bottom: calc(
+    max(66px, calc(66px + env(safe-area-inset-bottom))) + 108px + 14px
+  );
   z-index: 50;
 
   width: 48px;
@@ -3535,6 +3727,17 @@ body.touch-controls-active #stove-panel {
   transform-origin: center center;
 }
 
+/* AYOS: si #profile-panel (equipment/paperdoll+stats) ay HIWALAY na
+   ngayon sa #bag-panel (tingnan ang paliwanag sa style.css,
+   #profile-panel) - kailangan din nito ng sarili nitong mobile
+   scale-down, kaparehong-pareho ng ginagawa na sa #bag-panel/
+   #stove-panel sa itaas (parehong dahilan: masyadong malaki para sa
+   maliit na telepono). */
+body.touch-controls-active #profile-panel {
+  transform: translate(-50%, -50%) scale(0.82);
+  transform-origin: center center;
+}
+
 /* Sobrang KIPOT na screen (hal. maliit na phone sa PORTRAIT, o
    sobrang liit na window) - konting extra shrink pa. Kasama pa rin
    dapat ang touch-controls-active check, para hindi maapektuhan ang
@@ -3555,6 +3758,10 @@ body.touch-controls-active #stove-panel {
     transform: translate(-50%, -50%) scale(0.68);
   }
 
+  body.touch-controls-active #profile-panel {
+    transform: translate(-50%, -50%) scale(0.68);
+  }
+
   body.touch-controls-active #player-hud {
     transform: scale(0.7);
   }
@@ -3571,7 +3778,9 @@ body.touch-controls-active #stove-panel {
 
   body.touch-controls-active #mobile-btn-tools {
     right: 42px;
-    bottom: calc(max(58px, calc(58px + env(safe-area-inset-bottom))) + 108px + 14px);
+    bottom: calc(
+      max(58px, calc(58px + env(safe-area-inset-bottom))) + 108px + 14px
+    );
   }
 }
 
@@ -3588,7 +3797,9 @@ body.touch-controls-active #stove-panel {
   }
 
   body.touch-controls-active #mobile-btn-tools {
-    bottom: calc(max(48px, calc(48px + env(safe-area-inset-bottom))) + 108px + 14px);
+    bottom: calc(
+      max(48px, calc(48px + env(safe-area-inset-bottom))) + 108px + 14px
+    );
   }
 
   body.touch-controls-active #hotbar {
@@ -3984,7 +4195,9 @@ body.touch-controls-active #stove-panel {
 
 .builder-lot-row-clickable {
   cursor: pointer;
-  transition: background 0.12s ease, border-color 0.12s ease;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
 }
 
 .builder-lot-row-clickable:hover,
@@ -4316,7 +4529,9 @@ body.touch-controls-active #stove-panel {
   text-align: center;
 
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
 }
 
 #main-menu-buttons button:hover {

@@ -2457,10 +2457,22 @@ function buildOldManShopCell(item) {
     getShopItemIconHTML(item.itemId, item.fallbackIcon) +
     "</span>";
 
-  // BILI - i-DRAG papunta sa bag/hotbar (hindi na click), kagaya ng
-  // paraan ng pagbebenta (tingnan ang startOldManBuyDrag sa ibaba).
-  cell.addEventListener("pointerdown", (event) => {
-    startOldManBuyDrag(item.itemId, event);
+  // AYOS (hiling ng user): "wag na traggable, pag click ng item
+  // lalabas na lang label na Buy o Cancel, tapos kapag Buy lalabas
+  // yung quantity popup" - dating i-DRAG papunta sa bag/hotbar
+  // (startOldManBuyDrag) - CLICK na lang ngayon, gaya na rin ng
+  // ginagawa ni Maria (buildMariaShopCell sa builder.js): lumalabas
+  // ang munting "Buy"/"Cancel" na menu (showBagActionMenu, hotbar.js -
+  // IISANG component din ito na ginagamit ng "Use"/"Transfer"/"Slice"
+  // sa hotbar/inventory), "Buy" lang ang talagang magbubukas ng
+  // quantity popup (startOldManBuyFlow sa ibaba).
+  cell.addEventListener("click", (event) => {
+    if (typeof showBagActionMenu !== "function") return;
+
+    showBagActionMenu(event.clientX, event.clientY, [
+      { label: "Buy", onClick: () => startOldManBuyFlow(item.itemId) },
+      { label: "Cancel", onClick: () => {} },
+    ]);
   });
 
   // AYOS: JS na ngayon ang tooltip (hindi na purong CSS ::after) -
@@ -2708,85 +2720,96 @@ document
   });
 
 // =========================
-// BUY FLOW (i-drag ang item mula sa #oldman-shop-grid papunta sa
-// bag/hotbar) - LUMANG paraan ng pag-drag (dragGhostEl mula sa
-// hotbar.js, tingnan ang equip-slot-lefthand/-righthand doon bilang
-// halimbawa), HINDI ang bagong "float economy" (walang sariling
-// stack/slot pinagmumulan ang tindahan). Kung 1 lang ang kayang bilhin
-// (stock at/o gold), agad na mabibili (walang popup). Kung higit sa 1,
-// may lalabas na popup (dami + Confirm/Cancel) - kapareho ng SELL FLOW
-// sa itaas.
+// BUY FLOW - CLICK na lang (hindi na drag, hiling ng user: "wag na
+// traggable") - lumalabas munа ang munting "Buy"/"Cancel" na menu
+// (showBagActionMenu, hotbar.js, tingnan ang buildOldManShopCell sa
+// itaas at buildMariaShopCell sa builder.js), saka pa lang bubukas ang
+// quantity popup sa sandaling piliin ang "Buy". GENERIC na ito ngayon
+// (may "shop" field, "oldman" o "maria") - IISANG quantity popup
+// (#oldman-buy-qty-popup) na lang ang ginagamit ng PAREHONG tindahan
+// (tingnan ang getShopBuyFlowItem sa ibaba), kaya magkatugma ang
+// karanasan ng bumibili kay Oldman at kay Maria. Kung 1 lang ang
+// kayang bilhin, agad na mabibili (walang qty popup). Kung higit sa 1,
+// may lalabas na popup (dami + Confirm/Cancel).
 // =========================
 
-let oldManBuyFlowState = null; // { itemId, maxCount }
+let oldManBuyFlowState = null; // { shop: "oldman" | "maria", itemId, maxCount }
 
-function startOldManBuyDrag(itemId, event) {
-  ensureOldManStock();
+// Ibinabalik ang { items, item } ng KASALUKUYANG shop sa
+// oldManBuyFlowState - "oldman" -> OLDMAN_SHOP_ITEMS (decor.js dito
+// rin), "maria" -> MARIA_SHOP_ITEMS (builder.js) - IISANG function na
+// ito ang tanging pinagmumulan ng item-lookup ng buong popup sa ibaba,
+// para hindi na kailangang ulit-ulitin ang parehong "kung anong shop"
+// na check sa bawat function.
+function getShopItemsArray(shop) {
+  if (shop === "maria") {
+    return typeof MARIA_SHOP_ITEMS !== "undefined" ? MARIA_SHOP_ITEMS : [];
+  }
 
-  const item = OLDMAN_SHOP_ITEMS.find((entry) => entry.itemId === itemId);
-
-  if (!item) return;
-
-  const stock = oldManStock[itemId] || 0;
-
-  // Naubos na ang stock - walang simulang drag (hindi ito dapat
-  // mangyari, UNLIMITED ang stock ni oldman). HINDI dito tinitingnan
-  // ang gold - laging puwedeng i-drag at laging lalabas ang popup;
-  // sa CONFIRM na lang mag-e-error kapag kulang.
-  if (stock <= 0) return;
-
-  // Kailangan naka-load na ang hotbar.js (dragState/dragGhostEl)
-  // bago tayo magsimula ng drag.
-  if (typeof dragState === "undefined") return;
-
-  dragState = {
-    source: "oldman-buy",
-    itemId,
-    fromSlotIndex: null,
-    startX: event.clientX,
-    startY: event.clientY,
-    // LUMANG paraan (dragGhostEl, hindi floatingPickup) - agad na
-    // "activated", kagaya ng equip-left/equip-right sa hotbar.js.
-    activated: true,
-  };
-
-  dragGhostEl = document.createElement("div");
-  dragGhostEl.id = "hotbar-drag-ghost";
-  dragGhostEl.innerHTML = getShopItemIconHTML(item.itemId, item.fallbackIcon);
-  document.body.appendChild(dragGhostEl);
-  moveDragGhost(event.clientX, event.clientY);
-
-  event.preventDefault();
+  return OLDMAN_SHOP_ITEMS;
 }
 
-// Tinatawag ng hotbar.js pointerup kapag na-drop sa bag/hotbar ang
-// hinihila mula sa "oldman-buy" source.
-function startOldManBuyFlow(itemId) {
-  ensureOldManStock();
+function getShopBuyFlowItem() {
+  if (!oldManBuyFlowState) return null;
 
-  const item = OLDMAN_SHOP_ITEMS.find((entry) => entry.itemId === itemId);
+  const items = getShopItemsArray(oldManBuyFlowState.shop);
+
+  return items.find((entry) => entry.itemId === oldManBuyFlowState.itemId) || null;
+}
+
+// Tinatawag mula sa "Buy" na buton ng popup menu (showBagActionMenu) -
+// "shop" ay "oldman" o "maria".
+function startShopBuyFlow(shop, itemId) {
+  const items = getShopItemsArray(shop);
+  const item = items.find((entry) => entry.itemId === itemId);
 
   if (!item) return;
 
-  const stock = oldManStock[itemId] || 0;
-  const maxCount = maxAffordableOldManCount(item, stock);
+  let maxCount;
 
-  if (maxCount <= 0) {
-    // UNLIMITED ang stock kaya hindi na ito dapat maabot.
-    if (typeof showSettingsToast === "function") {
-      showSettingsToast("Out of stock!");
+  if (shop === "maria") {
+    // Walang stock si Maria (unlimited, gaya ni Oldman) - ang gold
+    // lang ang hadlang, kaya isang malaking numero na lang (kapareho
+    // ng OLDMAN_UNLIMITED_STOCK) ang gagamitin bilang "max" ng popup.
+    maxCount = OLDMAN_UNLIMITED_STOCK;
+  } else {
+    ensureOldManStock();
+
+    const stock = oldManStock[itemId] || 0;
+
+    maxCount = maxAffordableOldManCount(item, stock);
+
+    if (maxCount <= 0) {
+      // UNLIMITED ang stock kaya hindi na ito dapat maabot.
+      if (typeof showSettingsToast === "function") {
+        showSettingsToast("Out of stock!");
+      }
+
+      return;
     }
-
-    return;
   }
 
   if (maxCount === 1) {
-    buyFromOldManQuantity(itemId, 1);
+    if (shop === "maria") buyFromMariaQuantity(itemId, 1);
+    else buyFromOldManQuantity(itemId, 1);
+
     return;
   }
 
-  oldManBuyFlowState = { itemId, maxCount };
+  oldManBuyFlowState = { shop, itemId, maxCount };
   openOldManBuyQtyPopup();
+}
+
+// Tinatawag ng "Buy" na buton sa #oldman-shop-grid (tingnan ang
+// buildOldManShopCell sa itaas).
+function startOldManBuyFlow(itemId) {
+  startShopBuyFlow("oldman", itemId);
+}
+
+// Tinatawag ng "Buy" na buton sa #maria-shop-grid (tingnan ang
+// buildMariaShopCell sa builder.js).
+function startMariaBuyFlow(itemId) {
+  startShopBuyFlow("maria", itemId);
 }
 
 function openOldManBuyQtyPopup() {
@@ -2796,9 +2819,7 @@ function openOldManBuyQtyPopup() {
 
   if (!popup) return;
 
-  const item = OLDMAN_SHOP_ITEMS.find(
-    (entry) => entry.itemId === oldManBuyFlowState.itemId,
-  );
+  const item = getShopBuyFlowItem();
 
   if (!item) {
     oldManBuyFlowState = null;
@@ -2858,9 +2879,7 @@ function clampOldManBuyQtyInput() {
 function updateOldManBuyQtyTotal() {
   if (!oldManBuyFlowState) return;
 
-  const item = OLDMAN_SHOP_ITEMS.find(
-    (entry) => entry.itemId === oldManBuyFlowState.itemId,
-  );
+  const item = getShopBuyFlowItem();
 
   if (!item) return;
 
@@ -2922,13 +2941,18 @@ document
   ?.addEventListener("click", () => {
     if (!oldManBuyFlowState) return;
 
+    // Itinatabi muna BAGO tawagin ang closeOldManBuyQtyPopup (na
+    // nagse-set ng oldManBuyFlowState pabalik sa null) - kailangan
+    // namin ito pagkatapos para malaman KANINONG bibilhan
+    // (buyFromOldManQuantity o buyFromMariaQuantity).
+    const shop = oldManBuyFlowState.shop;
     const itemId = oldManBuyFlowState.itemId;
     const qty = clampOldManBuyQtyInput();
-    const item = OLDMAN_SHOP_ITEMS.find((entry) => entry.itemId === itemId);
+    const item = getShopBuyFlowItem();
 
     // KULANG ANG GOLD - ERROR lang, at NANANATILING BUKAS ang popup
     // para puwede mong ibaba ang dami at subukan ulit (imbes na
-    // isara at simulan ulit ang buong drag).
+    // isara at simulan ulit ang buong bili).
     if (!canAffordOldManBuy(item, qty)) {
       if (typeof showSettingsToast === "function")
         showSettingsToast("You do not have enough gold!");
@@ -2937,7 +2961,9 @@ document
     }
 
     closeOldManBuyQtyPopup();
-    buyFromOldManQuantity(itemId, qty);
+
+    if (shop === "maria") buyFromMariaQuantity(itemId, qty);
+    else buyFromOldManQuantity(itemId, qty);
   });
 
 // AYOS (hiling ng user): "alisin mo na yung mga blackhole erase mo na

@@ -1611,16 +1611,16 @@ function getCarrotStageIndex(seed) {
   );
 }
 
-// Bago maabot ang 90% na tubo, laging NASA LIKOD ng player ang tanim
-// (parang normal na lupa) - hindi pa naman ito sapat kataas para
-// katakutang matabunan ang player. Sa 90%+ pataas lang (malapit nang
-// mahinog, pinakamataas na dahon) saka lang papasok ito sa Y-sort
-// (tingnan ang getCarrotDrawables) para hindi naman ito matabunan ng
-// katabing tile.
-const CARROT_OVERLAP_PROGRESS = 0.9;
-
+// AYOS (hiling ng user): "kapag nasa 3-4 frame na ng vegetable, dapat
+// pumapasok na ang Y-sort laban sa player" - dating "progress-based"
+// ito (>=90% na pagtubo, na LAGING nasa loob ng huling stage/frame4
+// pa lang talaga, kailanman hindi naaabot ng frame3) - STAGE-based na
+// ngayon direkta (stageIndex >= 2, ibig sabihin FRAME 3 AT FRAME 4,
+// hindi lang frame4) - dalawang pinakamataas na yugto na ng paglaki
+// (frame 3/4, mas mataas na sa isang tile) ang sumasali na sa Y-sort
+// laban sa player, hindi lang yung pinakahuli/pinakamatangkad.
 function shouldCarrotOverlapPlayer(seed) {
-  return getCarrotProgress(seed) >= CARROT_OVERLAP_PROGRESS;
+  return getCarrotStageIndex(seed) >= 2;
 }
 
 // Puwede nang anihin sa sandaling lumitaw na ang huling frame
@@ -2589,33 +2589,34 @@ function getCarrotDrawables() {
 
     if (!record || !record.seed) continue;
 
-    // Bago pa 90% ang tubo, iginuguhit na ito sa drawDugTiles (laging
-    // nasa likod ng player) - dito lang isinasama ang mga malapit nang
-    // mahinog para sa Y-sort.
+    // Bago pa frame3 ang tubo, iginuguhit na ito sa drawDugTiles (laging
+    // nasa likod ng player) - dito lang isinasama ang mga nasa frame
+    // 3/4 na para sa Y-sort.
     if (!shouldCarrotOverlapPlayer(record.seed)) continue;
 
     const [col, row] = key.split(",").map(Number);
 
-    // Mas mataas ang ilang frame (lalo na ang frame4, 24px) kaysa sa
-    // isang tile (16px), kaya lumalabas ito sa itaas ng sarili nitong
-    // tile. Kung row*TILE_SIZE+TILE_SIZE lang ang gagamitin bilang
-    // sortY (parang normal na 1-tile object), masyadong "maaga" itong
-    // manalo laban sa player na nasa tabi/harap lang - kaya nababalot/
-    // natatabunan ng dahon o lupa ang character kahit hindi pa naman
-    // siya nakalusot sa likod ng tanim. Ibinabawas natin dito ang sobrang
-    // taas (overflow) para ang sortY ay sumalamin sa TUNAY na "footprint"
-    // ng tanim sa lupa - mas maaasahang hindi na siya babalot sa player.
-    const stageIndex = getCarrotStageIndex(record.seed);
-    const stageImg = getCropFrameImages(record.seed.type)[stageIndex];
-    const overflow =
-      stageImg && stageImg.complete && stageImg.naturalHeight
-        ? Math.max(0, stageImg.naturalHeight - TILE_SIZE)
-        : 0;
+    // AYOS (hiling ng user): "gawin mong eksaktong 50% (gitna) ng
+    // tile ang hati - kapag nasa itaas na kalahati (51%+) ang
+    // character, nasa LIKOD siya ng tanim; kapag nasa ibaba (49%
+    // pababa), NASA HARAP siya" - dating "overflow-based" ang
+    // sortY (row*TILE_SIZE + TILE_SIZE - overflow, base sa TUNAY na
+    // taas ng bawat larawan ng bawat crop) - HINDI pantay-pantay ang
+    // resulta nito kada uri ng gulay (magkaiba ang taas ng
+    // carrot4/potato4/cabbage4/eggplant4 sa isa't isa), kaya
+    // lumilitaw itong "mali"/hindi magkatugma depende sa tanim.
+    // Ngayon, FIXED na sa EKSAKTONG GITNA ng tile mismo ang threshold
+    // (row*TILE_SIZE + TILE_SIZE/2) - PAREHONG-PAREHO na ito sa LAHAT
+    // ng crop/stage, kaya laging pareho/predictable ang "50/50" split:
+    // parating naaabot ng "isang hakbang" (1 tile) pataas/pababa ang
+    // sapat para lumipat mula likod papuntang harap (o kabaliktaran).
+    const tileTop = row * TILE_SIZE;
+    const tileCenterY = tileTop + TILE_SIZE / 2;
 
     drawables.push({
-      sortY: row * TILE_SIZE + TILE_SIZE - overflow,
+      sortY: tileCenterY,
       order: -1,
-      draw: () => drawCarrotFrame(stageIndex, col, row, record.seed.type),
+      draw: () => drawCarrotFrame(getCarrotStageIndex(record.seed), col, row, record.seed.type),
     });
   }
 

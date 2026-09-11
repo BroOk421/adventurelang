@@ -3733,9 +3733,28 @@ function buildMariaShopCell(item) {
     cell.appendChild(stock);
   }
 
-  cell.addEventListener("click", () => {
-    buyFromMaria(item.itemId);
-    syncMariaShopPanel();
+  // AYOS (hiling ng user): "wag na traggable, pag click ng item
+  // lalabas na lang label na Buy o Cancel, tapos kapag Buy lalabas
+  // yung quantity popup" - dating AGAD na bumibili ng 1 kada click
+  // (buyFromMaria) - lumalabas na muna ang munting "Buy"/"Cancel" na
+  // menu (showBagActionMenu, hotbar.js - IISANG component din ito na
+  // ginagamit ng "Use"/"Transfer"/"Slice" sa hotbar/inventory), saka
+  // pa lang bubukas ang quantity popup (startMariaBuyFlow, decor.js)
+  // sa sandaling piliin ang "Buy" - kagaya na ngayon ni Oldman
+  // (buildOldManShopCell, decor.js), kaya magkatugma na ang dalawa.
+  cell.addEventListener("click", (event) => {
+    if (typeof showBagActionMenu !== "function") return;
+
+    showBagActionMenu(event.clientX, event.clientY, [
+      {
+        label: "Buy",
+        onClick: () => {
+          if (typeof startMariaBuyFlow === "function")
+            startMariaBuyFlow(item.itemId);
+        },
+      },
+      { label: "Cancel", onClick: () => {} },
+    ]);
   });
 
   cell.addEventListener("contextmenu", (event) => {
@@ -3810,6 +3829,47 @@ function buyFromMaria(itemId) {
   if (typeof showFloatingMessage === "function") {
     showFloatingMessage("Bought 1 " + item.label + " for " + item.buyPrice + " gold.");
   }
+}
+
+// AYOS (hiling ng user, kasabay ng bagong "click -> Buy/Cancel -> qty
+// popup" na daloy, tingnan ang startMariaBuyFlow sa decor.js): bersyon
+// ng buyFromMaria sa itaas na TUMATANGGAP ng "qty" (dating 1 lang
+// palagi) - tinatawag ito ng #oldman-buy-qty-confirm sa decor.js
+// (IISANG quantity popup na lang ang ginagamit ng PAREHONG Oldman at
+// Maria) sa sandaling i-confirm ang dami sa popup.
+function buyFromMariaQuantity(itemId, qty) {
+  const item = MARIA_SHOP_ITEMS.find((entry) => entry.itemId === itemId);
+
+  if (!item) return;
+
+  const amount = Math.max(0, Math.floor(qty) || 0);
+
+  if (amount <= 0) return;
+
+  const cost = item.buyPrice * amount;
+
+  if (typeof goldCollected === "undefined" || goldCollected < cost) {
+    if (typeof showFloatingMessage === "function") {
+      showFloatingMessage("You do not have enough gold.");
+    }
+
+    return;
+  }
+
+  goldCollected -= cost;
+
+  if (typeof adjustGlobalItemCount === "function") {
+    adjustGlobalItemCount(itemId, amount);
+  }
+
+  if (typeof syncHotbarUI === "function") syncHotbarUI();
+  if (typeof scheduleInventorySave === "function") scheduleInventorySave();
+
+  if (typeof showFloatingMessage === "function") {
+    showFloatingMessage("Bought " + amount + " " + item.label + " for " + cost + " gold.");
+  }
+
+  if (typeof syncMariaShopPanel === "function") syncMariaShopPanel();
 }
 
 // AYOS (multi-crop, hiling ng user: "para magamit buy/sell") - BAGO,

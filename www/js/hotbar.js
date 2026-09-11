@@ -511,6 +511,54 @@ function syncPlayerHud() {
   );
 }
 
+// =========================
+// PROFILE PANEL (#profile-panel) - HIWALAY na floating panel ngayon
+// para sa equipment/paperdoll + stats (hiling ng user: "profile
+// section hide it only show when i click the top left section of
+// health bar have x button") - dating LAGING kasama sa loob ng
+// #bag-panel-body (kaya laging kasabay lumalabas ng inventory grid
+// tuwing binubuksan ang bag). Sariling open/close state na ito ngayon,
+// HIWALAY sa bagPanelOpen - kaya "bag lang" (inventory) ang nakikita
+// pag-click ng bag hotbar slot/"B" key, at "profile lang" (equipment)
+// ang nakikita pag-click ng #player-hud.
+// =========================
+let profilePanelOpen = false;
+
+function toggleProfilePanel() {
+  profilePanelOpen = !profilePanelOpen;
+  syncProfilePanel();
+}
+
+function closeProfilePanel() {
+  if (profilePanelOpen) toggleProfilePanel();
+}
+
+function syncProfilePanel() {
+  const panel = document.getElementById("profile-panel");
+
+  if (!panel) return;
+
+  panel.classList.toggle("hidden", !profilePanelOpen);
+
+  if (!profilePanelOpen) return;
+
+  // Agad na i-refresh sa sandaling buksan (huwag hintayin pa ang
+  // susunod na regular na syncHotbarUI tick) - kagaya ng ginagawa ng
+  // syncBagPanel para sa sarili nitong grid.
+  if (typeof syncEquipmentPanel === "function") syncEquipmentPanel();
+  if (typeof syncEquipmentStats === "function") syncEquipmentStats();
+}
+
+document.getElementById("player-hud")?.addEventListener("click", () => {
+  toggleProfilePanel();
+});
+
+document
+  .getElementById("profile-panel-close")
+  ?.addEventListener("click", () => {
+    closeProfilePanel();
+  });
+
 // PANSAMANTALA (tingnan ang paliwanag sa index.html,
 // #player-hud-row-debug-coords) - live na col/row ng player, para sa
 // paghahanap ng eksaktong lugar ng puno/bato/damo (fixedTrees/
@@ -555,22 +603,37 @@ function setHotbarSlotActive(id, active) {
 // key - tingnan ang activateHotbarSlot) ang siyang nag-eequip nito
 // bilang binhi para sa pagtatanim.
 
-const BAG_GRID_COLUMNS = 8;
+// AYOS (hiling ng user): "gawin mo yung inventory ko 5 columns at 7
+// rows na lang pero same pa rin yung bilang ng slots" - dating 8
+// columns - PINALITAN ng 5 (tingnan #bag-panel-grid sa style.css,
+// EKSAKTONG dapat magkatugma ang bilang na ito). Ang TOTAL na
+// kapasidad (BAG_GRID_COLUMNS * BAG_GRID_ROWS_MAX) ay SINADYANG
+// pinanatili pa ring 120 slot (dating 8x15=120, ngayon 5x24=120) -
+// walang nawawalang slot, "reflow" lang papuntang mas kipot/mas
+// matangkad na grid (5 lang ang makikita bawat hanay, pero pareho pa
+// rin ang KABUUAN).
+const BAG_GRID_COLUMNS = 5;
 
 // BAGO (hiling ng user): "kapag walang bag is nasa 2 rows lang yung bag
 // pero kapag naka equipt na mag fully max na yung bag" - limitado
-// muna sa 2 hanay (16 slot) ang bag hangga't HINDI pa naka-"Use"/
-// naka-suot ang backpack (bagEquipped, tingnan sa ibaba) - sa
-// sandaling isuot ito, lumalaki papuntang FULL capacity
-// (BAG_GRID_ROWS_MAX, 15 hanay = 120 slot). Ang mismong DATA ng mga
-// item (itemDefaultBagPosition/bagSplitStacks) ay HINDI naaapektuhan
-// nito - kahit anong posisyon (0-119) pa ang nakatalaga sa isang item,
-// nananatili itong naka-imbak doon; "nagtatago" lang ang mga cell na
-// LAMPAS sa kasalukuyang aktibong bilang ng hanay (hindi ginuguhit sa
-// grid) hangga't hindi pa naka-suot ang bag - muling lalabas ang lahat
-// sa sandaling isuot ito.
-const BAG_GRID_ROWS_NO_BAG = 2;
-const BAG_GRID_ROWS_MAX = 15;
+// muna sa ilang hanay ang bag hangga't HINDI pa naka-"Use"/naka-suot
+// ang backpack (bagEquipped, tingnan sa ibaba) - sa sandaling isuot
+// ito, lumalaki papuntang FULL capacity (BAG_GRID_ROWS_MAX, 24 hanay =
+// 120 slot, kasabay ng bagong 5-column na layout sa itaas). Ang
+// mismong DATA ng mga item (itemDefaultBagPosition/bagSplitStacks) ay
+// HINDI naaapektuhan nito - kahit anong posisyon (0-119) pa ang
+// nakatalaga sa isang item, nananatili itong naka-imbak doon;
+// "nagtatago"/naka-lock lang ang mga cell na LAMPAS sa kasalukuyang
+// aktibong bilang ng hanay hangga't hindi pa naka-suot ang bag -
+// muling lalabas ang lahat sa sandaling isuot ito.
+//
+// AYOS: dating "2 hanay x 8 kolum = 16 slot" bago naka-suot ang bag -
+// hindi eksaktong maaring hatiin ang 16 sa 5 kolum (3.2 hanay), kaya
+// pinalaki papuntang 4 hanay (20 slot) sa halip na 3 (15 slot) - para
+// HINDI bumaba ang kapasidad bago pa man magkaroon ng bag (mas mabuti
+// ang sobra kaysa kulang, iwas maglaho ang item).
+const BAG_GRID_ROWS_NO_BAG = 4;
+const BAG_GRID_ROWS_MAX = 24;
 
 function getActiveBagGridRows() {
   return typeof bagEquipped !== "undefined" && bagEquipped
@@ -851,16 +914,27 @@ function closeBagActionMenu() {
   }
 }
 
+// AYOS (hiling ng user: "hindi nakikita yung lahat ng buttons pag
+// nag-cclick ako need i-adjust yung position" - tingnan ang
+// naka-attach na screenshot, naputol sa ilalim ng screen ang huling
+// buton, hal. "Slice") - dating basta "window.innerHeight - 80" ang
+// palagay (parang laging 2 buton lang/maliit ang menu) - hindi na ito
+// TAMA sa sandaling dumami ang mga buton (Use/Transfer/Slice, o ang
+// bagong Buy/Cancel ng tindahan). Ngayon, SINUSUKAT muna ang TUNAY na
+// laki ng menu (getBoundingClientRect, pagkatapos ito idagdag sa
+// document.body nang "hidden" muna) bago ito i-position - kaya LAGING
+// buo/kasya ang lahat ng buton: kung hindi na kasya pababa mula sa
+// tap/click position, sa ITAAS na lang ilalagay (kagaya ng ginagawa
+// na ng showOldManShopTooltip sa decor.js), hindi basta puputulin.
 function showBagActionMenu(x, y, actions) {
   closeBagActionMenu();
 
   const menu = document.createElement("div");
 
   menu.className = "bag-action-menu";
-  // Bahagyang i-clamp papasok sa screen, para hindi lumagpas sa gilid
-  // kapag right-click sa sulok.
-  menu.style.left = Math.min(x, window.innerWidth - 130) + "px";
-  menu.style.top = Math.min(y, window.innerHeight - 80) + "px";
+  menu.style.visibility = "hidden";
+  menu.style.left = "0px";
+  menu.style.top = "0px";
 
   for (const action of actions) {
     const btn = document.createElement("button");
@@ -881,6 +955,34 @@ function showBagActionMenu(x, y, actions) {
 
   document.body.appendChild(menu);
   bagActionMenuEl = menu;
+
+  const margin = 8;
+  const rect = menu.getBoundingClientRect();
+
+  // Sa IBABA ng tap/click munа ang paunang plano - PERO kung wala nang
+  // sapat na espasyo pababa (aabot sa/lalampas sa ilalim ng screen),
+  // sa ITAAS na lang ilalagay sa halip.
+  let top = y;
+
+  if (top + rect.height + margin > window.innerHeight) {
+    top = y - rect.height - margin;
+  }
+
+  // Sakaling PAREHONG walang espasyo (itaas at ibaba) - "clamp" na
+  // lang papasok sa screen (huling linya ng depensa).
+  top = Math.max(
+    margin,
+    Math.min(top, window.innerHeight - rect.height - margin),
+  );
+
+  let left = Math.max(
+    margin,
+    Math.min(x, window.innerWidth - rect.width - margin),
+  );
+
+  menu.style.left = left + "px";
+  menu.style.top = top + "px";
+  menu.style.visibility = "visible";
 }
 
 // Isara kapag nag-click kahit saan sa LABAS ng menu mismo.
@@ -4810,5 +4912,6 @@ document.getElementById("bag-panel-close")?.addEventListener("click", () => {
 });
 setupDraggablePanel("stove-panel", "stove-panel-header");
 setupDraggablePanel("oldman-shop-panel", "oldman-shop-panel-header");
+setupDraggablePanel("profile-panel", "profile-panel-header");
 
 syncHotbarUI();
