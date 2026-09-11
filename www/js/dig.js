@@ -2490,6 +2490,35 @@ function drawSnowGroundCover() {
 let dugTilesValidatedFor = null;
 
 function validateDugTiles() {
+  // =========================
+  // AYOS (BUG, hiling ng user: "kapag labas ko ng gardenhouseinner to
+  // grassmap pag balik ko is nawawala na yung natanim ko")
+  // =========================
+  //
+  // SANHI: sa loadWorld (map.js), ang `mapReady = true` ay nauuna sa
+  // `worldLoading = false` - ang huli ay nasa loob pa ng isang
+  // setTimeout(MIN_LOADING_MS = 450ms). Kaya may humigit-kumulang
+  // KALAHATING SEGUNDO na bintana kung saan `mapReady === true` PERO
+  // `worldLoading === true` pa rin. Sa loob ng bintanang iyon,
+  // tumatakbo na ang draw() kada frame -> drawDugTiles() (hindi na ito
+  // humihinto dahil mapReady na) -> validateDugTiles() dito. At ang
+  // UNANG linya ng canDigAt ay:
+  //
+  //     if (!mapReady || !mapData || worldLoading) return false;
+  //
+  // ...kaya FALSE ang isinasagot nito sa LAHAT ng tile - at ang loop sa
+  // ibaba ay nagbubura ng bawat tile na hindi "canDigAt". Resulta:
+  // pagbalik mo sa Garden House, NABUBURA ang BUONG taniman (kasama ang
+  // mga tanim na hindi pa tapos), at dahil naitakda na ang
+  // dugTilesValidatedFor, hindi na ito uulitin/maibabalik pa.
+  //
+  // AYOS: huwag munang mag-validate habang naglo-load pa ang mundo -
+  // babalik na lang dito ang susunod na frame (hindi pa naitatakda ang
+  // dugTilesValidatedFor, kaya awtomatiko itong susubok ulit) pagkatapos
+  // ng tunay na pagka-load.
+  if (typeof worldLoading !== "undefined" && worldLoading) return;
+  if (!mapReady || !mapData) return;
+
   if (dugTilesValidatedFor === currentWorld) return;
 
   const dug = getDugTilesForCurrentWorld();
@@ -2502,6 +2531,24 @@ function validateDugTiles() {
     const [col, row] = key.split(",").map(Number);
 
     const value = dug[key];
+
+    // PANGALAWANG proteksyon (depensa lang, bukod sa worldLoading na
+    // guard sa itaas): ang isang tile na MAY TANIM ay hindi na dapat
+    // basta-basta mabura ng validation na ito. Ang tanging dahilan para
+    // tuluyan itong tanggalin ay kung TALAGANG wala na ito sa mapa
+    // (labas na sa hangganan) - hal. napalitan/pinaliit ang mundo.
+    // Lahat ng iba pang dahilan (may bagong puno sa ibabaw, atbp.) ay
+    // hindi sapat para sirain ang pinaghirapan mong pananim.
+    if (value && value.seed) {
+      const insideMap =
+        col >= 0 && row >= 0 && col < mapData.width && row < mapData.height;
+
+      if (insideMap) continue;
+
+      delete dug[key];
+      dropped++;
+      continue;
+    }
 
     // Tanggalin muna pansamantala para hindi sabihin ng canDigAt na
     // "nahukay na" - ang tanong natin ay kung LEGAL pa ba ang cell.

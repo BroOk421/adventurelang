@@ -2791,6 +2791,13 @@ function clearFloatingPickupState() {
     floatingGhostEl.remove();
     floatingGhostEl = null;
   }
+
+  // BAGO (kasama ng "Transfer" na buton - tingnan ang mobile-slice.js):
+  // kapag wala nang hawak, awtomatikong isinasara ang transfer mode
+  // (nawawala ang highlight ng mga slot at ang Cancel na bar) - dito
+  // ito inilagay dahil ITO ang IISANG daanan ng LAHAT ng paraan ng
+  // pagkaubos ng hawak (tap sa hotbar/bag/craft/stove).
+  if (typeof syncTransferModeUI === "function") syncTransferModeUI();
 }
 
 // Kinukuha ang BUONG available na bilang mula sa "source" papunta sa
@@ -3051,6 +3058,11 @@ function settleFloatBackToSource() {
   else moveFloatingToBagMaster(count);
 
   if (floatingPickup) moveFloatingToBagMaster(floatingPickup.count);
+
+  // Kahit sa landas na ito (Cancel/Escape/blur/walang valid na target) -
+  // isara rin ang transfer mode, kung sakaling hindi pa ito nadaanan ng
+  // clearFloatingPickupState sa itaas.
+  if (typeof syncTransferModeUI === "function") syncTransferModeUI();
 
   syncHotbarUI();
   syncBagPanel();

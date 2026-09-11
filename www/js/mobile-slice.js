@@ -300,6 +300,46 @@ function buildMobileItemActions(source, itemId) {
   // epekto kapag pinindot.
   const sliceAvailable = getAvailableCountForMobileSlice(source, itemId);
 
+  // =========================
+  // "TRANSFER" (BAGO, hiling ng user: "may bug yung sa mobile di na ma
+  // punta yung item sa craft or crafter at stove... lagyan na lang din
+  // ng label button kapag pindot sa item sa inventory add mo yung
+  // transfer pag click is mag highlight tapos lilipat kahit san slot
+  // kahit craft, crafter inventory at stove")
+  // =========================
+  //
+  // SANHI ng bug: noong tinanggal ang pagiging "draggable" ng mga item
+  // sa inventory (tingnan ang paliwanag sa itaas ng file at ang
+  // `usesFloatEconomy` na early-return sa pointermove, hotbar.js),
+  // NAWALA rin ang TANGING paraan para makapaglagay ng item sa mga
+  // craft input slot at sa Stove - dahil ang mga slot na iyon ay
+  // tumatanggap LANG ng isang naka-ARM na `floatingPickup` (tingnan ang
+  // pointerdown ng .craft-input-slot sa craft.js at ng .smelt-input-slot
+  // sa stove.js). Ang natitirang paraan lang para makapag-ARM ay ang
+  // "Slice" - PERO lumalabas lang iyon kapag MAHIGIT SA ISA ang hawak,
+  // kaya ang isahang item (hal. isang crafter/stove/kahoy) ay TALAGANG
+  // hindi na mailalagay kahit saan sa mobile.
+  //
+  // Ito ang AYOS: isang "Transfer" na buton na BUONG stack agad ang
+  // ina-ARM (walang qty popup, hindi tulad ng Slice) - pagkatapos nito,
+  // NAKA-HIGHLIGHT ang LAHAT ng tumatanggap na slot (tingnan ang
+  // syncTransferModeUI sa ibaba at ang `body.transfer-mode` sa style.css),
+  // at isang TAP na lang sa kahit aling slot (hotbar 1-9, kahit anong
+  // cell ng bag/inventory, ang 4 o 9 na craft input ng Crafter, o ang
+  // Ingredient/Fuel ng Stove) ang naglilipat doon - lahat ng mga
+  // pointerdown handler na iyon ay matagal nang naghihintay ng
+  // floatingPickup, kaya walang ibang kailangang baguhin doon.
+  if (sliceAvailable > 0) {
+    actions.push({
+      label: "Transfer",
+      onClick: () => {
+        const available = getAvailableCountForMobileSlice(source, itemId);
+
+        if (available > 0) startMobileTransfer(source, itemId, available);
+      },
+    });
+  }
+
   if (sliceAvailable > 1) {
     actions.push({
       label: "Slice",
@@ -633,3 +673,112 @@ document.addEventListener("pointermove", (event) => {
     moveFloatingGhost(event.clientX, event.clientY);
   }
 });
+
+// =========================
+// "TRANSFER" NA MODE (hiling ng user: "pag click is mag highlight tapos
+// lilipat kahit san slot kahit craft, crafter inventory at stove")
+// =========================
+//
+// Ang buong daloy:
+//
+//   1. I-tap ang item sa inventory/hotbar -> lalabas ang popup ng mga
+//      aksyon (handleMobileItemTap sa itaas).
+//   2. Pindutin ang "Transfer" -> DITO (startMobileTransfer): ina-ARM
+//      ang BUONG hawak bilang isang lumulutang na ghost
+//      (sliceStackIntoFloat, parehong-pareho ng ginagamit ng "Slice",
+//      buong bilang lang ang ipinapasa) AT bumubukas ang "transfer
+//      mode" - naka-highlight ang LAHAT ng tumatanggap na slot, at may
+//      lumalabas na maliit na bar sa ibaba ("Tap a slot..." + Cancel).
+//   3. I-tap ang kahit aling naka-highlight na slot -> doon lilipat.
+//      WALANG bagong handler na kailangan dito: ang hotbar slot
+//      (startPointerAction), bag cell (buildBagItemSlot/
+//      buildBagSplitStackSlot/buildEmptyBagSlot), craft input
+//      (craft.js) at smelt input (stove.js) ay LAHAT may dating
+//      pointerdown na naghihintay ng floatingPickup.
+//   4. Kapag naubos na ang hawak (o pinindot ang Cancel/Escape),
+//      awtomatikong nagsasara ang transfer mode - tingnan ang
+//      syncTransferModeUI, tinatawag mula sa clearFloatingPickupState/
+//      settleFloatBackToSource (hotbar.js).
+
+let transferCancelBarEl = null;
+
+function startMobileTransfer(source, itemId, available) {
+  if (typeof floatingPickup !== "undefined" && floatingPickup) return false;
+
+  if (typeof sliceStackIntoFloat !== "function") return false;
+
+  if (!sliceStackIntoFloat(source, itemId, available)) return false;
+
+  // Itugma ang laki ng lumulutang na ghost sa pinagmulan nito - hindi
+  // ito ginagawa ng sliceStackIntoFloat mismo (kaiba sa
+  // grabWholeStackIntoFloat/cutOneIntoFloat), kaya "lumalaki" ang icon
+  // sa mobile kung hindi itatawag dito (tingnan ang
+  // --floating-ghost-scale sa style.css).
+  if (typeof applyFloatingGhostScale === "function") {
+    applyFloatingGhostScale(source);
+  }
+
+  syncTransferModeUI();
+
+  return true;
+}
+
+// Binubuksan/isinasara ang transfer mode batay sa TALAGANG estado ng
+// floatingPickup - iisang pinagmumulan ng katotohanan, kaya hindi ito
+// puwedeng "maiwan" na nakabukas.
+//
+// Ang highlight mismo ay isang klase sa BODY (hindi sa bawat slot) -
+// sadya ito: ang bag grid at ang craft/stove grid ay buong-buong
+// muling iginuguhit (innerHTML = "") sa bawat pagbabago, kaya
+// mawawala agad ang kahit anong per-element na klase; ang nasa body ay
+// hindi apektado at awtomatikong sumasaklaw sa mga bagong cell.
+function syncTransferModeUI() {
+  const active = typeof floatingPickup !== "undefined" && !!floatingPickup;
+
+  document.body.classList.toggle("transfer-mode", active);
+
+  if (!active) {
+    if (transferCancelBarEl) {
+      transferCancelBarEl.remove();
+      transferCancelBarEl = null;
+    }
+
+    return;
+  }
+
+  if (transferCancelBarEl) return;
+
+  const bar = document.createElement("div");
+
+  bar.id = "transfer-mode-bar";
+
+  const label = document.createElement("span");
+
+  label.id = "transfer-mode-label";
+  label.textContent = "Tap a highlighted slot to move it";
+  bar.appendChild(label);
+
+  const cancel = document.createElement("button");
+
+  cancel.type = "button";
+  cancel.id = "transfer-mode-cancel";
+  cancel.textContent = "Cancel";
+
+  // "pointerdown" (hindi "click") - pareho ng ibang buton ng UI na ito,
+  // at para hindi pa maunahan ng ibang pointerdown handler sa document.
+  cancel.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (typeof settleFloatBackToSource === "function") {
+      settleFloatBackToSource(); // ibinabalik ang lahat sa pinagmulan
+    }
+
+    syncTransferModeUI();
+  });
+
+  bar.appendChild(cancel);
+
+  document.body.appendChild(bar);
+  transferCancelBarEl = bar;
+}
