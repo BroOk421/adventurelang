@@ -95,6 +95,11 @@ function serializeInventoryState() {
     wood: woodCollected,
     stone: stoneCollected,
     carrot: carrotsCollected,
+    // AYOS (multi-crop, hiling ng user: "pag drop at pag pick up ng
+    // gamit papuntang inventory") - parehong-pareho ng carrot sa itaas.
+    potato: typeof potatoCollected !== "undefined" ? potatoCollected : 0,
+    cabbage: typeof cabbageCollected !== "undefined" ? cabbageCollected : 0,
+    eggplant: typeof eggplantCollected !== "undefined" ? eggplantCollected : 0,
     torch: torchesCollected,
     gold: goldCollected,
     crafter: craftersCollected,
@@ -219,6 +224,9 @@ function loadInventoryState() {
     woodCollected = 0;
     stoneCollected = 0;
     carrotsCollected = 0;
+    if (typeof potatoCollected !== "undefined") potatoCollected = 0;
+    if (typeof cabbageCollected !== "undefined") cabbageCollected = 0;
+    if (typeof eggplantCollected !== "undefined") eggplantCollected = 0;
     torchesCollected = 0;
     goldCollected = 0;
     craftersCollected = 0;
@@ -252,6 +260,15 @@ function loadInventoryState() {
   if (Number.isFinite(saved.wood)) woodCollected = saved.wood;
   if (Number.isFinite(saved.stone)) stoneCollected = saved.stone;
   if (Number.isFinite(saved.carrot)) carrotsCollected = saved.carrot;
+  if (Number.isFinite(saved.potato) && typeof potatoCollected !== "undefined") {
+    potatoCollected = saved.potato;
+  }
+  if (Number.isFinite(saved.cabbage) && typeof cabbageCollected !== "undefined") {
+    cabbageCollected = saved.cabbage;
+  }
+  if (Number.isFinite(saved.eggplant) && typeof eggplantCollected !== "undefined") {
+    eggplantCollected = saved.eggplant;
+  }
   if (Number.isFinite(saved.torch)) torchesCollected = saved.torch;
   if (Number.isFinite(saved.gold)) goldCollected = saved.gold;
   if (Number.isFinite(saved.crafter)) craftersCollected = saved.crafter;

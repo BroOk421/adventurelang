@@ -2111,6 +2111,10 @@ function drawOldMan() {
     OLDMAN_DEST_SIZE,
   );
   ctx.restore();
+
+  // AYOS (hiling ng user): "alisin mo na yung mga label nila na name sa
+  // ulo" - tinanggal ang drawNpcNameLabel dito (builder.js) - iniwan
+  // pa rin ang function mismo kung sakaling muling kailanganin.
 }
 
 // Kasama rin siya sa Y-sort (map.js) para tamang-tama ang lalim niya

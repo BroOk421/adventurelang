@@ -45,7 +45,8 @@
 // yung tile set...pilakamalaki is 20x20...ibase mo na dun sa laki ng
 // interior from 12x11 to 20x20 pero 4 list lang" - dating IBA-IBA ang
 // `tilesWide`/`tilesTall` (EXTERIOR footprint) kada tier - ngayon,
-// FIXED na LAGI ang Exterior sa 10x8 (BUILDER_EXTERIOR_TILES_WIDE/TALL
+// FIXED na LAGI ang Exterior sa 10x8 (SINUPERSEDE na ito ng Entry #93 -
+// tingnan ang susunod na komento) (BUILDER_EXTERIOR_TILES_WIDE/TALL
 // sa ibaba) sa LAHAT ng 4 tier - ang TALAGANG naiiba na ngayon ay ang
 // `interiorTilesWide`/`interiorTilesTall` (ang BUKAS/walkable na sahig
 // sa LOOB ng bahay, tingnan ang BUILDER_INTERIOR_WALL_THICKNESS sa
@@ -54,15 +55,89 @@
 // +padding = 20x20 katumbas na PADDED na Template) - kaya mas malaki
 // ang SILID sa loob, kahit PAREHONG-PAREHO lang ang itsura/laki ng
 // bahay sa LABAS (mapa/minimap).
+//
+// AYOS ULIT (hiling ng user: "may bago akong selection sa lot meron na
+// kasing 160x128 or 10x8 gusto ko naman dagdagan mo pa ng mas mahaba at
+// payat na selection... sa lot tapos sa exterior ganun din pero sa
+// interior 18x17 parin") - HINDI na FIXED sa 10x8 ang Exterior. Bawat
+// tier sa BUILDER_LOT_SIZES ay may SARILI nang `exteriorTilesWide`/
+// `exteriorTilesTall`; ang BUILDER_EXTERIOR_TILES_WIDE/TALL ay naging
+// DEFAULT/fallback na lang (para sa mga LUMANG naka-save na bahay at
+// mga template na walang naka-tukoy na sukat).
+//
+// TANDAAN sa hiniling na "135x150": ang buong laro ay naka-16px na tile
+// grid (TILE_SIZE = 16) - ang 135 at 150 ay HINDI divisible sa 16
+// (8.4375 at 9.375 na tile), kaya masisira ang collision/door/placement
+// alignment kung pipilitin. Ang pinakamalapit na TILE-ALIGNED na sukat
+// na may EKSAKTONG parehong 0.9 na ratio (135:150) ay 9x10 na tile =
+// 144x160 px - iyon ang ginamit sa "tall" na tier sa ibaba.
 const BUILDER_EXTERIOR_TILES_WIDE = 10;
 const BUILDER_EXTERIOR_TILES_TALL = 8;
 
 const BUILDER_LOT_SIZES = [
-  { id: "small", label: "Small", interiorTilesWide: 10, interiorTilesTall: 8, price: 300 },
-  { id: "medium", label: "Medium", interiorTilesWide: 13, interiorTilesTall: 11, price: 600 },
-  { id: "large", label: "Large", interiorTilesWide: 15, interiorTilesTall: 13, price: 900 },
-  { id: "xlarge", label: "Extra Large", interiorTilesWide: 18, interiorTilesTall: 17, price: 1400 },
+  {
+    id: "small",
+    label: "Small",
+    exteriorTilesWide: 10,
+    exteriorTilesTall: 8,
+    interiorTilesWide: 10,
+    interiorTilesTall: 8,
+    price: 300,
+  },
+  {
+    id: "medium",
+    label: "Medium",
+    exteriorTilesWide: 10,
+    exteriorTilesTall: 8,
+    interiorTilesWide: 13,
+    interiorTilesTall: 11,
+    price: 600,
+  },
+  {
+    id: "large",
+    label: "Large",
+    exteriorTilesWide: 10,
+    exteriorTilesTall: 8,
+    interiorTilesWide: 15,
+    interiorTilesTall: 13,
+    price: 900,
+  },
+  {
+    id: "xlarge",
+    label: "Extra Large",
+    exteriorTilesWide: 10,
+    exteriorTilesTall: 8,
+    interiorTilesWide: 18,
+    interiorTilesTall: 17,
+    price: 1400,
+  },
+  // BAGO - ang "mahaba at payat" na tier: mas MAKITID pero mas MATAAS
+  // ang bahay sa LABAS (9x10 na tile = 144x160 px, kumpara sa 10x8 =
+  // 160x128 ng lahat ng iba) - PERO KAPAREHONG-PAREHO pa rin ang loob
+  // ng bahay sa pinakamalaking tier (18x17 na bukas na sahig = 20x20
+  // na PADDED na Interior Template), kaya puwede pa rin ditong gamitin
+  // ang mga Interior artwork na iginuhit para sa Extra Large.
+  {
+    id: "tall",
+    label: "Tall",
+    exteriorTilesWide: 9,
+    exteriorTilesTall: 10,
+    interiorTilesWide: 18,
+    interiorTilesTall: 17,
+    price: 1400,
+  },
 ];
+
+// Ang EXTERIOR footprint (sa TILES) ng isang tier ng Lot O ng isang
+// naitayo NANG bahay - may fallback sa lumang FIXED na 10x8 para sa
+// mga LUMANG naka-save na bahay (bago pa ang per-tier na sukat) at sa
+// mga Building template na walang naka-tukoy nito.
+function getBuilderExteriorSize(source) {
+  const wide = source && Number.isFinite(source.exteriorTilesWide) ? source.exteriorTilesWide : BUILDER_EXTERIOR_TILES_WIDE;
+  const tall = source && Number.isFinite(source.exteriorTilesTall) ? source.exteriorTilesTall : BUILDER_EXTERIOR_TILES_TALL;
+
+  return { wide, tall };
+}
 
 // =========================
 // BUILDING TEMPLATES (user request: pre-made exterior+interior "bundles"
@@ -82,6 +157,8 @@ const BUILDER_LOT_SIZES = [
 const BUILDER_BUILDING_TEMPLATES = [
   {
     id: "coffee-shop",
+    exteriorTilesWide: 10,
+    exteriorTilesTall: 8,
     name: "Coffee Shop",
     interiorTilesWide: 18,
     interiorTilesTall: 17,
@@ -114,6 +191,8 @@ const BUILDER_BUILDING_TEMPLATES = [
   },
   {
     id: "tavern",
+    exteriorTilesWide: 10,
+    exteriorTilesTall: 8,
     name: "Tavern",
     interiorTilesWide: 18,
     interiorTilesTall: 17,
@@ -132,9 +211,97 @@ const BUILDER_BUILDING_TEMPLATES = [
       { x: 73, y: 102 }, // pinto
     ],
   },
-  // Planned (user: "gagawa pa ako ng iba like grocery store, at garden
-  // house") - add more entries here once their exterior/interior PNGs are
-  // ready, matching whichever BUILDER_LOT_SIZES tier they were drawn for.
+  // BAGO (hiling ng user: "gusto ko i add mo sa building yung template na
+  // grocery at gardenhouse") - ang GROCERY ay iginuhit para sa PAREHONG
+  // tier ng Coffee Shop/Tavern (Extra Large: exterior 10x8 = 160x128 px,
+  // interior 18x17 na open floor = 20x20 padded = 320x320 px).
+  {
+    id: "grocery",
+    exteriorTilesWide: 10,
+    exteriorTilesTall: 8,
+    name: "Grocery",
+    interiorTilesWide: 18,
+    interiorTilesTall: 17,
+    doorPosition: "bottom-center",
+    exteriorImagePath: "./assets/builder-templates/grocery-exterior.png",
+    interiorImagePath: "./assets/builder-templates/grocery-interior.png",
+    // Kaparehong-parehong paraan ng pag-sample ng Coffee Shop/Tavern
+    // (hinanap ang pinakamaliwanag na warm/orange na pixel sa mismong
+    // artwork, hindi hula) - {x, y} sa RELATIVE pixel coords ng 160x128
+    // na exterior PNG mismo (itaas-kaliwa = 0,0).
+    lightPoints: [
+      { x: 62, y: 96 }, // lamp (kaliwa ng pinto)
+      { x: 97, y: 95 }, // lamp (kanan ng pinto)
+      { x: 77, y: 50 }, // dormer na bintana (itaas-gitna)
+      { x: 37, y: 58 }, // bintana sa itaas (kaliwa)
+      { x: 120, y: 58 }, // bintana sa itaas (kanan)
+      { x: 79, y: 101 }, // pinto (salamin)
+    ],
+  },
+  // Ang GARDEN HOUSE (greenhouse) ay iginuhit para sa "Tall" na tier -
+  // MAS MAKITID pero MAS MATAAS sa labas (9x10 = 144x160 px), PAREHONG
+  // 18x17 na open interior floor (320x320 px) ng Extra Large.
+  {
+    id: "garden-house",
+    exteriorTilesWide: 9,
+    exteriorTilesTall: 10,
+    name: "Garden House",
+    // AYOS (hiling ng user): "top 5 tiles ang collisions 2 sa left at 2
+    // sa right 1 sa bottom". Ang OPEN/walkable na sahig ay 16x14 - kaya
+    // 16+2+2 = 20 lapad at 14+5+1 = 20 taas na PADDED, EKSAKTONG 320x320
+    // px ang PNG, KAPAREHONG-PAREHO ng "Tall" na Lot (18x17 open +
+    // default na {2,1,1,1} = 20x20 din) - ito ang TINUTUGMA ng
+    // getBuilderTemplateFit.
+    interiorTilesWide: 16,
+    interiorTilesTall: 14,
+    interiorWallThickness: { top: 5, bottom: 1, left: 2, right: 2 },
+    doorPosition: "bottom-center",
+    exteriorImagePath: "./assets/builder-templates/gardenhouse-exterior.png",
+    interiorImagePath: "./assets/builder-templates/gardenhouse-interior.png",
+    // AYOS (hiling ng user): "yan yung lalabas kapag na dig na yung inner
+    // room" - PANGALAWANG bersyon ng KAPAREHONG 320x320 na interior
+    // artwork, ang pinagkaiba lang ay HINUKAY/naararo na ang lupa. Hindi
+    // ito buong-buong iginuguhit: ang TILE lang na TALAGANG nahukay ang
+    // kinukuhanan ng 16x16 na crop mula rito (tingnan ang drawDugTiles sa
+    // dig.js) - kaya isa-isang nagbabago ang hitsura ng bawat tile habang
+    // inaararo mo, hindi sabay-sabay.
+    interiorDugImagePath: "./assets/builder-templates/gardenhouse-dig.png",
+    // 2 lantern sa magkabilang tabi ng pinto + ang salamin ng pinto
+    // mismo + ang malalaking glass panel sa gilid (greenhouse ito, kaya
+    // halos puro salamin) - PAREHONG paraan ng pag-sample sa artwork.
+    lightPoints: [
+      { x: 45, y: 125 }, // lantern (kaliwa)
+      { x: 98, y: 125 }, // lantern (kanan)
+      { x: 72, y: 130 }, // pinto (salamin)
+      { x: 22, y: 95 }, // glass panel (kaliwa)
+      { x: 122, y: 95 }, // glass panel (kanan)
+    ],
+    // =========================
+    // TANIMAN SA LOOB (hiling ng user: "meron jan isang image na
+    // screenshot about sa gardenhouse is kung san lang pwede mag tanim")
+    // =========================
+    // Ang Garden House LANG ang building template na may LUPA sa loob -
+    // kaya ito LANG ang interior kung saan puwedeng gamitin ang rake at
+    // magtanim (tingnan ang canDigAt sa dig.js; SARADO pa rin ang lahat
+    // ng ibang interior, gaya ng dati).
+    //
+    // Mga rectangle NG LUPA, sa TILES, sa PADDED na coordinate frame ng
+    // interior (0,0 = itaas-kaliwa ng BUONG 20x20 na silid, HINDI ng
+    // 18x17 na open floor) - kaya DIREKTANG katumbas ito ng (col, row)
+    // ng mundo sa loob (tingnan ang buildSyntheticInteriorTmj: ang
+    // synthetic TMJ ay eksaktong padded.wide x padded.tall ang laki,
+    // nagsisimula sa 0,0).
+    //
+    // Ang mga halagang ito ay HINDI hula: kinuha ang EKSAKTONG PAGKAKAIBA
+    // ng gardenhouse-interior.png at gardenhouse-dig.png (pixel-by-pixel
+    // diff) - ang mga tile na NAGBABAGO sa pagitan ng dalawang artwork ay
+    // EKSAKTO ring ang mga tile na PUWEDENG hukayin/tamnan. Dalawang 6x7
+    // na taniman, magkabilang tabi ng gitnang daanan (84 tile lahat).
+    plantableTileRects: [
+      { col: 2, row: 9, width: 6, height: 7 }, // kaliwang lupa
+      { col: 12, row: 9, width: 6, height: 7 }, // kanang lupa
+    ],
+  },
 ];
 
 // Preloaded once at parse-time (same pattern as MINIMAP_WORLD_BACKGROUND_IMAGES,
@@ -152,7 +319,43 @@ for (const template of BUILDER_BUILDING_TEMPLATES) {
 
   interiorImg.src = template.interiorImagePath;
 
-  BUILDER_TEMPLATE_IMAGES[template.id] = { exterior: exteriorImg, interior: interiorImg };
+  // Ang HINUKAY na bersyon ng interior (Garden House lang sa ngayon) -
+  // opsyonal, kaya `null` kung walang `interiorDugImagePath` ang template.
+  let dugImg = null;
+
+  if (template.interiorDugImagePath) {
+    dugImg = new Image();
+    dugImg.src = template.interiorDugImagePath;
+  }
+
+  BUILDER_TEMPLATE_IMAGES[template.id] = {
+    exterior: exteriorImg,
+    interior: interiorImg,
+    dug: dugImg,
+  };
+}
+
+// Ang naka-preload nang HINUKAY na interior artwork para sa interior
+// world na ito - `null` kung: hindi ito interior ng custom house, walang
+// template, walang dug artwork ang template, o hindi pa tapos mag-load
+// ang larawan. Ginagamit ng drawDugTiles (dig.js) - kaya LIGTAS itong
+// tawagin kada frame.
+function getBuilderInteriorDugImage(worldName) {
+  if (!worldName) return null;
+  if (typeof customHouses === "undefined" || !Array.isArray(customHouses)) return null;
+
+  const house = customHouses.find(
+    (entry) => getCustomHouseInteriorWorldName(entry) === worldName,
+  );
+
+  if (!house || !house.templateId) return null;
+
+  const images = BUILDER_TEMPLATE_IMAGES[house.templateId];
+  const image = images ? images.dug : null;
+
+  if (!image || !image.complete || !image.naturalWidth) return null;
+
+  return image;
 }
 
 function getBuilderTemplateById(templateId) {
@@ -164,9 +367,91 @@ function getBuilderTemplateById(templateId) {
 // template na ilapat kahit saang Lot (parehong-pareho naman ang Exterior
 // footprint sa LAHAT ng Lot, 10x8, kaya iyon ay hindi problema).
 function getBuilderTemplateFit(house, template) {
+  // AYOS (kasabay ng bagong "Tall" na tier) - dati, ang INTERIOR lang
+  // ang sinusuri dito dahil PAREHO ang Exterior footprint (10x8) ng
+  // LAHAT ng Lot. Ngayong iba-iba na ito kada tier, kailangan ding
+  // magtugma ang EXTERIOR - kung hindi, mabaluktot/mauunat ang
+  // exterior PNG ng template (iginuhit ito para sa 160x128) kapag
+  // inilapat sa isang 144x160 na "Tall" na Lot.
+  // AYOS ULIT (kasabay ng per-template na kapal ng pader - tingnan ang
+  // getBuilderInteriorWallThickness): ang PADDED na sukat na ngayon ang
+  // sinusuri, HINDI na ang OPEN na sahig. Ito ang TAMANG batayan dahil
+  // ang PADDED na sukat mismo ang TALAGANG laki ng interior PNG at ng
+  // silid - dalawang template na magkaibang-magkaiba ang kapal ng pader
+  // ay puwede pa ring PAREHO ang laki ng kuwarto (hal. Garden House
+  // 16x13 + {5,2,2,2} = 20x20, kapareho ng "Tall" na Lot na 18x17 +
+  // {2,1,1,1} = 20x20 din). Kung ang OPEN na sukat pa rin ang susuriin,
+  // MALING "hindi tugma" ang isasagot nito para sa Garden House.
+  const houseExterior = getBuilderExteriorSize(house);
+  const templateExterior = getBuilderExteriorSize(template);
+  const housePadded = getBuilderInteriorPaddedSize(
+    house.interiorTilesWide,
+    house.interiorTilesTall,
+    getBuilderInteriorWallThickness(house),
+  );
+  const templatePadded = getBuilderInteriorPaddedSize(
+    template.interiorTilesWide,
+    template.interiorTilesTall,
+    getBuilderInteriorWallThickness(template),
+  );
+
   return (
-    house.interiorTilesWide === template.interiorTilesWide &&
-    house.interiorTilesTall === template.interiorTilesTall
+    housePadded.wide === templatePadded.wide &&
+    housePadded.tall === templatePadded.tall &&
+    houseExterior.wide === templateExterior.wide &&
+    houseExterior.tall === templateExterior.tall
+  );
+}
+
+// =========================
+// TANIMAN SA LOOB NG ISANG BUILDING TEMPLATE (Garden House)
+// =========================
+// Ang `plantableTileRects` ng isang template (tingnan ang Garden House
+// sa BUILDER_BUILDING_TEMPLATES sa itaas) ay NAKATALI sa ARTWORK -
+// kaya kailangan muna nating malaman kung ALING bahay ang may-ari ng
+// interior world na kasalukuyang pinapasok, at kung ALING template ang
+// naka-set dito.
+//
+// Ginagamit ito ng canDigAt (dig.js) - ito LANG ang butas sa dating
+// "walang mahuhukay sa loob ng bahay" na patakaran.
+
+// Ang mga plantable rect (tiles, padded interior frame) ng interior
+// world na ito - `null` kung ito ay: hindi interior ng custom house,
+// walang template, o template na WALANG taniman (Coffee Shop/Tavern/
+// Grocery - lahat sila sarado sa farming, gaya ng dati).
+function getBuilderPlantableRects(worldName) {
+  if (!worldName) return null;
+  if (typeof customHouses === "undefined" || !Array.isArray(customHouses)) return null;
+
+  const house = customHouses.find(
+    (entry) => getCustomHouseInteriorWorldName(entry) === worldName,
+  );
+
+  if (!house || !house.templateId) return null;
+
+  const template = getBuilderTemplateById(house.templateId);
+
+  if (!template || !Array.isArray(template.plantableTileRects)) return null;
+  if (template.plantableTileRects.length === 0) return null;
+
+  return template.plantableTileRects;
+}
+
+// Puwede bang hukayin/tamnan ang EKSAKTONG tile na ito sa loob ng
+// interior world na ito? - `false` para sa LAHAT ng ibang mundo sa
+// loob ng bahay (at para sa mga tile na NASA LABAS ng mismong lupa,
+// hal. ang kahoy na daanan sa gitna ng Garden House).
+function isBuilderPlantableTile(worldName, col, row) {
+  const rects = getBuilderPlantableRects(worldName);
+
+  if (!rects) return false;
+
+  return rects.some(
+    (rect) =>
+      col >= rect.col &&
+      col < rect.col + rect.width &&
+      row >= rect.row &&
+      row < rect.row + rect.height,
   );
 }
 
@@ -176,6 +461,19 @@ const BUILDER_SELL_REFUND_RATIO = 0.8;
 
 // Mga mundo kung saan puwedeng ilagay ang isang Lot - hiling ng user.
 const BUILDER_PLACEABLE_WORLDS = new Set(["grassmap", "grassmap2"]);
+
+// =========================
+// PAANAN NG PINTUAN NG BAWAT BAHAY SA TOWN (mariaHouse/josephHouse/atbp)
+// =========================
+// LAHAT ng 6 bahay sa town (worlds.js: manuelHouse/josephHouse/
+// mariaHouse/escanorHouse/jillianHouse/matildaHouse) ay GUMAGAMIT ng
+// PAREHONG "room_grassmap.tmj" - kaya IISA at PAREHONG-PAREHO ang
+// "Exit" na butas ng pader sa LAHAT ng mga ito (VERIFIED sa DOORS,
+// worlds.js: area { x: 63, y: 193, width: 39, height: 31 }, silid na
+// 15x14 tile = 240x224 px). Ginagamit ito ni Joseph/Maria bilang
+// "pintuan ng bahay nila" para sa paglalabas/pagpasok (tingnan ang
+// buildHomeWalkPath sa ibaba).
+const HOUSE_DOOR_FOOT_POSITION = { x: 63 + 39 / 2, y: 224 };
 
 // =========================
 // SI JOSEPH - static na NPC sa loob ng "josephHouse"
@@ -188,47 +486,292 @@ const JOSEPH_ROW = 4;
 const JOSEPH_X = JOSEPH_COL * TILE_SIZE + TILE_SIZE / 2;
 const JOSEPH_Y = JOSEPH_ROW * TILE_SIZE + TILE_SIZE;
 
+// =========================
+// SI MARIA - "bahay" niya (hiling ng user: "meron silang kanya kanyang
+// bahay mariaHouse at josephHouse")
+// =========================
+const MARIA_WORLD = "mariaHouse";
+// Kaparehong-parehong posisyon ni Joseph (parehong silid naman,
+// room_grassmap.tmj) - proven-safe na ito (malayo sa pader/pintuan).
+const MARIA_HOME_COL = 8;
+const MARIA_HOME_ROW = 4;
+const MARIA_HOME_X = MARIA_HOME_COL * TILE_SIZE + TILE_SIZE / 2;
+const MARIA_HOME_Y = MARIA_HOME_ROW * TILE_SIZE + TILE_SIZE;
+
 // AYOS: walang sariling sprite/art pa si Joseph (walang in-upload na
 // asset) - placeholder muna ito (bilog + emoji, parehong konsepto ng
 // mga fallback emoji icon sa BAG_ITEMS) hanggang may idagdag pang
 // tunay na larawan balang araw - hindi ito nakakaapekto sa gameplay,
 // pero puwedeng palitan/i-swap balang araw (tingnan ang drawJoseph).
+// =========================
+// MGA NPC NA GUMAGAMIT NG SPRITE NG PLAYER (pansamantala)
+// =========================
+// Hiling ng user: "yung muka ni joseph gawin mo munang ako na naka idle...
+// yung kunin mo naka animation parin kapag naka idle... tyaka ko na
+// lagyan ng ibang itsura kapag nakagawa na ako" - WALA pang sariling art
+// sina Joseph at Maria, kaya ang FRONT IDLE na strip ng player mismo
+// (assets/character/idle/frontidle/frontidle.png, 7 frame - tingnan ang
+// assets.js) ang pansamantalang ginagamit. IISANG lugar lang ito
+// pinipili (NPC_PLACEHOLDER_SPRITE_KEY sa ibaba), kaya kapag may tunay
+// nang art, isang palit lang ang kailangan kada NPC.
+//
+// TANDAAN: ang idle ng PLAYER mismo ay naka-FREEZE sa frame 0 (tingnan
+// ang drawPlayer sa player.js) - SINASADYA iyon doon. Ang mga NPC dito
+// ay may SARILING orasan (NPC_IDLE_FRAME_MS sa ibaba) kaya TALAGANG
+// gumagalaw sila habang nakatayo, gaya ng hiniling.
+
+const NPC_IDLE_FRAME_COUNT = 7;
+const NPC_IDLE_FRAME_MS = 160;
+
+// Ang kasalukuyang idle frame ng mga NPC - naka-batay sa TUNAY na oras,
+// hindi sa bilang ng render frame, kaya PAREHO ang bilis kahit saang
+// mundo (kaparehong dahilan ng time-based na `player.frameTimer` sa
+// update.js).
+function getNpcIdleFrame(offset) {
+  return (
+    (Math.floor(Date.now() / NPC_IDLE_FRAME_MS) + (offset || 0)) %
+    NPC_IDLE_FRAME_COUNT
+  );
+}
+
+// Iginuguhit ang isang NPC gamit ang FRONT IDLE na sprite ng player,
+// naka-anchor sa PAANAN nito (feetX, feetY) - kaparehong-parehong
+// paraan ng pag-size/crop ng tunay na player (getSpriteCropDestRect,
+// player.js) kaya eksaktong PAREHO ang laki at pagkakatapak nila sa
+// lupa, hindi lumulutang o lumalaki/liliit.
+// AYOS (hiling ng user: "yung paglalakad nila walk back,front,left at
+// right tapos idle front,back,left and right dapat") - may `direction`
+// na ngayon (default "down"/nakaharap sa manlalaro/pinto) - dating
+// "down" lang ang suportado (hardcoded), ngayon puwede nang "up"/
+// "left"/"right" din, kaparehong-pareho ng ginagawa na ng
+// drawNpcWalkCharacter sa ibaba.
+function drawNpcIdleCharacter(feetX, feetY, frameOffset, direction) {
+  if (typeof sprites === "undefined" || !sprites.idle) return;
+
+  const dir = direction || "down";
+  const sprite = sprites.idle[dir];
+
+  if (!sprite || !sprite.complete || !sprite.width) return;
+
+  const width = typeof player !== "undefined" ? player.width : 56;
+  const height = typeof player !== "undefined" ? player.height : 64;
+
+  const boxX = feetX - width / 2;
+  const boxY = feetY - height;
+
+  // AYOS (hiling ng user): "yung shadow nila sa ground is dapat kagaya
+  // ng sa character ko na naglalakad is nasa ilalim lang ng character" -
+  // dating gumagamit ng sariling hula (0.42 width, offsetY -4) - ngayon,
+  // EKSAKTONG kopya ito ng formula ng TALAGANG anino ng player
+  // (drawPlayerShadow, player.js): shadowWidth = width*0.3, at ang
+  // TALAGANG "paanan" (para sa anino lang) ay HINDI ang buong ilalim ng
+  // kahon (boxY+height) kundi bahagyang mas mataas dito
+  // (PLAYER_FOOT_RATIO = 51/64) - may blangkong puwang kasi sa ilalim
+  // ng bawat sprite art. Kung gagamitin ang buong ilalim, "lumulutang"
+  // ang katawan sa ibabaw ng sarili niyang anino.
+  const footRatio = typeof PLAYER_FOOT_RATIO === "number" ? PLAYER_FOOT_RATIO : 51 / 64;
+
+  if (typeof drawGroundShadow === "function") {
+    drawGroundShadow(feetX, boxY + height * footRatio, width * 0.3, {
+      heightRatio: 0.25,
+      blur: 3,
+      alpha: 0.35,
+    });
+  }
+
+  const frameWidth = sprite.width / NPC_IDLE_FRAME_COUNT;
+  const frameIndex = getNpcIdleFrame(frameOffset);
+
+  ctx.imageSmoothingEnabled = false;
+
+  let destX = boxX;
+  let destY = boxY;
+  let destWidth = width;
+  let destHeight = height;
+
+  if (typeof getSpriteCropDestRect === "function") {
+    const rect = getSpriteCropDestRect("idle." + dir, boxX, boxY, width, height);
+
+    destX = rect[0];
+    destY = rect[1];
+    destWidth = rect[2];
+    destHeight = rect[3];
+  }
+
+  ctx.drawImage(
+    sprite,
+    frameIndex * frameWidth,
+    0,
+    frameWidth,
+    sprite.height,
+    destX,
+    destY,
+    destWidth,
+    destHeight,
+  );
+}
+
+// =========================
+// LABEL SA ULO NG NPC KAPAG LUMAPIT (hiling ng user: "kada lalapit ako
+// may nag popup sa ulo nila na label na may border basta kapag mga npc
+// merong ganun sa ulo kapag lalapit")
+// =========================
+// Gaano kalapit bago lumitaw - sinusukat mula sa PAANAN ng NPC papunta
+// sa gitna ng collision box ng player, sa PIXELS (TILE_SIZE = 16, kaya
+// ito ay mga 3 tile).
+const NPC_LABEL_SHOW_DISTANCE_PX = 52;
+
+function isPlayerNearWorldPoint(x, y, distancePx) {
+  if (typeof getPlayerCollisionBox !== "function") return false;
+
+  const box = getPlayerCollisionBox();
+  const playerX = box.x + box.width / 2;
+  const playerY = box.y + box.height / 2;
+  const deltaX = playerX - x;
+  const deltaY = playerY - y;
+
+  return deltaX * deltaX + deltaY * deltaY <= distancePx * distancePx;
+}
+
+// Ang maliit na label na may BORDER sa itaas ng ulo. World space ito
+// (nasa loob ng camera transform), kaya sumusunod ito sa NPC kapag
+// gumagalaw ang kamera - hindi naka-pako sa screen.
+function drawNpcNameLabel(feetX, feetY, text, headHeight) {
+  if (!text) return;
+  if (!isPlayerNearWorldPoint(feetX, feetY, NPC_LABEL_SHOW_DISTANCE_PX)) return;
+
+  // `headHeight` - taas (pixels) mula sa PAANAN hanggang sa ULO. Default
+  // ay ang taas ng player sprite, dahil iyon ang ginagamit nina Joseph
+  // at Maria - ang oldman ay ibang laki, kaya sarili niyang halaga ang
+  // ipinapasa niya (tingnan ang drawOldMan, decor.js).
+  const height = Number.isFinite(headHeight)
+    ? headHeight
+    : (typeof player !== "undefined" ? player.height : 64) * 0.62;
+
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+
+  ctx.font = "7px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  const paddingX = 4;
+  const paddingY = 3;
+  const textWidth = ctx.measureText(text).width;
+  const boxWidth = textWidth + paddingX * 2;
+  const boxHeight = 11;
+  const boxX = feetX - boxWidth / 2;
+  const boxY = feetY - height - boxHeight - 2;
+
+  ctx.fillStyle = "rgba(18, 18, 22, 0.85)";
+  ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(boxX + 0.5, boxY + 0.5, boxWidth - 1, boxHeight - 1);
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+  ctx.fillText(text, feetX, boxY + boxHeight / 2 + 0.5);
+
+  ctx.restore();
+}
+
+// =========================
+// PAGLALAKAD SA LOOB NG SARILING BAHAY (mariaHouse/josephHouse) -
+// hiling ng user: "dapat maglakad sila galing sa bahay tapos lalabas"
+// =========================
+// IISANG function na ito, ginagamit ng PAREHONG Joseph at Maria sa
+// kani-kanilang bahay - "atHome" (nakatayo), "leavingHome" (papalabas),
+// "enteringHome" (papasok). Ibinabalik ang PAANANG posisyon na
+// TALAGANG ginamit (para sa Y-sort), o `null` kung wala silang dapat
+// iguhit DITO ngayon (nasa ibang lugar sila - grocery o "nawawala" sa
+// pagitan ng dalawang mundo, tingnan ang paliwanag sa getNpcSchedulePhase).
+//
+// MAHALAGA: kailangan pa ring TSEKIN ng TUMATAWAG (drawJoseph/
+// drawMariaAtHome sa ibaba) kung TALAGANG nasa TAMANG mundo tayo
+// (currentWorld === "josephHouse"/"mariaHouse") bago ito tawagin -
+// hindi ito nire-recheck dito para maiwasang doble-tawag sa
+// getNpcSchedulePhase() kada frame.
+function drawHomeNpc(homeSpotX, homeSpotY, frameOffset, phase, progress) {
+  if (phase === "atHome") {
+    drawNpcIdleCharacter(homeSpotX, homeSpotY, frameOffset, "down");
+    return { x: homeSpotX, y: homeSpotY };
+  }
+
+  if (phase === "leavingHome") {
+    const path = buildGroceryWalkPath(
+      HOUSE_DOOR_FOOT_POSITION,
+      homeSpotX,
+      homeSpotY,
+    ).reverse();
+    const point = getPointAlongPath(path, progress);
+    const direction = getWalkDirectionFromDelta(point.dirX, point.dirY);
+
+    drawNpcWalkCharacter(point.x, point.y, direction, frameOffset);
+    return { x: point.x, y: point.y };
+  }
+
+  if (phase === "enteringHome") {
+    const path = buildGroceryWalkPath(HOUSE_DOOR_FOOT_POSITION, homeSpotX, homeSpotY);
+    const point = getPointAlongPath(path, progress);
+    const direction = getWalkDirectionFromDelta(point.dirX, point.dirY);
+
+    drawNpcWalkCharacter(point.x, point.y, direction, frameOffset);
+    return { x: point.x, y: point.y };
+  }
+
+  return null;
+}
+
+// Y-sort na "sortY" para sa isang bahay na NPC - kaparehong pattern ng
+// grocery version, hiwalay lang para hindi kailangang mag-guhit lang
+// para makuha ang posisyon.
+function getHomeNpcSortY(homeSpotX, homeSpotY, phase, progress) {
+  if (phase === "leavingHome") {
+    return getPointAlongPath(
+      buildGroceryWalkPath(HOUSE_DOOR_FOOT_POSITION, homeSpotX, homeSpotY).reverse(),
+      progress,
+    ).y;
+  }
+
+  if (phase === "enteringHome") {
+    return getPointAlongPath(
+      buildGroceryWalkPath(HOUSE_DOOR_FOOT_POSITION, homeSpotX, homeSpotY),
+      progress,
+    ).y;
+  }
+
+  return homeSpotY;
+}
+
 function drawJoseph() {
   if (typeof currentWorld === "undefined" || currentWorld !== JOSEPH_WORLD) return;
 
-  ctx.save();
+  const { phase, progress } = getNpcSchedulePhase();
 
-  ctx.beginPath();
-  ctx.arc(JOSEPH_X, JOSEPH_Y - 10, 9, 0, Math.PI * 2);
-  ctx.fillStyle = "#8a5a34";
-  ctx.fill();
-  ctx.strokeStyle = "rgba(0, 0, 0, 0.5)";
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  ctx.font = "12px sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("🔨", JOSEPH_X, JOSEPH_Y - 10);
-
-  ctx.font = "8px sans-serif";
-  ctx.fillStyle = "white";
-  ctx.textBaseline = "alphabetic";
-  ctx.fillText("Joseph", JOSEPH_X, JOSEPH_Y + 6);
-
-  ctx.restore();
+  drawHomeNpc(JOSEPH_X, JOSEPH_Y, 0, phase, progress);
 }
 
 // Kasama sa Y-sort (map.js, fallbackDrawables - PAREHONG "walang
 // overlap layer" na landas ginagamit ng getPigDrawables/getOldManDrawables,
 // dahil PAREHONG walang "trees/house" overlap layers ang room_grassmap.tmj
 // na ginagamit ng josephHouse).
+//
+// AYOS (hiling ng user, buong iskedyul): dating LAGING naka-guhit si
+// Joseph dito basta nasa josephHouse ka (walang pakialam sa oras) -
+// ngayon, TANGING kapag "atHome"/"leavingHome"/"enteringHome" lang ang
+// yugto niya (nasa BAHAY siya, hindi nasa Grocery/nasa daan) - kaya
+// kung "atWork" siya (nasa Grocery), WALANG makikita rito.
 function getJosephDrawables() {
   if (typeof currentWorld === "undefined" || currentWorld !== JOSEPH_WORLD) return [];
 
+  const { phase, progress } = getNpcSchedulePhase();
+
+  if (phase !== "atHome" && phase !== "leavingHome" && phase !== "enteringHome") return [];
+
   return [
     {
-      sortY: JOSEPH_ROW * TILE_SIZE + TILE_SIZE,
+      sortY: getHomeNpcSortY(JOSEPH_X, JOSEPH_Y, phase, progress),
       order: -1,
       draw: drawJoseph,
       type: "joseph",
@@ -242,8 +785,12 @@ function getJosephDrawables() {
   ];
 }
 
+// AYOS: "E" (Builder panel) lang habang "atHome" (nakatayo na, hindi
+// pa/hindi na naglalakad) - kaparehong-pareho ng ginawang restriction
+// sa Grocery na bersyon niya (isPlayerNearJosephAtGrocery).
 function isPlayerNearJoseph() {
   if (typeof currentWorld === "undefined" || currentWorld !== JOSEPH_WORLD) return false;
+  if (getNpcSchedulePhase().phase !== "atHome") return false;
   if (typeof isPlayerAdjacentToTile !== "function") return false;
   if (typeof isPlayerFacingTile !== "function") return false;
 
@@ -251,6 +798,34 @@ function isPlayerNearJoseph() {
     isPlayerAdjacentToTile(JOSEPH_COL, JOSEPH_ROW) &&
     isPlayerFacingTile(JOSEPH_COL, JOSEPH_ROW)
   );
+}
+
+// =========================
+// SI MARIA SA SARILING BAHAY ("mariaHouse")
+// =========================
+function drawMariaAtHome() {
+  if (typeof currentWorld === "undefined" || currentWorld !== MARIA_WORLD) return;
+
+  const { phase, progress } = getNpcSchedulePhase();
+
+  drawHomeNpc(MARIA_HOME_X, MARIA_HOME_Y, 3, phase, progress);
+}
+
+function getMariaHomeDrawables() {
+  if (typeof currentWorld === "undefined" || currentWorld !== MARIA_WORLD) return [];
+
+  const { phase, progress } = getNpcSchedulePhase();
+
+  if (phase !== "atHome" && phase !== "leavingHome" && phase !== "enteringHome") return [];
+
+  return [
+    {
+      sortY: getHomeNpcSortY(MARIA_HOME_X, MARIA_HOME_Y, phase, progress),
+      order: -1,
+      type: "npc",
+      draw: drawMariaAtHome,
+    },
+  ];
 }
 
 // =========================
@@ -466,6 +1041,27 @@ function ensureCustomHouseImagesLoaded(house) {
   }
 }
 
+// =========================
+// "OCCUPIED" NA LOT (hiling ng user: "kapag meron ng occupied sa lot may
+// exterior at interior na is dapat hindi na pwedeng malagyan pa ng ibang
+// exterior or interior naka disabled na yung button liban na kung i sell")
+// =========================
+// TAPOS/OKUPADO na ang isang Lot kapag MAYROON na itong EXTERIOR **AT**
+// INTERIOR - mapa-template man iyon (Coffee Shop/Tavern/Grocery/Garden
+// House) o sariling upload. Mula sa puntong iyon, LOCKED na ito: hindi
+// na puwedeng palitan ang Exterior, Interior, o Building style - ang
+// TANGING paraan ay IBENTA/gibain muna ito (tingnan ang sellCustomHouse,
+// 80% refund) at magsimulang muli.
+//
+// Ang tsek na ito ang IISANG pinagmumulan ng katotohanan - ginagamit ito
+// ng UI (para ma-disable ang mga row/buton) AT ng mismong mga
+// nagbabagong function (applyBuilderTemplateToHouse at ang dalawang
+// upload handler) bilang panghuling depensa, kaya kahit sa paanuman
+// makalusot ang isang click, hindi pa rin mababago ang bahay.
+function isCustomHouseOccupied(house) {
+  return !!(house && house.exteriorImageDataURL && house.interiorImageDataURL);
+}
+
 // Instantly gives a house BOTH its Exterior AND Interior from a pre-made
 // Building template (Coffee Shop/Tavern/etc, see BUILDER_BUILDING_TEMPLATES
 // above) - no upload needed. Re-uses the exact same fields/pipeline as a
@@ -475,10 +1071,39 @@ function ensureCustomHouseImagesLoaded(house) {
 // door-registration all just do `img.src = house.exteriorImageDataURL`
 // without caring whether that's a path or a data: URL).
 function applyBuilderTemplateToHouse(house, template) {
+  // LOCKED na ang tapos nang bahay - tingnan ang isCustomHouseOccupied.
+  if (isCustomHouseOccupied(house)) return false;
+
   house.templateId = template.id;
   house.doorPosition = template.doorPosition;
   house.exteriorImageDataURL = template.exteriorImagePath;
   house.interiorImageDataURL = template.interiorImagePath;
+
+  // BAGO (kasabay ng per-template na kapal ng pader): ang GEOMETRY ng
+  // interior ay galing na ngayon sa TEMPLATE, hindi na sa tier ng Lot -
+  // kung hindi, itatayo ng buildSyntheticInteriorTmj ang pader sa MALING
+  // pwesto (hal. 18x17 open + {5,2,2,2} = 22x24 na silid, samantalang
+  // 20x20 lang ang PNG). GARANTISADO nang tugma ang PADDED na sukat
+  // dahil iyon mismo ang sinusuri ng getBuilderTemplateFit sa itaas.
+  //
+  // Itinatabi muna ang SARILING sukat ng Lot bago patungan, para kung
+  // sakaling maalis ang template balang araw, may maibabalik (sa ngayon,
+  // ang tanging labasan ay ang pagbebenta - LOCKED ang isang tapos nang
+  // Lot, tingnan ang isCustomHouseOccupied - pero mas ligtas nang
+  // nakatago ito kaysa tuluyan nang mawala).
+  if (!Number.isFinite(house.lotInteriorTilesWide)) {
+    house.lotInteriorTilesWide = house.interiorTilesWide;
+    house.lotInteriorTilesTall = house.interiorTilesTall;
+  }
+
+  house.interiorTilesWide = template.interiorTilesWide;
+  house.interiorTilesTall = template.interiorTilesTall;
+
+  if (template.interiorWallThickness) {
+    house.interiorWallThickness = { ...template.interiorWallThickness };
+  } else {
+    delete house.interiorWallThickness;
+  }
 
   // Clear both custom-house image fields, matching the migration-safety-net
   // in saveCustomHouses() - a template house should NEVER carry an asset
@@ -491,6 +1116,8 @@ function applyBuilderTemplateToHouse(house, template) {
   delete customHouseInteriorImages[house.id];
   ensureCustomHouseImagesLoaded(house);
   saveCustomHouses();
+
+  return true;
 }
 
 // LUMANG saved house (bago pa ang door-position feature) - walang pang
@@ -499,6 +1126,49 @@ function applyBuilderTemplateToHouse(house, template) {
 // gawi ng mga ito.
 function normalizeCustomHouseDoorPositions(house) {
   house.doorPosition = migrateBuilderDoorPositionId(house.doorPosition);
+}
+
+// AYOS (hiling ng user: "naapak kasi sa salamin" - VERIFIED sa
+// screenshot: nakalalakad ang player sa arch na salamin sa itaas ng
+// Garden House, ibig sabihin 2 row lang ang pader doon, hindi 5).
+//
+// SANHI: ang INTERIOR na geometry (interiorTilesWide/Tall +
+// interiorWallThickness) ay isinusulat lang sa bahay sa SANDALING
+// ITAYO ito (applyBuilderTemplateToHouse) - kaya ang isang bahay na
+// NAKA-SAVE NA BAGO pa idinagdag ang per-template na kapal ng pader ay
+// nananatili sa LUMANG 18x17 + default na {2,1,1,1}, at doon nakabatay
+// ang itinatayong pader ng buildSyntheticInteriorTmj. Ang artwork ay
+// awtomatikong nag-a-update (path lang ito, hindi kopya) - ang
+// COLLISION lang ang naiwan, kaya nagkakabanggaan sila.
+//
+// AYOS: sa BAWAT pag-load, kung ang bahay ay galing sa isang template,
+// KINUKUHA ULIT ang geometry mula MISMO sa template - ang template ang
+// laging pinagkukunan ng katotohanan para sa sarili nitong artwork.
+// Kaya hindi mo na kailangang ibenta at itayong muli ang mga naitayo
+// mo na, at awtomatiko ring susunod ang mga ito sa anumang pag-ayos ng
+// artwork/kapal balang araw.
+function normalizeCustomHouseTemplateGeometry(house) {
+  if (!house || !house.templateId) return;
+
+  const template = getBuilderTemplateById(house.templateId);
+
+  if (!template) return;
+
+  if (Number.isFinite(template.interiorTilesWide)) {
+    house.interiorTilesWide = template.interiorTilesWide;
+  }
+
+  if (Number.isFinite(template.interiorTilesTall)) {
+    house.interiorTilesTall = template.interiorTilesTall;
+  }
+
+  if (template.interiorWallThickness) {
+    house.interiorWallThickness = { ...template.interiorWallThickness };
+  } else {
+    delete house.interiorWallThickness;
+  }
+
+  house.doorPosition = template.doorPosition || house.doorPosition;
 }
 
 function loadCustomHouses() {
@@ -514,6 +1184,7 @@ function loadCustomHouses() {
 
     for (const house of customHouses) {
       normalizeCustomHouseDoorPositions(house);
+      normalizeCustomHouseTemplateGeometry(house);
 
       // Rehydrate the actual image data from the asset store (see the
       // "IMAGE ASSET STORE" comment above) - the saved house record only
@@ -963,6 +1634,91 @@ function getBuilderWorldTileSize(worldName) {
 }
 
 // =========================
+// "STATIC" na COLLISIONS ng grassmap/grassmap2 (bahay/ground na naka-
+// guhit sa MISMONG larawan, HIWALAY sa dynamic na puno/bato/baboy)
+// =========================
+//
+// AYOS (hiling ng user): "kaya ba na di malagyan sa map yung may mga
+// collisions except sa collision ng trees at stones at pig? meron
+// kasi akong bahay at ground na may collisions nasa grassmap na tmj" -
+// dating (tingnan ang lumang paliwanag sa itaas ng isBuilderTileFree)
+// TINANGGAL nang TULUYAN ang pagsusuri laban sa "Collisions" object
+// layer ng .tmj, dahil WALANG pangalan/type ang 23 (grassmap) / 32
+// (grassmap2) na hugis doon - hindi malaman kung alin ang TALAGANG
+// pader ng bahay/gilid ng ground kumpara sa dekorasyong bato lang.
+//
+// VERIFIED (in-render ang bawat hugis sa ibabaw ng grassmap.png/
+// grassmap2.png para makita kung ano talaga ito): sa grassmap.tmj,
+// ang id 8/9/10/11 ay ang bahay (pader+bubong), ang id 26/27/28/29/30/
+// 31/32/33/38/39/41/42/43/44/47 ay ang gilid/bangin ng "ground" -
+// LAHAT ng ito ay dapat humarang. Ang id 2/3/6/7 lang ang TALAGANG
+// hiwalay na dekorasyong bato (malayo sa bahay/ground, tingnan ang
+// larawan) - NA-TAG na ngayon ng `"type": "stone"` sa mismong .tmj
+// (grassmap.tmj/snowgrassmap.tmj, parehong-pareho ang coordinates) -
+// ito, kagaya ng TALAGANG puno/bato/baboy (dynamic, tingnan sa ibaba),
+// ang HINDI dapat humarang. Sa grassmap2.tmj, LAHAT ng 32 hugis ay
+// bahagi lang ng gilid ng "ground" (walang hiwalay na bato doon) -
+// kaya wala itong "stone" na na-tag, LAHAT humaharang.
+//
+// "Remote" ang pag-fetch nito (hindi umaasa sa currentWorld/mapData) -
+// PAREHONG dahilan ng "remote" na disenyo ng buong file na ito
+// (tingnan ang paliwanag sa itaas ng getCustomHouseCollisionBoxes) -
+// gumagamit ng SARILING fetch() dito ng .tmj (WORLDS[worldName].url),
+// hindi ng snowUrl - VERIFIED magkaparehong-pareho (parehong
+// coordinates/tag) ang normal at snow na bersyon, kaya isa lang ang
+// kailangang kunin kahit anong panahon.
+const BUILDER_STATIC_COLLISIONS_CACHE = {}; // worldName -> [{x,y,width,height}, ...]
+const BUILDER_STATIC_COLLISIONS_LOADING = {}; // worldName -> Promise (habang naglo-load pa lang)
+
+async function loadBuilderStaticCollisions(worldName) {
+  if (BUILDER_STATIC_COLLISIONS_CACHE[worldName]) {
+    return BUILDER_STATIC_COLLISIONS_CACHE[worldName];
+  }
+
+  if (BUILDER_STATIC_COLLISIONS_LOADING[worldName]) {
+    return BUILDER_STATIC_COLLISIONS_LOADING[worldName];
+  }
+
+  const worldDef = typeof WORLDS !== "undefined" ? WORLDS[worldName] : null;
+  const url = worldDef && worldDef.url;
+
+  const promise = !url
+    ? Promise.resolve([])
+    : fetch(url)
+        .then((response) => (response.ok ? response.json() : null))
+        .then((map) => {
+          if (!map || !Array.isArray(map.layers)) return [];
+
+          const collisionLayer = map.layers.find(
+            (layer) => layer.type === "objectgroup" && layer.name.toLowerCase() === "collisions",
+          );
+
+          if (!collisionLayer) return [];
+
+          return collisionLayer.objects.filter((object) => {
+            if (!(object.width > 0 && object.height > 0)) return false;
+
+            // "stone" - dekorasyong bato na naka-guhit sa art (tingnan
+            // ang paliwanag sa itaas) - HINDI ito dapat humarang sa
+            // Lot, kaparehong trato ng TALAGANG puno/bato/baboy.
+            const tag = (object.type || object.name || "").toLowerCase();
+
+            return tag !== "stone";
+          });
+        })
+        .catch(() => []);
+
+  BUILDER_STATIC_COLLISIONS_LOADING[worldName] = promise;
+
+  const result = await promise;
+
+  BUILDER_STATIC_COLLISIONS_CACHE[worldName] = result;
+  delete BUILDER_STATIC_COLLISIONS_LOADING[worldName];
+
+  return result;
+}
+
+// =========================
 // PAG-CHECK NG PLACEMENT (kahit saan sa grassmap/grassmap2, basta
 // walang collision - hiling ng user, HIWALAY sa isFootprintPlaceable
 // ng placement.js na "loob ng bahay lang" ang gamit doon)
@@ -980,24 +1736,23 @@ function isBuilderTileFree(worldName, col, row) {
 
   const tileBox = { x: col * TILE_SIZE, y: row * TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE };
 
-  // AYOS (hiling ng user): "kahit sana meron automatic lang mawawala
-  // yung nakaharang na trees or rocks or grass tyaka lang babalik
-  // kapag binenta na yung bahay" - VERIFIED: ang buong "Collisions"
-  // layer ng grassmap.tmj/grassmap2.tmj (23 na bagay, WALANG
-  // pangalan/type) ay talagang mga hindi-nakikilalang collision box ng
-  // mga puno/bato/palumpong na naka-guhit sa larawan mismo - walang
-  // paraan para "hiwalayin" ang mga ito mula sa TALAGANG istruktura
-  // (wala namang RAW na pader sa grassmap/grassmap2 - ang bahay dito,
-  // grassmapHouse, ay HIWALAY na mundo). Kaya TINANGGAL na rin ang
-  // dating pag-check dito laban sa `collisions` - kahit ano ang
-  // naka-guhit (puno/bato/damo), pwede nang patungan/itayuan (ang
-  // resources.js na ang bahalang "itago"/i-suppress ang mga ito habang
-  // naka-tayo ang bahay - tingnan ang isTileCoveredByCustomHouse doon).
+  // Bahay/ground lang (hindi trees/stones/pig - tingnan ang paliwanag
+  // sa itaas ng loadBuilderStaticCollisions) - kung hindi pa
+  // na-preload ang cache nito (dapat naka-await na ito bago binuksan
+  // ang Map Picker, tingnan ang openBuilderMapPicker), basta laktawan
+  // muna nang tahimik (dating gawi/permissive) sa halip na basta
+  // ipagpalagay na "puno ang buong mapa".
+  const staticBlockingBoxes = BUILDER_STATIC_COLLISIONS_CACHE[worldName];
+
+  if (staticBlockingBoxes && staticBlockingBoxes.some((box) => isColliding(tileBox, box))) {
+    return false;
+  }
+
   // Ang DOORS (portal)/ibang custom house na lang ang TALAGANG
-  // bumabawal - TINANGGAL na rin ang pag-check laban sa TALAGANG
-  // posisyon ng player (dating "huwag i-overlap ang player") - dahil
-  // "remote" na ito, hindi na TALAGANG naroon ang player para
-  // ma-overlap.
+  // bumabawal na dating check dito - TINANGGAL na ang pag-check laban
+  // sa TALAGANG posisyon ng player (dating "huwag i-overlap ang
+  // player") - dahil "remote" na ito, hindi na TALAGANG naroon ang
+  // player para ma-overlap.
   if (typeof DOORS !== "undefined") {
     for (const door of DOORS) {
       if (door.world === worldName && isColliding(tileBox, door.area)) return false;
@@ -1230,7 +1985,7 @@ function getBuilderMapPickerImage(worldName) {
 // buong Picker (tingnan ang getBuilderWorldTileSize/
 // getCustomHouseCollisionBoxes(worldName) sa itaas) - hindi na
 // kailangang kumilos ang player, manatili siyang kasama ni Joseph.
-function openBuilderMapPicker(worldName, lotSize, lotName) {
+async function openBuilderMapPicker(worldName, lotSize, lotName) {
   const bgImage = getBuilderMapPickerImage(worldName);
   const size = getBuilderWorldTileSize(worldName);
 
@@ -1241,8 +1996,21 @@ function openBuilderMapPicker(worldName, lotSize, lotName) {
     return;
   }
 
+  // I-PRELOAD (at i-AWAIT) muna ang bahay/ground na static collisions
+  // ng mundong ito (tingnan ang loadBuilderStaticCollisions sa itaas)
+  // BAGO buksan ang Picker - kaya sigurado nang tama (hindi basta
+  // permissive/"puwede lahat") ang unang preview/pag-drag pa lang,
+  // hindi na kailangang maghintay ng ikalawang tap/drag. Karaniwan
+  // nang naka-cache na ito (parehong 2 mundo lang, matagal nang
+  // na-buksan minsan), kaya halos instant lang ito sa totoong laro.
+  await loadBuilderStaticCollisions(worldName);
+
   const mapWidthPx = size.tilesWide * TILE_SIZE;
   const mapHeightPx = size.tilesTall * TILE_SIZE;
+  // Ang EXTERIOR footprint ng TIER na binili (hindi na ang lumang
+  // FIXED na 10x8) - ito ang laki ng dina-drag na preview box, ang
+  // sinusuring collision, at ang isinusulat sa bagong bahay.
+  const lotExterior = getBuilderExteriorSize(lotSize);
 
   const overlay = document.createElement("div");
 
@@ -1258,10 +2026,10 @@ function openBuilderMapPicker(worldName, lotSize, lotName) {
   header.innerHTML =
     "<span>" +
     (lotName ? lotName + " - " : "") +
-    "click where you want to build (" +
-    BUILDER_EXTERIOR_TILES_WIDE +
+    "drag to where you want to build (" +
+    lotExterior.wide +
     "x" +
-    BUILDER_EXTERIOR_TILES_TALL +
+    lotExterior.tall +
     ")</span>";
 
   const closeBtn = document.createElement("button");
@@ -1301,16 +2069,57 @@ function openBuilderMapPicker(worldName, lotSize, lotName) {
 
   pickerCanvas.className = "builder-map-picker-canvas";
 
+  // =========================
+  // "DRAG THEN CONFIRM" na FOOTER (hiling ng user: "kaya ba na
+  // draggable yung paglagay ng box na 160x128 lot tapos kapag na drop
+  // ko na is may confirmation if goods na kung cancel is mag drag ulit
+  // ako") - lumalabas SA ILALIM ng canvas ang Cancel/Confirm sa
+  // sandaling "idrop" (pointerup) ang 160x128 na preview box.
+  // =========================
+  const pickerFooter = document.createElement("div");
+
+  pickerFooter.className = "builder-map-picker-footer";
+
+  const pickerHint = document.createElement("p");
+
+  pickerHint.className = "builder-panel-hint";
+
+  const pickerActions = document.createElement("div");
+
+  pickerActions.className = "builder-lot-actions";
+  pickerActions.style.display = "none"; // lalabas lang PAGKA-DROP
+
+  const cancelPlacementBtn = document.createElement("button");
+
+  cancelPlacementBtn.type = "button";
+  cancelPlacementBtn.className = "builder-secondary-btn";
+  cancelPlacementBtn.textContent = "Cancel";
+
+  const confirmPlacementBtn = document.createElement("button");
+
+  confirmPlacementBtn.type = "button";
+  confirmPlacementBtn.className = "builder-buy-btn";
+  confirmPlacementBtn.textContent = "Confirm";
+
+  pickerActions.appendChild(cancelPlacementBtn);
+  pickerActions.appendChild(confirmPlacementBtn);
+  pickerFooter.appendChild(pickerHint);
+  pickerFooter.appendChild(pickerActions);
+
   panel.appendChild(header);
   panel.appendChild(worldTabs);
   panel.appendChild(pickerCanvas);
+  panel.appendChild(pickerFooter);
   overlay.appendChild(panel);
   document.body.appendChild(overlay);
 
   // "Contain" fit - buong mapa, walang naputol, naka-SCALE lang
-  // pababa (kaya "naka-zoom-out"/nakalatag makikita ang lahat).
+  // pababa (kaya "naka-zoom-out"/nakalatag makikita ang lahat) -
+  // BINAWASAN ng kaunti ang budget (0.62, dating 0.72) para may lugar
+  // pa ang bagong Cancel/Confirm footer sa ilalim, lalo na sa
+  // maliliit na mobile screen.
   const maxWidth = Math.min(window.innerWidth * 0.9, 1000);
-  const maxHeight = Math.min(window.innerHeight * 0.72, 800);
+  const maxHeight = Math.min(window.innerHeight * 0.62, 700);
   const scale = Math.min(maxWidth / mapWidthPx, maxHeight / mapHeightPx);
 
   pickerCanvas.width = Math.round(mapWidthPx * scale);
@@ -1323,6 +2132,13 @@ function openBuilderMapPicker(worldName, lotSize, lotName) {
   pickerCtx.imageSmoothingEnabled = false;
 
   let hoverTile = null;
+  // Naka-hawak ba (mouse button down / daliri naka-drag) ngayon? -
+  // habang totoo ito, sinusundan ng box ang mouse/daliri.
+  let isDragging = false;
+  // Naka-drop na ba (Cancel/Confirm na ang lumalabas)? - habang totoo
+  // ito, HINDI na muna puwedeng mag-umpisa ng bagong drag hanggang sa
+  // pindutin ang Cancel.
+  let awaitingConfirm = false;
 
   function eventToTile(event) {
     const rect = pickerCanvas.getBoundingClientRect();
@@ -1336,6 +2152,16 @@ function openBuilderMapPicker(worldName, lotSize, lotName) {
     if (col < 0 || row < 0 || col >= size.tilesWide || row >= size.tilesTall) return null;
 
     return { col, row };
+  }
+
+  // Kinukulong ang itaas-kaliwang sulok (anchor) ng 160x128 na box sa
+  // LOOB ng mapa - kung idinrag hanggang sa gilid/dulo, i-CLAMP na
+  // lang ito sa halip na basta tanggihan/mag-snap-back sa dati.
+  function clampLotAnchor(tile) {
+    return {
+      col: Math.max(0, Math.min(tile.col, size.tilesWide - lotExterior.wide)),
+      row: Math.max(0, Math.min(tile.row, size.tilesTall - lotExterior.tall)),
+    };
   }
 
   function redrawPicker() {
@@ -1361,41 +2187,133 @@ function openBuilderMapPicker(worldName, lotSize, lotName) {
         worldName,
         hoverTile.col,
         hoverTile.row,
-        BUILDER_EXTERIOR_TILES_WIDE,
-        BUILDER_EXTERIOR_TILES_TALL,
+        lotExterior.wide,
+        lotExterior.tall,
       );
 
       pickerCtx.fillStyle = placeable ? "rgba(120, 230, 140, 0.5)" : "rgba(255, 80, 80, 0.5)";
       pickerCtx.strokeStyle = placeable ? "rgba(140, 255, 160, 0.95)" : "rgba(255, 100, 100, 0.95)";
-      pickerCtx.lineWidth = 2;
+      // Mas makapal ang outline (3 kaysa 2) habang nakalutang/naka-drop
+      // na ito (awaitingConfirm) - dagdag na senyales na "naka-lock" na
+      // ito, hinihintay na lang ang Cancel/Confirm.
+      pickerCtx.lineWidth = awaitingConfirm ? 3 : 2;
 
       const boxX = hoverTile.col * TILE_SIZE * scale;
       const boxY = hoverTile.row * TILE_SIZE * scale;
-      const boxW = BUILDER_EXTERIOR_TILES_WIDE * TILE_SIZE * scale;
-      const boxH = BUILDER_EXTERIOR_TILES_TALL * TILE_SIZE * scale;
+      const boxW = lotExterior.wide * TILE_SIZE * scale;
+      const boxH = lotExterior.tall * TILE_SIZE * scale;
 
       pickerCtx.fillRect(boxX, boxY, boxW, boxH);
       pickerCtx.strokeRect(boxX, boxY, boxW, boxH);
     }
   }
 
-  pickerCanvas.addEventListener("mousemove", (event) => {
-    hoverTile = eventToTile(event);
-    redrawPicker();
-  });
-
-  pickerCanvas.addEventListener("click", (event) => {
+  // Iisang function na lang ang TALAGANG naghahawak/nagre-redraw ng
+  // hoverTile - ginagamit ito ng desktop "mousemove" (bago pa ma-press,
+  // basta preview) AT ng "pointerdown"/"pointermove" (habang TALAGANG
+  // naka-drag, mouse man o daliri).
+  function setHoverFromEvent(event) {
     const tile = eventToTile(event);
 
     if (!tile) return;
+
+    hoverTile = clampLotAnchor(tile);
+    redrawPicker();
+    updatePickerFooter();
+  }
+
+  // Ina-update ang hint text sa ilalim + kung "Confirm" ay puwede
+  // (disabled kapag may nakaharang sa kasalukuyang posisyon).
+  function updatePickerFooter() {
+    pickerActions.style.display = awaitingConfirm ? "flex" : "none";
+
+    if (!awaitingConfirm) {
+      pickerHint.textContent = hoverTile
+        ? "Drag to reposition, then release to drop it here."
+        : "Tap and drag on the map to position the house, then release.";
+      return;
+    }
+
+    const placeable = isBuilderFootprintFree(
+      worldName,
+      hoverTile.col,
+      hoverTile.row,
+      lotExterior.wide,
+      lotExterior.tall,
+    );
+
+    pickerHint.textContent = placeable
+      ? 'Build "' + (lotName || "this house") + '" here?'
+      : "Something is blocking this spot - Cancel, then drag it somewhere else.";
+    confirmPlacementBtn.disabled = !placeable;
+  }
+
+  // Desktop-only na "hover" (walang naka-press) - hindi ito umaandar sa
+  // touchscreen (walang totoong hover state doon), kaya't harmless lang
+  // itong idagdag sa ibabaw ng pointer events sa ibaba.
+  pickerCanvas.addEventListener("mousemove", (event) => {
+    if (isDragging || awaitingConfirm) return;
+    setHoverFromEvent(event);
+  });
+
+  // =========================
+  // TALAGANG PAG-DRAG (mouse o daliri, iisang code path na - Pointer
+  // Events) - "pointerdown" i-a-ARM ang box sa tinapa/kinlik na tile,
+  // "pointermove" (habang naka-hawak) susunod ang box, "pointerup"
+  // ("drop") ang magpapalabas ng Cancel/Confirm sa ibaba.
+  // =========================
+  pickerCanvas.addEventListener("pointerdown", (event) => {
+    if (awaitingConfirm) return; // naka-lock muna hanggang sa Cancel
+
+    isDragging = true;
+    pickerCanvas.setPointerCapture(event.pointerId);
+    setHoverFromEvent(event);
+  });
+
+  pickerCanvas.addEventListener("pointermove", (event) => {
+    if (!isDragging || awaitingConfirm) return;
+    setHoverFromEvent(event);
+  });
+
+  function dropPlacement() {
+    if (!isDragging) return;
+
+    isDragging = false;
+
+    if (hoverTile) {
+      awaitingConfirm = true;
+      updatePickerFooter();
+      redrawPicker();
+    }
+  }
+
+  pickerCanvas.addEventListener("pointerup", dropPlacement);
+  pickerCanvas.addEventListener("pointercancel", () => {
+    isDragging = false;
+  });
+
+  // AYOS (hiling ng user): "kung cancel is mag drag ulit ako hanggang sa
+  // maging ok na ako sa position" - HINDI tinatanggal ang box sa Cancel,
+  // basta binabalik lang ito sa "puwedeng i-drag ulit" na mode - naka-
+  // panatili pa rin ang huling posisyon nito bilang panimula.
+  cancelPlacementBtn.addEventListener("click", () => {
+    awaitingConfirm = false;
+    updatePickerFooter();
+    redrawPicker();
+  });
+
+  confirmPlacementBtn.addEventListener("click", () => {
+    if (!hoverTile || confirmPlacementBtn.disabled) return;
+
+    const tile = hoverTile;
 
     if (
       !isBuilderFootprintFree(
         worldName,
         tile.col,
         tile.row,
-        BUILDER_EXTERIOR_TILES_WIDE,
-        BUILDER_EXTERIOR_TILES_TALL,
+        lotExterior.wide,
+        lotExterior.tall,
       )
     ) {
       if (typeof showFloatingMessage === "function") {
@@ -1423,8 +2341,14 @@ function openBuilderMapPicker(worldName, lotSize, lotName) {
       world: worldName,
       col: tile.col,
       row: tile.row,
-      tilesWide: BUILDER_EXTERIOR_TILES_WIDE,
-      tilesTall: BUILDER_EXTERIOR_TILES_TALL,
+      tilesWide: lotExterior.wide,
+      tilesTall: lotExterior.tall,
+      // Itinatabi rin ang MISMONG tier id - para malaman ng Building
+      // tab/template fit kung saang tier galing ang bahay kahit
+      // mabago pa ang mga numero balang araw.
+      lotSizeId: lotSize.id,
+      exteriorTilesWide: lotExterior.wide,
+      exteriorTilesTall: lotExterior.tall,
       interiorTilesWide: lotSize.interiorTilesWide,
       interiorTilesTall: lotSize.interiorTilesTall,
       price: lotSize.price,
@@ -1462,6 +2386,7 @@ function openBuilderMapPicker(worldName, lotSize, lotName) {
     }
   });
 
+  updatePickerFooter();
   redrawPicker();
 }
 
@@ -1592,11 +2517,46 @@ function showFloatingMessage(text) {
 // =========================
 const BUILDER_INTERIOR_WALL_THICKNESS = { top: 2, bottom: 1, left: 1, right: 1 };
 
+// =========================
+// PER-TEMPLATE NA KAPAL NG PADER (hiling ng user, para sa Garden House:
+// "yung tiles niya kasi is 16x16 so yun top collisions na 5 tapos sa
+// left 2 sa right 2 sa bottom 2")
+// =========================
+// Ang BUILDER_INTERIOR_WALL_THICKNESS sa itaas ang DEFAULT pa rin para
+// sa LAHAT ng Lot at sa LAHAT ng sarili mong upload (walang nagbago
+// doon) - PERO puwede na ngayong magdala ang isang Building template
+// (o ang isang bahay na naaplayan na nito) ng SARILI nitong `top/
+// bottom/left/right`, dahil hindi pantay-pantay ang kapal ng pader sa
+// bawat artwork: ang Garden House ay may MATAAS na pader/bintana sa
+// itaas (5 tile) at makakapal na gilid (2 tile bawat isa).
+//
+// MAHALAGA: kahit anong kapal, dapat PAREHO pa rin ang PADDED na sukat
+// (open floor + pader) ng template at ng Lot - iyon ang TALAGANG laki
+// ng PNG at ng silid mismo. Ito na ngayon ang sinusuri ng
+// getBuilderTemplateFit (dating ang OPEN na sukat ang pinagtutugma).
+// Hal. Garden House: 16x13 na open + {5,2,2,2} = 20x20 padded = 320x320
+// px - KAPAREHONG-PAREHO ng "Tall" na Lot (18x17 open + {2,1,1,1}).
+function getBuilderInteriorWallThickness(source) {
+  const custom = source && source.interiorWallThickness;
+
+  if (
+    custom &&
+    Number.isFinite(custom.top) &&
+    Number.isFinite(custom.bottom) &&
+    Number.isFinite(custom.left) &&
+    Number.isFinite(custom.right)
+  ) {
+    return custom;
+  }
+
+  return BUILDER_INTERIOR_WALL_THICKNESS;
+}
+
 // { wide, tall } ng BUONG interior room (kasama na ang padding) - ang
 // `tilesWide`/`tilesTall` dito ay ang OPEN/WALKABLE na sukat (parehong
 // sukat ng Exterior Lot, house.tilesWide/tilesTall).
-function getBuilderInteriorPaddedSize(tilesWide, tilesTall) {
-  const T = BUILDER_INTERIOR_WALL_THICKNESS;
+function getBuilderInteriorPaddedSize(tilesWide, tilesTall, thickness) {
+  const T = getBuilderInteriorWallThickness({ interiorWallThickness: thickness });
 
   return {
     wide: tilesWide + T.left + T.right,
@@ -1609,14 +2569,14 @@ function getBuilderInteriorPaddedSize(tilesWide, tilesTall) {
 // ng 10x8 na open area) - ang LALIM (depth) ng notch ay KASING KAPAL
 // ng pader sa gilid na iyon (2 tile kung "top", 1 tile kung
 // "bottom"/"left"/"right").
-function getBuilderInteriorDoorTileRect(tilesWide, tilesTall, doorPosition) {
+function getBuilderInteriorDoorTileRect(tilesWide, tilesTall, doorPosition, thickness) {
   const { wall, doorWidth, startOffset } = getBuilderDoorwayInfo(
     tilesWide,
     tilesTall,
     doorPosition,
   );
-  const padded = getBuilderInteriorPaddedSize(tilesWide, tilesTall);
-  const T = BUILDER_INTERIOR_WALL_THICKNESS;
+  const padded = getBuilderInteriorPaddedSize(tilesWide, tilesTall, thickness);
+  const T = getBuilderInteriorWallThickness({ interiorWallThickness: thickness });
 
   if (wall === "top") {
     return { col: T.left + startOffset, row: 0, width: doorWidth, height: T.top };
@@ -1642,8 +2602,8 @@ function getBuilderInteriorDoorTileRect(tilesWide, tilesTall, doorPosition) {
   };
 }
 
-function getBuilderInteriorDoorAreaPx(tilesWide, tilesTall, doorPosition) {
-  const rect = getBuilderInteriorDoorTileRect(tilesWide, tilesTall, doorPosition);
+function getBuilderInteriorDoorAreaPx(tilesWide, tilesTall, doorPosition, thickness) {
+  const rect = getBuilderInteriorDoorTileRect(tilesWide, tilesTall, doorPosition, thickness);
 
   return {
     x: rect.col * TILE_SIZE,
@@ -1657,11 +2617,11 @@ function getBuilderInteriorDoorAreaPx(tilesWide, tilesTall, doorPosition) {
 // TALAGANG bukas/walkable floor ay eksaktong PAREHO pa rin ng Exterior
 // (tilesWide x tilesTall) - ang mga PADER (rects na ibinabalik nito)
 // ay NASA LABAS/PALIGID lang ng open area na iyon.
-function buildBuilderPerimeterWallRects(tilesWide, tilesTall, doorPosition) {
+function buildBuilderPerimeterWallRects(tilesWide, tilesTall, doorPosition, thickness) {
   const { wall } = getBuilderDoorwayInfo(tilesWide, tilesTall, doorPosition);
-  const padded = getBuilderInteriorPaddedSize(tilesWide, tilesTall);
-  const T = BUILDER_INTERIOR_WALL_THICKNESS;
-  const doorRect = getBuilderInteriorDoorTileRect(tilesWide, tilesTall, doorPosition);
+  const padded = getBuilderInteriorPaddedSize(tilesWide, tilesTall, thickness);
+  const T = getBuilderInteriorWallThickness({ interiorWallThickness: thickness });
+  const doorRect = getBuilderInteriorDoorTileRect(tilesWide, tilesTall, doorPosition, thickness);
   const rects = [];
 
   // ITAAS na pader (mga row 0 hanggang T.top-1) - buong lapad MALIBAN
@@ -1785,9 +2745,9 @@ function buildBuilderPerimeterWallRects(tilesWide, tilesTall, doorPosition) {
 // sukat ng Exterior) - ang TALAGANG laki ng silid (kasama na ang
 // padding) ay kinukuha sa getBuilderInteriorPaddedSize.
 // =========================
-function buildSyntheticInteriorTmj(tilesWide, tilesTall, doorPosition) {
-  const padded = getBuilderInteriorPaddedSize(tilesWide, tilesTall);
-  const rects = buildBuilderPerimeterWallRects(tilesWide, tilesTall, doorPosition);
+function buildSyntheticInteriorTmj(tilesWide, tilesTall, doorPosition, thickness) {
+  const padded = getBuilderInteriorPaddedSize(tilesWide, tilesTall, thickness);
+  const rects = buildBuilderPerimeterWallRects(tilesWide, tilesTall, doorPosition, thickness);
   const objects = rects.map((rect, index) => ({ id: index + 1, ...rect }));
 
   return {
@@ -1952,8 +2912,8 @@ function getBuilderDoorSpawnPx(colPx, rowPx, tilesWide, tilesTall, doorPosition,
 // INTERIOR - MAY PADDING (BUILDER_INTERIOR_WALL_THICKNESS) - `tilesWide`/
 // `tilesTall` dito ay ang OPEN/WALKABLE na sukat (parehong sukat ng
 // Exterior), HINDI ang buong padded na silid.
-function getBuilderInteriorDoorSpawnPx(tilesWide, tilesTall, doorPosition, direction) {
-  const area = getBuilderInteriorDoorAreaPx(tilesWide, tilesTall, doorPosition);
+function getBuilderInteriorDoorSpawnPx(tilesWide, tilesTall, doorPosition, direction, thickness) {
+  const area = getBuilderInteriorDoorAreaPx(tilesWide, tilesTall, doorPosition, thickness);
   const { wall } = getBuilderDoorwayInfo(tilesWide, tilesTall, doorPosition);
 
   return getBuilderSpawnPxForDoorArea(area, wall, direction);
@@ -2021,7 +2981,12 @@ function registerCustomHouseDoors(house) {
   // may extra na pader sa paligid).
   DOORS.push({
     world: worldName,
-    area: getBuilderInteriorDoorAreaPx(house.interiorTilesWide, house.interiorTilesTall, house.doorPosition),
+    area: getBuilderInteriorDoorAreaPx(
+      house.interiorTilesWide,
+      house.interiorTilesTall,
+      house.doorPosition,
+      getBuilderInteriorWallThickness(house),
+    ),
     to: house.world,
     // Palabas sa EXTERIOR pintuan mismo (house.doorPosition), 1.5 tile
     // palabas ng footprint - GARANTISADONG hindi agad ma-re-trigger
@@ -2042,6 +3007,939 @@ function registerCustomHouseDoors(house) {
   });
 }
 
+// =========================
+// ISKEDYUL NG GROCERY - SI MARIA AT SI JOSEPH (hiling ng user)
+// =========================
+// "gusto ko kasi na pumupunta lang sila ng grocery kapag umaga...
+// halimbawa galing silang kanya kanyang bahay 7am is aalis na sila ng
+// bahay nila maglalakad papuntang grocery eenter tapos pwepwesto sa
+// pwesto nila tapos mga bandang 4:30pm is aalis na sila sa grocery
+// babalik na sa kanila kanilang bahay"
+//
+// MAHALAGANG PALIWANAG (para malinaw ang ginawa, hindi lang basta
+// tahimik na nag-iba): ang laro ay HIWA-HIWALAY na mundo bawat isa
+// (grassmap/town/josephHouse/mga custom house), IPINAGDUDUGTONG lang
+// ng mga PINTUAN na direktang nagte-TELEPORT - walang isang tuloy-
+// tuloy na daigdig na malalakaran mula bahay hanggang grocery. Kung
+// susundin nang literal ang hiling ("galing sa bahay, lumalakad
+// papuntang grocery"), kakailanganin ng: sariling bahay/posisyon si
+// Maria (wala pa siyang isa), isang RUTA sa outdoor na mundo mula sa
+// bawat bahay papunta sa pinto ng grocery, at isang "pathfinding" na
+// sistema na umiiwas sa mga puno/bato/ibang bahay - malaking bagong
+// sistema ito, at hindi ko ito magagawa nang maayos nang hindi
+// masubukan.
+//
+// ANG GINAWA KO SA HALIP (parehong resulta, mas ligtas na saklaw): ang
+// "paglalakad" ay ipinapakita SA LOOB MISMO ng Grocery - mula sa
+// PINTUAN papunta sa kani-kanilang puwesto sa umaga (gamit ang WALK na
+// animation), at mula puwesto pabalik sa pintuan sa hapon (saka
+// nawawala - ipinapalagay na "umuwi na"). Bago mag-7am at pagkatapos
+// ng 4:30pm, WALANG makikita kahit sino sa kanila - ganoon din ang
+// gawi kung wala ka sa Grocery habang nagbabago ang oras (sa susunod
+// mong pagpasok, nasa kani-kanilang tamang estado na sila base sa
+// ORAS, hindi kailangang panoorin ang buong paglalakad).
+//
+// SI JOSEPH: pinananatili ko siyang LAGING nasa "josephHouse" (hindi
+// ko siya inalis doon kahit kailan) - iyon ang TANGING paraan para
+// makausap siya tungkol sa Builder feature, at kung tatanggalin siya
+// roon sa oras ng "trabaho", MAWAWALA ang access sa pagtatayo ng bahay
+// nang kalahati ng araw. Ang bersyon niya sa Grocery ay ISANG
+// KARAGDAGANG PAGPAPAKITA lang ng parehong karakter (parehong sprite,
+// hiwalay lang na "puwesto") - kung MALI ang pagkakaunawa kong ito,
+// sabihin mo lang.
+
+// 7:00 AM hanggang 4:30 PM (24-oras na format: 7 hanggang 16.5).
+const NPC_WORKDAY_START_HOUR = 7;
+const NPC_WORKDAY_END_HOUR = 16.5;
+
+// Ilang TOTOONG segundo (hindi in-game) ang tagal ng paglalakad papasok/
+// palabas SA LOOB ng Grocery - TUNABLE ito, walang partikular na dahilan
+// bakit 18 segundo bukod sa "sapat na makita ang buong animation nang
+// hindi masyadong matagal". 1 in-game oras = 75 totoong segundo
+// (DAY_NIGHT_SECONDS=1800 segundo bawat 24 na in-game oras), kaya 18
+// segundo ay bahagya lamang sa loob ng 9.5 oras na "shift".
+const NPC_WALK_DURATION_MS = 18000;
+
+// AYOS (ikalawang round, hiling ng user: "gusto ko kasi actual silang
+// maglalakad papuntang grocery... yung shadow nila... nasa ilalim lang
+// ng character"): DAGDAG na SEGMENT SA LABAS ng bahay - bago sila
+// "pumasok" (bago 7am) at pagkatapos "lumabas" (pagkatapos 4:30pm),
+// TALAGANG may makikita kang paglalakad SA LABAS (grassmap/grassmap2,
+// kung saan man naka-tayo ang Grocery) - mula sa isang puntong ILANG
+// TILE ang layo sa pintuan, papunta/pabalik doon. Hindi pa rin ito
+// buong "galing sa sariling bahay" (tingnan ang paliwanag sa itaas kung
+// bakit hindi pa iyon ligtas gawin nang hindi nasusubukan) - pero
+// TALAGA nang may nakikitang paglalakad SA LABAS ng gusali, hindi na
+// lang sa loob.
+const NPC_OUTDOOR_APPROACH_MS = 15000;
+const NPC_OUTDOOR_APPROACH_TILES = 3;
+
+// Ilang TOTOONG segundo ang tagal ng paglalakad SA LOOB ng SARILING
+// BAHAY nila (puwesto <-> pintuan ng mariaHouse/josephHouse) - hiling
+// ng user: "dapat maglakad sila galing sa bahay tapos lalabas".
+const NPC_HOME_WALK_DURATION_MS = 10000;
+
+// Puntos sa TILES, PADDED na coordinate frame ng Grocery interior -
+// hiling ng user: "sa loob 4 row tapos center" (Maria), "tabi sila ni
+// maria may pagitan lang na 2 tiles" (Joseph). Ang 20-tile na lapad ay
+// pantay na nahahati sa 10, kaya doon nakatayo si Maria; si Joseph naman
+// ay 2 tile ang pagitan (cols 11-12 na walang laman sa pagitan nila).
+const MARIA_SPOT_COL = 10;
+const MARIA_SPOT_ROW = 4;
+const JOSEPH_GROCERY_SPOT_COL = 13;
+const JOSEPH_GROCERY_SPOT_ROW = 4;
+
+const GROCERY_TEMPLATE_ID = "grocery";
+
+// Ang PINTUAN ng Grocery bilang PAANAN sa pixels (kung saan sila
+// "pumapasok"/"umaalis") - KINUKUHA mula MISMO sa geometry ng template
+// (hindi hardcoded na numero), kaya kung sakaling magbago balang araw
+// ang laki/posisyon ng pintuan ng Grocery, awtomatiko itong susunod.
+// Naka-cache dahil static naman ang geometry ng isang template.
+let groceryDoorFootPositionCache = null;
+
+function getGroceryDoorFootPosition() {
+  if (groceryDoorFootPositionCache) return groceryDoorFootPositionCache;
+
+  const template = getBuilderTemplateById(GROCERY_TEMPLATE_ID);
+
+  if (!template) return null;
+
+  const thickness = getBuilderInteriorWallThickness(template);
+  const padded = getBuilderInteriorPaddedSize(
+    template.interiorTilesWide,
+    template.interiorTilesTall,
+    thickness,
+  );
+  const doorRect = getBuilderInteriorDoorTileRect(
+    template.interiorTilesWide,
+    template.interiorTilesTall,
+    template.doorPosition,
+    thickness,
+  );
+
+  // "bottom-center" ang doorPosition ng Grocery (tingnan ang
+  // BUILDER_BUILDING_TEMPLATES) - kaya ang PAANAN nila sa pintuan ay
+  // nasa ILALIM mismo ng silid (padded.tall), gitna ng lapad ng notch.
+  groceryDoorFootPositionCache = {
+    x: (doorRect.col + doorRect.width / 2) * TILE_SIZE,
+    y: padded.tall * TILE_SIZE,
+  };
+
+  return groceryDoorFootPositionCache;
+}
+
+// Nasa loob ba tayo ngayon ng isang Grocery interior? `true`/`false`.
+function isInsideGroceryInterior() {
+  if (typeof currentWorld === "undefined" || !currentWorld) return false;
+  if (typeof customHouses === "undefined" || !Array.isArray(customHouses)) return false;
+
+  const house = customHouses.find(
+    (entry) => getCustomHouseInteriorWorldName(entry) === currentWorld,
+  );
+
+  return !!house && house.templateId === GROCERY_TEMPLATE_ID;
+}
+
+// Ang KASALUKUYANG YUGTO ng "araw" nila, PURONG kwenta mula sa oras
+// (walang itinatabing estado - kaya AWTOMATIKONG tama kahit kailan mo
+// pa sila tingnan, hindi kailangang "buhayin"/i-simulate ang oras na
+// hindi mo pinapanood):
+//
+//   "atHome"      - SA BAHAY nila (mariaHouse/josephHouse), nakatayo
+//   "leavingHome" - SA LOOB ng bahay, galing sa puwesto patungong pintuan
+//   "approaching" - SA LABAS (grassmap/grassmap2), papunta sa Grocery
+//   "walkingIn"   - SA LOOB ng Grocery, galing sa pintuan patungong puwesto
+//   "atWork"      - SA LOOB ng Grocery, nakatayo sa puwesto
+//   "walkingOut"  - SA LOOB ng Grocery, galing sa puwesto patungong pintuan
+//   "leaving"     - SA LABAS, palayo sa Grocery, pabalik sa bahay
+//   "enteringHome"- SA LOOB ng bahay, galing sa pintuan patungong puwesto
+//
+// `progress` (0..1) - gaano na katapos ang segment na iyon.
+//
+// AYOS (hiling ng user): "dapat maglakad sila galing sa bahay tapos
+// lalabas dapat realtime din sumasabay sa oras" - dagdag na 2 YUGTO
+// (leavingHome/enteringHome) BAGO/PAGKATAPOS ng "approaching"/"leaving"
+// - kaya may TALAGANG makikita kang paglabas/pagpasok sa SARILING bahay
+// nila (mariaHouse/josephHouse), hindi lang basta "biglang nawala/
+// biglang lumitaw" sa gilid ng Grocery.
+//
+// MAHALAGANG LIMITASYON (sinasabi nang malinaw): ang "town" (kung nasaan
+// ang mga bahay) at ang "grassmap"/"grassmap2" (kung saan lang puwedeng
+// itayo ang Grocery) ay MAGKAIBANG mundo - walang direktang lakaran sa
+// pagitan nila kundi sa pamamagitan ng gate (isa pang pintuan). Kaya sa
+// SANDALING lumabas sila sa pintuan ng bahay nila SA TOWN, "nawawala"
+// muna sila hanggang sa lumitaw sila sa tabi ng Grocery SA grassmap/
+// grassmap2 (parehong oras, magkaibang mundo) - hindi ito isang tuloy-
+// tuloy na paglalakad na makikita mo sa IISANG panonood, dahil hindi
+// puwedeng magkasabay ang manlalaro sa DALAWANG mundo. Ito ang pinaka-
+// malapit na magagawa nang hindi ko kailangang bumuo ng buong
+// pathfinding papuntang/palabas ng gate.
+function getNpcSchedulePhase() {
+  const dayMs = DAY_NIGHT_SECONDS * 1000;
+  const msIntoDay = ((getGameNow() % dayMs) + dayMs) % dayMs;
+  const startMs = (NPC_WORKDAY_START_HOUR / 24) * dayMs;
+  const endMs = (NPC_WORKDAY_END_HOUR / 24) * dayMs;
+  const approachStartMs = startMs - NPC_OUTDOOR_APPROACH_MS;
+  const leaveEndMs = endMs + NPC_OUTDOOR_APPROACH_MS;
+  const homeLeaveStartMs = approachStartMs - NPC_HOME_WALK_DURATION_MS;
+  const homeEnterEndMs = leaveEndMs + NPC_HOME_WALK_DURATION_MS;
+
+  if (msIntoDay >= homeLeaveStartMs && msIntoDay < approachStartMs) {
+    return {
+      phase: "leavingHome",
+      progress: (msIntoDay - homeLeaveStartMs) / NPC_HOME_WALK_DURATION_MS,
+    };
+  }
+
+  if (msIntoDay >= approachStartMs && msIntoDay < startMs) {
+    return {
+      phase: "approaching",
+      progress: (msIntoDay - approachStartMs) / NPC_OUTDOOR_APPROACH_MS,
+    };
+  }
+
+  if (msIntoDay >= startMs && msIntoDay < startMs + NPC_WALK_DURATION_MS) {
+    return {
+      phase: "walkingIn",
+      progress: (msIntoDay - startMs) / NPC_WALK_DURATION_MS,
+    };
+  }
+
+  if (msIntoDay >= startMs + NPC_WALK_DURATION_MS && msIntoDay < endMs - NPC_WALK_DURATION_MS) {
+    return { phase: "atWork", progress: 0 };
+  }
+
+  if (msIntoDay >= endMs - NPC_WALK_DURATION_MS && msIntoDay < endMs) {
+    return {
+      phase: "walkingOut",
+      progress: (msIntoDay - (endMs - NPC_WALK_DURATION_MS)) / NPC_WALK_DURATION_MS,
+    };
+  }
+
+  if (msIntoDay >= endMs && msIntoDay < leaveEndMs) {
+    return { phase: "leaving", progress: (msIntoDay - endMs) / NPC_OUTDOOR_APPROACH_MS };
+  }
+
+  if (msIntoDay >= leaveEndMs && msIntoDay < homeEnterEndMs) {
+    return {
+      phase: "enteringHome",
+      progress: (msIntoDay - leaveEndMs) / NPC_HOME_WALK_DURATION_MS,
+    };
+  }
+
+  return { phase: "atHome", progress: 0 };
+}
+
+// =========================
+// ANG PAGLALAKAD SA LABAS (approaching/leaving) - hiling ng user:
+// "gusto ko kasi actual silang maglalakad papuntang grocery"
+// =========================
+// Kinukuha ang unang Grocery na natagpuan (kung sakaling MARAMI, hanggang
+// 2 - BUILDER_TEMPLATE_MAX_COUNT - iisa lang ang "ginagamit" para sa
+// pisikal na paglalakad sa labas, para hindi magkadoble sina Maria/
+// Joseph sa magkaibang panig ng mapa kung sabay silang malapit sa
+// player - limitasyon ito, sinasadya, TUNAY namang bihira ang 2 Grocery.
+function getScheduledGroceryHouse() {
+  if (typeof customHouses === "undefined" || !Array.isArray(customHouses)) return null;
+
+  return customHouses.find((entry) => entry.templateId === GROCERY_TEMPLATE_ID) || null;
+}
+
+// { doorThreshold, spawn } sa WORLD-SPACE pixels ng `house.world`
+// (grassmap/grassmap2) - "doorThreshold" ay eksaktong nasa pintuan mismo
+// (labas), "spawn" ay ilang tile (NPC_OUTDOOR_APPROACH_TILES) PALAYO sa
+// direksyon KUNG SAAN NAKAHARAP ang pintuan (kaya laging "malinis"/walang
+// bagay ang landas - kaparehong direksyon kung saan lumalabas ang
+// PLAYER mismo, tingnan ang getBuilderSpawnPxForDoorArea).
+function getGroceryExteriorApproachPoints(house) {
+  const colPx = house.col * TILE_SIZE;
+  const rowPx = house.row * TILE_SIZE;
+  const area = getBuilderDoorAreaPx(
+    colPx,
+    rowPx,
+    house.tilesWide,
+    house.tilesTall,
+    house.doorPosition,
+  );
+  const { wall } = getBuilderDoorwayInfo(house.tilesWide, house.tilesTall, house.doorPosition);
+
+  let doorThreshold;
+  let awayDx = 0;
+  let awayDy = 0;
+
+  if (wall === "bottom") {
+    doorThreshold = { x: area.x + area.width / 2, y: rowPx + house.tilesTall * TILE_SIZE };
+    awayDy = 1;
+  } else if (wall === "top") {
+    doorThreshold = { x: area.x + area.width / 2, y: rowPx };
+    awayDy = -1;
+  } else if (wall === "left") {
+    doorThreshold = { x: colPx, y: area.y + area.height / 2 };
+    awayDx = -1;
+  } else {
+    doorThreshold = { x: colPx + house.tilesWide * TILE_SIZE, y: area.y + area.height / 2 };
+    awayDx = 1;
+  }
+
+  const spawn = {
+    x: doorThreshold.x + awayDx * NPC_OUTDOOR_APPROACH_TILES * TILE_SIZE,
+    y: doorThreshold.y + awayDy * NPC_OUTDOOR_APPROACH_TILES * TILE_SIZE,
+  };
+
+  return { doorThreshold, spawn };
+}
+
+// Ibinabalik ang { x, y } (paanan) NGAYON, SA LABAS ng Grocery - o
+// `null` kung hindi tugma ang kasalukuyang mundo/yugto (wala dapat
+// iguhit sa labas ngayon).
+function getGroceryOutdoorNpcPosition() {
+  const house = getScheduledGroceryHouse();
+
+  if (!house) return null;
+  if (typeof currentWorld === "undefined" || currentWorld !== house.world) return null;
+
+  const { phase, progress } = getNpcSchedulePhase();
+
+  if (phase !== "approaching" && phase !== "leaving") return null;
+
+  const { doorThreshold, spawn } = getGroceryExteriorApproachPoints(house);
+
+  if (phase === "approaching") {
+    return {
+      x: lerp(spawn.x, doorThreshold.x, progress),
+      y: lerp(spawn.y, doorThreshold.y, progress),
+      dirX: doorThreshold.x - spawn.x,
+      dirY: doorThreshold.y - spawn.y,
+    };
+  }
+
+  // "leaving"
+  return {
+    x: lerp(doorThreshold.x, spawn.x, progress),
+    y: lerp(doorThreshold.y, spawn.y, progress),
+    dirX: spawn.x - doorThreshold.x,
+    dirY: spawn.y - doorThreshold.y,
+  };
+}
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+// =========================
+// COLLISION-SAFE NA RUTA (hiling ng user: "di sila nakakapag lakad sa
+// mismong may collisions")
+// =========================
+// Ang dating diretsong-linya (door -> spot) ay puwedeng dumaan sa
+// PADER kung malayo ang X ng puwesto sa X ng pintuan (hal. si Joseph,
+// 2 tile ang layo sa gilid ng notch ng pintuan) - habang MABABA pa ang
+// NPC (malapit pa sa hilera ng pader), puwede siyang "lumihis" papunta
+// sa isang column na SARADO pa doon sa taas na iyon.
+//
+// AYOS: sa halip na isang tuwid na linya, dalawang SEGMENT (isang "L"
+// na hugis) ang nilalakaran - (1) DERETSONG PAITAAS mula sa pintuan,
+// eksaktong nasa X ng pintuan mismo (kaya laging nasa LOOB ng notch ng
+// pintuan habang nasa taas ng pader), (2) PAHALANG papunta sa puwesto,
+// SAKA lang ito nangyayari - matapos umakyat lampas sa pader, kung
+// saan BUKAS na ang buong sahig (walang pader sa gitna). GARANTISADO
+// itong ligtas KAHIT ANONG puwesto/pintuan, dahil ang sahig sa loob ng
+// isang bahay ay LAGING bukas maliban sa mismong hangganan ng pader.
+// PANSIN: kahit "Grocery" ang pangalan nito, GENERIC na talaga ang
+// hugis (parehong "L" na ruta, kahit anong doorPos/spot) - ginagamit
+// din ito para sa paglalakad SA LOOB ng SARILING BAHAY nila
+// (mariaHouse/josephHouse, tingnan ang drawHomeNpc sa ibaba), doorPos
+// na lang ang ipinapalit (HOUSE_DOOR_FOOT_POSITION sa halip na
+// getGroceryDoorFootPosition()).
+function buildGroceryWalkPath(doorPos, spotX, spotY) {
+  return [
+    { x: doorPos.x, y: doorPos.y },
+    { x: doorPos.x, y: spotY },
+    { x: spotX, y: spotY },
+  ];
+}
+
+// Ibinabalik ang { x, y, dirX, dirY } sa distansyang `t` (0..1) sa
+// kahabaan ng isang polyline - PANTAY na bilis sa magkabilang segment
+// (batay sa TALAGANG haba nito, hindi basta bilang ng segment), kaya
+// hindi biglaang bumibilis/bumabagal ang NPC sa sulok.
+function getPointAlongPath(points, t) {
+  const segments = [];
+  let totalLength = 0;
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const dx = points[i + 1].x - points[i].x;
+    const dy = points[i + 1].y - points[i].y;
+    const length = Math.hypot(dx, dy);
+
+    segments.push({ from: points[i], to: points[i + 1], length, dx, dy });
+    totalLength += length;
+  }
+
+  if (totalLength <= 0) {
+    const p = points[0];
+
+    return { x: p.x, y: p.y, dirX: 0, dirY: 0 };
+  }
+
+  let target = Math.max(0, Math.min(1, t)) * totalLength;
+
+  for (const seg of segments) {
+    if (target <= seg.length || seg === segments[segments.length - 1]) {
+      const segT = seg.length > 0 ? target / seg.length : 1;
+
+      return {
+        x: lerp(seg.from.x, seg.to.x, segT),
+        y: lerp(seg.from.y, seg.to.y, segT),
+        dirX: seg.dx,
+        dirY: seg.dy,
+      };
+    }
+
+    target -= seg.length;
+  }
+
+  const last = points[points.length - 1];
+
+  return { x: last.x, y: last.y, dirX: 0, dirY: 0 };
+}
+
+// Direksyon ng sprite (up/down/left/right) base sa TALAGANG galaw sa
+// segment na iyon - hindi na basta "up palagi kapag papasok".
+function getWalkDirectionFromDelta(dirX, dirY) {
+  if (Math.abs(dirX) > Math.abs(dirY)) return dirX >= 0 ? "right" : "left";
+
+  return dirY >= 0 ? "down" : "up";
+}
+
+// Iginuguhit ang isang NPC gamit ang WALK na sprite (kaparehong-pareho
+// ng ginagamit ng player - assets/character/walk/...), naka-anchor sa
+// PAANAN, "up" na direksyon kapag papasok, "down" kapag papalabas
+// (palagi, dahil VERTICAL ang galaw nila mula pintuan patungong
+// puwesto - malayo ang pintuan sa ibaba, malapit sa itaas ang puwesto).
+function drawNpcWalkCharacter(feetX, feetY, direction, frameOffset) {
+  if (typeof sprites === "undefined" || !sprites.walk) return;
+
+  const sprite = sprites.walk[direction];
+
+  if (!sprite || !sprite.complete || !sprite.width) return;
+
+  const width = typeof player !== "undefined" ? player.width : 56;
+  const height = typeof player !== "undefined" ? player.height : 64;
+  const boxY = feetY - height;
+
+  // Kaparehong-pareho ng ayos sa drawNpcIdleCharacter sa itaas - EKSAKTONG
+  // kopya ng formula ng TALAGANG anino ng player (drawPlayerShadow).
+  const footRatio = typeof PLAYER_FOOT_RATIO === "number" ? PLAYER_FOOT_RATIO : 51 / 64;
+
+  if (typeof drawGroundShadow === "function") {
+    drawGroundShadow(feetX, boxY + height * footRatio, width * 0.3, {
+      heightRatio: 0.25,
+      blur: 3,
+      alpha: 0.35,
+    });
+  }
+
+  // 10 frame ang up/down, 7 ang left/right - kaparehong-pareho ng
+  // getPlayerAnimationFrameCount (player.js).
+  const frameCount = direction === "up" || direction === "down" ? 10 : 7;
+  const frameWidth = sprite.width / frameCount;
+  // Bahagyang mas mabilis kaysa idle (NPC_IDLE_FRAME_MS) - parang
+  // TALAGANG naglalakad, hindi lang basta umiindayog nang nakatayo.
+  const frameIndex =
+    (Math.floor(Date.now() / 110) + (frameOffset || 0)) % frameCount;
+
+  ctx.imageSmoothingEnabled = false;
+
+  const boxX = feetX - width / 2;
+
+  let destX = boxX;
+  let destY = boxY;
+  let destWidth = width;
+  let destHeight = height;
+
+  if (typeof getSpriteCropDestRect === "function") {
+    const rect = getSpriteCropDestRect("walk." + direction, boxX, boxY, width, height);
+
+    destX = rect[0];
+    destY = rect[1];
+    destWidth = rect[2];
+    destHeight = rect[3];
+  }
+
+  ctx.drawImage(
+    sprite,
+    frameIndex * frameWidth,
+    0,
+    frameWidth,
+    sprite.height,
+    destX,
+    destY,
+    destWidth,
+    destHeight,
+  );
+}
+
+// Ang PANGKALAHATANG "guhitin ang NPC na ito ngayon" - iisa lang ang
+// function na ito, ginagamit ng PAREHONG Maria at ng Grocery na bersyon
+// ni Joseph (parehong iskedyul, magkaibang puwesto/pangalan lang).
+// SA LOOB (walkingIn/atWork/walkingOut) O SA LABAS (approaching/leaving)
+// - dalawang lugar na ito ang PUWEDENG pagmulan ng guhit, depende sa
+// KASALUKUYANG mundo at yugto. Ibinabalik ang PAANANG posisyon na
+// TALAGANG ginamit (kailangan ito ng Y-sort), o `null` kung walang
+// dapat iguhit dito ngayon.
+function drawScheduledGroceryNpc(spotCol, spotRow, frameOffset) {
+  // SA LABAS (approaching/leaving) - kaparehong-pareho ang batayan ng
+  // Maria at Joseph dito (parehong Grocery house/pintuan naman ang
+  // pinagmumulan), kaya IISA lang silang parehong posisyon SA LABAS -
+  // TABI-TABI (offset ng ilang piksel base sa frameOffset) para hindi
+  // sila TALAGANG magkapatong.
+  const outdoor = getGroceryOutdoorNpcPosition();
+
+  if (outdoor) {
+    const sideOffset = (frameOffset || 0) * 6 - 9; // maliit na spread lang
+    const x = outdoor.x + sideOffset;
+    const direction = getWalkDirectionFromDelta(outdoor.dirX, outdoor.dirY);
+
+    drawNpcWalkCharacter(x, outdoor.y, direction, frameOffset);
+    return { x, y: outdoor.y };
+  }
+
+  if (!isInsideGroceryInterior()) return null;
+
+  const doorPos = getGroceryDoorFootPosition();
+
+  if (!doorPos) return null;
+
+  const spotX = spotCol * TILE_SIZE + TILE_SIZE / 2;
+  const spotY = spotRow * TILE_SIZE + TILE_SIZE;
+  const { phase, progress } = getNpcSchedulePhase();
+
+  if (phase === "atWork") {
+    drawNpcIdleCharacter(spotX, spotY, frameOffset);
+    return { x: spotX, y: spotY };
+  }
+
+  if (phase === "walkingIn") {
+    const path = buildGroceryWalkPath(doorPos, spotX, spotY);
+    const point = getPointAlongPath(path, progress);
+    const direction = getWalkDirectionFromDelta(point.dirX, point.dirY);
+
+    drawNpcWalkCharacter(point.x, point.y, direction, frameOffset);
+    return { x: point.x, y: point.y };
+  }
+
+  if (phase === "walkingOut") {
+    // PAREHONG ruta, PABALIKTAD lang (spot -> pintuan).
+    const path = buildGroceryWalkPath(doorPos, spotX, spotY).reverse();
+    const point = getPointAlongPath(path, progress);
+    const direction = getWalkDirectionFromDelta(point.dirX, point.dirY);
+
+    drawNpcWalkCharacter(point.x, point.y, direction, frameOffset);
+    return { x: point.x, y: point.y };
+  }
+
+  return null;
+}
+
+function drawMaria() {
+  drawScheduledGroceryNpc(MARIA_SPOT_COL, MARIA_SPOT_ROW, 3);
+}
+
+function drawJosephAtGrocery() {
+  drawScheduledGroceryNpc(JOSEPH_GROCERY_SPOT_COL, JOSEPH_GROCERY_SPOT_ROW, 0);
+}
+
+// Kasama sa Y-sort - `sortY` ay batay sa KASALUKUYANG (paglalakad man o
+// nakatayo, sa labas man o sa loob) posisyon, kaya tama pa rin ang
+// lalim niya laban sa player/puno/bato habang gumagalaw.
+function getMariaDrawables() {
+  const outdoor = getGroceryOutdoorNpcPosition();
+
+  if (outdoor) return [{ sortY: outdoor.y, order: -1, type: "npc", draw: drawMaria }];
+
+  if (!isInsideGroceryInterior()) return [];
+
+  const { phase, progress } = getNpcSchedulePhase();
+
+  if (phase !== "walkingIn" && phase !== "atWork" && phase !== "walkingOut") return [];
+
+  const doorPos = getGroceryDoorFootPosition();
+  const spotX = MARIA_SPOT_COL * TILE_SIZE + TILE_SIZE / 2;
+  const spotY = MARIA_SPOT_ROW * TILE_SIZE + TILE_SIZE;
+
+  let sortY = spotY;
+
+  if (phase === "walkingIn" && doorPos) {
+    sortY = getPointAlongPath(buildGroceryWalkPath(doorPos, spotX, spotY), progress).y;
+  } else if (phase === "walkingOut" && doorPos) {
+    sortY = getPointAlongPath(
+      buildGroceryWalkPath(doorPos, spotX, spotY).reverse(),
+      progress,
+    ).y;
+  }
+
+  return [{ sortY, order: -1, type: "npc", draw: drawMaria }];
+}
+
+// Kaparehong-pareho ng getMariaDrawables, PERO para sa GROCERY na
+// bersyon ni Joseph - HIWALAY ito sa getJosephDrawables (na para sa
+// josephHouse, hindi nagbabago) - puwede silang PAREHONG aktibo sa
+// magkaibang mundo, walang tunggalian.
+function getJosephGroceryDrawables() {
+  const outdoor = getGroceryOutdoorNpcPosition();
+
+  if (outdoor) {
+    return [{ sortY: outdoor.y, order: -1, type: "npc", draw: drawJosephAtGrocery }];
+  }
+
+  if (!isInsideGroceryInterior()) return [];
+
+  const { phase, progress } = getNpcSchedulePhase();
+
+  if (phase !== "walkingIn" && phase !== "atWork" && phase !== "walkingOut") return [];
+
+  const doorPos = getGroceryDoorFootPosition();
+  const spotX = JOSEPH_GROCERY_SPOT_COL * TILE_SIZE + TILE_SIZE / 2;
+  const spotY = JOSEPH_GROCERY_SPOT_ROW * TILE_SIZE + TILE_SIZE;
+
+  let sortY = spotY;
+
+  if (phase === "walkingIn" && doorPos) {
+    sortY = getPointAlongPath(buildGroceryWalkPath(doorPos, spotX, spotY), progress).y;
+  } else if (phase === "walkingOut" && doorPos) {
+    sortY = getPointAlongPath(
+      buildGroceryWalkPath(doorPos, spotX, spotY).reverse(),
+      progress,
+    ).y;
+  }
+
+  return [{ sortY, order: -1, type: "npc", draw: drawJosephAtGrocery }];
+}
+
+// =========================
+// "E" PARA KAY MARIA/JOSEPH SA GROCERY (hiling ng user: "dapat si maria
+// is na press e din para makabili ako ng mga vegetable tapos si joseph
+// din")
+// =========================
+// TANGING kapag "atWork" (nakatayo na sa puwesto, tapos na maglakad) -
+// hindi makakausap habang naglalakad pa papasok/palabas.
+function isPlayerNearMaria() {
+  if (!isInsideGroceryInterior()) return false;
+  if (getNpcSchedulePhase().phase !== "atWork") return false;
+  if (typeof isPlayerAdjacentToTile !== "function") return false;
+  if (typeof isPlayerFacingTile !== "function") return false;
+
+  return (
+    isPlayerAdjacentToTile(MARIA_SPOT_COL, MARIA_SPOT_ROW) &&
+    isPlayerFacingTile(MARIA_SPOT_COL, MARIA_SPOT_ROW)
+  );
+}
+
+// AYOS: si Joseph SA GROCERY - "E" dito ay BINUBUKSAN ang PAREHONG
+// Builder panel na inaalok niya sa josephHouse (openBuilderPanel) -
+// maginhawang shortcut, hindi na kailangang bumalik pa sa bahay niya.
+// KUNG MALI ito sa gusto mong mangyari (hal. gusto mo lang siyang
+// "nandiyan lang" nang walang gagawin), sabihin mo lang.
+function isPlayerNearJosephAtGrocery() {
+  if (!isInsideGroceryInterior()) return false;
+  if (getNpcSchedulePhase().phase !== "atWork") return false;
+  if (typeof isPlayerAdjacentToTile !== "function") return false;
+  if (typeof isPlayerFacingTile !== "function") return false;
+
+  return (
+    isPlayerAdjacentToTile(JOSEPH_GROCERY_SPOT_COL, JOSEPH_GROCERY_SPOT_ROW) &&
+    isPlayerFacingTile(JOSEPH_GROCERY_SPOT_COL, JOSEPH_GROCERY_SPOT_ROW)
+  );
+}
+
+// =========================
+// TINDAHAN NI MARIA (hiling ng user: "makabili ako ng mga vegetable")
+// =========================
+// Sa ngayon, CARROT LANG ang paninda (iyon lang ang TUNAY na umiiral
+// na crop/gulay sa laro - ang potato/cabbage/eggplant ay hihintayin
+// pa ang refactor ng "crop system" na napag-usapan natin dati, bago
+// sila maidagdag dito). Iisang presyo lang ng carrot sa buong laro
+// (kasama na ang OLDMAN_SHOP_ITEMS) - hindi dito nag-iimbento ng bago.
+// AYOS (multi-crop, hiling ng user: "i add mo na rin yung mga ibang
+// vegetables sa list ni maria para magamit buy/sell") - APAT na ngayon
+// (dating carrot lang). Ang buyPrice/sellPrice ng potato/cabbage/
+// eggplant ay MISMONG sinabi ng user; carrot ay dating presyo na (hindi
+// ko binago, kahit medyo hindi na tugma sa pagkakasunod-sunod ng iba -
+// sabihin mo lang kung gusto mong ayusin).
+const MARIA_SHOP_ITEMS = [
+  { itemId: "carrot", label: "Carrot", buyPrice: 50, sellPrice: 30, fallbackIcon: "🥕" },
+  { itemId: "potato", label: "Potato", buyPrice: 20, sellPrice: 15, fallbackIcon: "🥔" },
+  { itemId: "cabbage", label: "Cabbage", buyPrice: 30, sellPrice: 20, fallbackIcon: "🥬" },
+  { itemId: "eggplant", label: "Eggplant", buyPrice: 50, sellPrice: 40, fallbackIcon: "🍆" },
+];
+
+// AYOS (hiling ng user: "gawin mo yung ui ng oldman kapag lumitaw yung
+// binibenta niya gawin mo yung kay maria yung pop up niya") - dating
+// sariling floating div (hotkey-picker style) ang panel ni Maria -
+// PINALITAN ito ng TUNAY na #maria-shop-panel (index.html), EKSAKTONG
+// istruktura ng #oldman-shop-panel (parehong CSS ID rules, tingnan ang
+// comma-selector sa style.css) - kaya magkatugma na ang itsura.
+//
+// DISCLOSED NA PAGKAKAIBA sa interaksyon: si Oldman ay DRAG-based (may
+// quantity popup) - dito, mas simple: I-CLICK ang cell para bumili ng
+// 1, I-RIGHT-CLICK para ibenta ANG LAHAT ng hawak mong stock niyon.
+// Walang quantity picker - kung kailangan mo ring gawing eksaktong
+// drag-based si Maria (tulad ni Oldman), sabihin mo lang, malaking
+// dagdag na trabaho ito (kailangang gayahin ang buong hotbar.js drag/
+// drop-target na sistema).
+function isMariaShopPanelOpen() {
+  const panel = document.getElementById("maria-shop-panel");
+
+  return !!panel && !panel.classList.contains("hidden");
+}
+
+function closeMariaShopPanel() {
+  const panel = document.getElementById("maria-shop-panel");
+
+  if (panel) panel.classList.add("hidden");
+}
+
+function buildMariaShopCell(item) {
+  const cell = document.createElement("button");
+
+  cell.type = "button";
+  // Parehong klase (.oldman-shop-cell) ng cell ni Oldman - kaya EKSAKTONG
+  // parehong itsura (laki, border, hover) - dagdag na klase lang para
+  // ma-overrid ang cursor (walang drag dito, click/right-click lang).
+  cell.className = "oldman-shop-cell maria-shop-cell";
+
+  const count = typeof CROP_TYPES !== "undefined" && CROP_TYPES[item.itemId]
+    ? CROP_TYPES[item.itemId].getCount()
+    : 0;
+
+  cell.title =
+    item.label +
+    "\nBuy: " + item.buyPrice + " gold (click)" +
+    "\nSell all (" + count + "): " + item.sellPrice + " gold each (right-click)";
+
+  cell.innerHTML =
+    '<span class="oldman-shop-cell-icon">' +
+    (typeof getShopItemIconHTML === "function"
+      ? getShopItemIconHTML(item.itemId, item.fallbackIcon)
+      : item.fallbackIcon) +
+    "</span>";
+
+  if (count > 0) {
+    const stock = document.createElement("span");
+
+    stock.className = "oldman-shop-cell-stock";
+    stock.textContent = count > 99 ? "99+" : String(count);
+    cell.appendChild(stock);
+  }
+
+  cell.addEventListener("click", () => {
+    buyFromMaria(item.itemId);
+    syncMariaShopPanel();
+  });
+
+  cell.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+    sellToMaria(item.itemId);
+    syncMariaShopPanel();
+  });
+
+  return cell;
+}
+
+function syncMariaShopPanel() {
+  const grid = document.getElementById("maria-shop-grid");
+
+  if (!grid) return;
+
+  grid.innerHTML = "";
+
+  for (const item of MARIA_SHOP_ITEMS) {
+    grid.appendChild(buildMariaShopCell(item));
+  }
+
+  const goldEl = document.getElementById("maria-shop-gold-amount");
+
+  if (goldEl) {
+    goldEl.textContent = typeof goldCollected !== "undefined" ? goldCollected : 0;
+  }
+}
+
+function openMariaShopPanel() {
+  const panel = document.getElementById("maria-shop-panel");
+
+  if (!panel) return;
+
+  panel.classList.remove("hidden");
+  syncMariaShopPanel();
+}
+
+document
+  .getElementById("maria-shop-panel-close")
+  ?.addEventListener("click", () => closeMariaShopPanel());
+// stock counter (kaparehong pattern ng harvestCarrot, dig.js), hindi
+// dumadaan sa hotbar drag/drop (mas simple, sapat na para sa "E to
+// buy" na daloy).
+function buyFromMaria(itemId) {
+  const item = MARIA_SHOP_ITEMS.find((entry) => entry.itemId === itemId);
+
+  if (!item) return;
+
+  if (typeof goldCollected === "undefined" || goldCollected < item.buyPrice) {
+    if (typeof showFloatingMessage === "function") {
+      showFloatingMessage("You do not have enough gold.");
+    }
+
+    return;
+  }
+
+  goldCollected -= item.buyPrice;
+
+  // AYOS (multi-crop): dating "carrot lang, direktang carrotsCollected++"
+  // - ngayon, GENERIC na (adjustGlobalItemCount, hotbar.js) para sa
+  // KAHIT ANONG crop, hindi na kailangan pang idagdag dito ang bawat
+  // bago (matagal nang ginagamit ito ng collectGroundItem, generic na
+  // ito talaga).
+  if (typeof adjustGlobalItemCount === "function") {
+    adjustGlobalItemCount(itemId, 1);
+  }
+
+  if (typeof syncHotbarUI === "function") syncHotbarUI();
+  if (typeof scheduleInventorySave === "function") scheduleInventorySave();
+
+  if (typeof showFloatingMessage === "function") {
+    showFloatingMessage("Bought 1 " + item.label + " for " + item.buyPrice + " gold.");
+  }
+}
+
+// AYOS (multi-crop, hiling ng user: "para magamit buy/sell") - BAGO,
+// wala pang "Sell" dati (Buy lang si Maria noon). Ibinebenta ang HANGGANG
+// SA BUONG STOCK mo (hindi lang 1) kada click - mas mabilis, gaya ng
+// dating gawi ng "Slice"/"Throw" ng ibang item (LAHAT o wala).
+function sellToMaria(itemId) {
+  const item = MARIA_SHOP_ITEMS.find((entry) => entry.itemId === itemId);
+
+  if (!item) return;
+
+  const crop = typeof CROP_TYPES !== "undefined" ? CROP_TYPES[itemId] : null;
+  const count = crop ? crop.getCount() : 0;
+
+  if (count <= 0) {
+    if (typeof showFloatingMessage === "function") {
+      showFloatingMessage("You do not have any " + item.label + " to sell.");
+    }
+
+    return;
+  }
+
+  if (typeof adjustGlobalItemCount === "function") {
+    adjustGlobalItemCount(itemId, -count);
+  }
+
+  if (typeof consumeItemFromWherever === "function") {
+    consumeItemFromWherever(itemId, count);
+  }
+
+  if (typeof goldCollected !== "undefined") {
+    goldCollected += count * item.sellPrice;
+  }
+
+  if (typeof syncHotbarUI === "function") syncHotbarUI();
+  if (typeof scheduleInventorySave === "function") scheduleInventorySave();
+
+  if (typeof showFloatingMessage === "function") {
+    showFloatingMessage(
+      "Sold " + count + " " + item.label + " for " + count * item.sellPrice + " gold.",
+    );
+  }
+}
+
+// =========================
+// COLLISION NILA MARIA/JOSEPH (hiling ng user: "lagyan mo sila ng
+// collisions parang si oldman")
+// =========================
+// Parehong sukat/paraan ng Oldman (OLDMAN_COLLISION_BOX_WIDTH/HEIGHT,
+// decor.js: TILE_SIZE*0.6 x TILE_SIZE*0.4, naka-anchor sa PAANAN) -
+// pero LIMITADO lang sa "atHome"/"atWork" (nakatayo, hindi gumagalaw)
+// - SINASADYA itong hindi ibinibigay habang naglalakad
+// (leavingHome/approaching/walkingIn/walkingOut/leaving/enteringHome):
+// maliit ang mga silid (bahay/Grocery) at gumagalaw ang NPC sa isang
+// FIXED na ruta - kung bibigyan pa ng collision habang gumagalaw,
+// puwedeng ma-“sandwich”/mabara ang player sa isang sulok habang
+// dumaraan ang NPC sa eksaktong parehong landas.
+const NPC_COLLISION_BOX_WIDTH = TILE_SIZE * 0.6;
+const NPC_COLLISION_BOX_HEIGHT = TILE_SIZE * 0.4;
+
+function buildNpcCollisionBox(feetX, feetY) {
+  return {
+    x: feetX - NPC_COLLISION_BOX_WIDTH / 2,
+    y: feetY - NPC_COLLISION_BOX_HEIGHT,
+    width: NPC_COLLISION_BOX_WIDTH,
+    height: NPC_COLLISION_BOX_HEIGHT,
+  };
+}
+
+// Tinatawag ito ng collisions.js (canMoveTo) - ibinabalik ang LAHAT ng
+// collision box na dapat balakin ngayon, sa KASALUKUYANG mundo lang
+// (kaya iba't ibang resulta ito depende kung nasa josephHouse ka,
+// mariaHouse, o sa loob ng isang Grocery).
+function getScheduledNpcCollisionBoxes() {
+  const boxes = [];
+
+  if (typeof currentWorld === "undefined" || !currentWorld) return boxes;
+
+  const { phase } = getNpcSchedulePhase();
+
+  if (currentWorld === JOSEPH_WORLD && phase === "atHome") {
+    boxes.push(buildNpcCollisionBox(JOSEPH_X, JOSEPH_Y));
+  }
+
+  if (currentWorld === MARIA_WORLD && phase === "atHome") {
+    boxes.push(buildNpcCollisionBox(MARIA_HOME_X, MARIA_HOME_Y));
+  }
+
+  if (isInsideGroceryInterior() && phase === "atWork") {
+    boxes.push(
+      buildNpcCollisionBox(
+        MARIA_SPOT_COL * TILE_SIZE + TILE_SIZE / 2,
+        MARIA_SPOT_ROW * TILE_SIZE + TILE_SIZE,
+      ),
+    );
+    boxes.push(
+      buildNpcCollisionBox(
+        JOSEPH_GROCERY_SPOT_COL * TILE_SIZE + TILE_SIZE / 2,
+        JOSEPH_GROCERY_SPOT_ROW * TILE_SIZE + TILE_SIZE,
+      ),
+    );
+  }
+
+  return boxes;
+}
+
+// =========================
+// "MAY TAO SA SILID" = HINDI MADILIM (hiling ng user)
+// =========================
+// "yung kulay mismo ng inner kapag di pa madilim kapag may tao sa mismong
+// room ganun na ilagay mo kahit wala ng ilaw sa grocery lang ah kapag
+// may tao lang pero kapag wala pa same parin madilim"
+//
+// Ang dilim sa loob ng bahay ay isang \"multiply\" na tint sa buong
+// screen (drawDayNight, atmosphere.js) - nilalaktawan na ito kapag may
+// NAKASINDING lampara sa silid (hasLitPlacedLightInCurrentWorld). Ito ay
+// PANGALAWANG dahilan para laktawan iyon: may TAO sa loob. Sa ngayon,
+// ang Grocery LANG (si Maria) ang may ganito - ang ibang silid ay
+// nananatiling madilim kung walang ilaw, walang nagbago doon.
+function hasNpcLitInterior() {
+  if (!isInsideGroceryInterior()) return false;
+
+  // Madilim pa rin ang Grocery kung "away"/"approaching"/"leaving" ang
+  // yugto (SA LABAS pa sila, o wala pang trabaho) - liwanag lang habang
+  // TALAGANG NASA LOOB na sila (papasok, nakatayo, o papalabas).
+  const phase = getNpcSchedulePhase().phase;
+
+  return phase === "walkingIn" || phase === "atWork" || phase === "walkingOut";
+}
+
 function registerCustomHouseInteriorWorld(house) {
   if (!house.interiorImageDataURL) return;
   if (typeof WORLDS === "undefined") return;
@@ -2050,7 +3948,12 @@ function registerCustomHouseInteriorWorld(house) {
   // AYOS (hiling ng user): PAREHONG sukat (tilesWide/tilesTall) AT
   // posisyon ng pintuan (doorPosition) ng EXTERIOR na rin ang gamit
   // dito - wala nang hiwalay na "interiorTilesWide/Tall/DoorPosition".
-  const tmj = buildSyntheticInteriorTmj(house.interiorTilesWide, house.interiorTilesTall, house.doorPosition);
+  const tmj = buildSyntheticInteriorTmj(
+    house.interiorTilesWide,
+    house.interiorTilesTall,
+    house.doorPosition,
+    getBuilderInteriorWallThickness(house),
+  );
   const blob = new Blob([JSON.stringify(tmj)], { type: "application/json" });
   const blobUrl = URL.createObjectURL(blob);
 
@@ -2062,7 +3965,13 @@ function registerCustomHouseInteriorWorld(house) {
     // - ito lang ang ginagamit bilang FALLBACK (hal. pag-restore ng
     // save na direktang naka-load na dito, walang dinaanang DOORS
     // trigger).
-    spawn: getBuilderInteriorDoorSpawnPx(house.interiorTilesWide, house.interiorTilesTall, house.doorPosition, "inward"),
+    spawn: getBuilderInteriorDoorSpawnPx(
+      house.interiorTilesWide,
+      house.interiorTilesTall,
+      house.doorPosition,
+      "inward",
+      getBuilderInteriorWallThickness(house),
+    ),
   };
 
   registerCustomHouseDoors(house);
@@ -2532,11 +4441,11 @@ function renderBuilderLotsTab(body) {
 
   intro.className = "builder-panel-hint";
   intro.textContent =
-    "Choose a Lot size - then click where you want to build it on the Grassmap (anywhere, as long as nothing is in the way). The Exterior size is the same (" +
+    "Choose a Lot size - then click where you want to build it on the Grassmap (anywhere, as long as nothing is in the way). Most sizes share the same " +
     BUILDER_EXTERIOR_TILES_WIDE +
     "x" +
     BUILDER_EXTERIOR_TILES_TALL +
-    " tiles) for EVERY size - what differs is the ROOM SIZE (Interior) - the higher the price, the bigger the room inside, even though the outside looks the same.";
+    " tile Exterior and only differ in ROOM SIZE (Interior) - the higher the price, the bigger the room inside. The \"Tall\" size is the exception: a narrower, taller house on the outside, with the same biggest room on the inside.";
   body.appendChild(intro);
 
   for (const lot of BUILDER_LOT_SIZES) {
@@ -2555,12 +4464,18 @@ function renderBuilderLotsTab(body) {
     const sub = document.createElement("div");
 
     sub.className = "builder-lot-sub";
+    const lotExterior = getBuilderExteriorSize(lot);
+
     sub.textContent =
       "Exterior: " +
-      BUILDER_EXTERIOR_TILES_WIDE * TILE_SIZE +
+      lotExterior.wide * TILE_SIZE +
       "x" +
-      BUILDER_EXTERIOR_TILES_TALL * TILE_SIZE +
-      " px (fixed) • Interior Template: " +
+      lotExterior.tall * TILE_SIZE +
+      " px (" +
+      lotExterior.wide +
+      "x" +
+      lotExterior.tall +
+      " tiles) • Interior Template: " +
       padded.wide * TILE_SIZE +
       "x" +
       padded.tall * TILE_SIZE +
@@ -2621,11 +4536,20 @@ function renderBuilderHouseList(body, kind) {
   }
 
   for (const house of customHouses) {
+    // LOCKED (hiling ng user) - may Exterior AT Interior na ito, kaya
+    // hindi na ito puwedeng galawin hangga't hindi ibinebenta.
+    const occupied = isCustomHouseOccupied(house);
+
     const row = document.createElement("div");
 
-    row.className = "builder-lot-row builder-lot-row-clickable";
-    row.tabIndex = 0;
-    row.setAttribute("role", "button");
+    row.className =
+      "builder-lot-row" +
+      (occupied ? " builder-lot-row-disabled" : " builder-lot-row-clickable");
+
+    if (!occupied) {
+      row.tabIndex = 0;
+      row.setAttribute("role", "button");
+    }
 
     const label = document.createElement("div");
 
@@ -2647,14 +4571,23 @@ function renderBuilderHouseList(body, kind) {
 
     sub.className = "builder-lot-sub";
 
-    if (kind === "exterior") {
+    if (occupied) {
+      // PAREHONG mensahe sa Exterior at Interior na tab - malinaw kung
+      // BAKIT hindi ito ma-click at kung ANO ang gagawin para mabago.
+      sub.textContent =
+        "Occupied - this Lot already has both an Exterior and an Interior. Sell it first (right-click the house) to build something else here.";
+    } else if (kind === "exterior") {
       sub.textContent = house.exteriorImageDataURL
         ? "May Exterior na (" +
           getBuilderDoorPositionDef(house.doorPosition).label +
           ") - i-click para baguhin."
         : "No Exterior yet - click to choose the door and upload.";
     } else {
-      const padded = getBuilderInteriorPaddedSize(house.interiorTilesWide, house.interiorTilesTall);
+      const padded = getBuilderInteriorPaddedSize(
+        house.interiorTilesWide,
+        house.interiorTilesTall,
+        getBuilderInteriorWallThickness(house),
+      );
 
       sub.textContent = house.interiorImageDataURL
         ? "Has an Interior (" +
@@ -2695,13 +4628,15 @@ function renderBuilderHouseList(body, kind) {
       renderBuilderInteriorUploadScreen(body, house, () => renderBuilderPanelBody(body));
     };
 
-    row.addEventListener("click", openRow);
-    row.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        openRow();
-      }
-    });
+    if (!occupied) {
+      row.addEventListener("click", openRow);
+      row.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openRow();
+        }
+      });
+    }
 
     body.appendChild(row);
   }
@@ -2718,9 +4653,13 @@ function renderBuilderHouseList(body, kind) {
 function renderBuilderInteriorUploadScreen(body, house, onBack) {
   body.innerHTML = "";
 
-  const padded = getBuilderInteriorPaddedSize(house.interiorTilesWide, house.interiorTilesTall);
+  const padded = getBuilderInteriorPaddedSize(
+    house.interiorTilesWide,
+    house.interiorTilesTall,
+    getBuilderInteriorWallThickness(house),
+  );
   const def = getBuilderDoorPositionDef(house.doorPosition);
-  const T = BUILDER_INTERIOR_WALL_THICKNESS;
+  const T = getBuilderInteriorWallThickness(house);
 
   const intro = document.createElement("p");
 
@@ -2781,6 +4720,10 @@ function renderBuilderInteriorUploadScreen(body, house, onBack) {
       padded.wide * TILE_SIZE,
       padded.tall * TILE_SIZE,
       (dataUrl) => {
+        // PANGHULING DEPENSA (hiling ng user) - LOCKED na ang Lot na
+        // may Exterior AT Interior na; ibenta muna ito bago mapalitan.
+        if (isCustomHouseOccupied(house)) return;
+
         // Store the image in its own asset key (see "IMAGE ASSET STORE"
         // above) instead of inline on the house - this is what stops
         // repeated Saves from multiplying the image data. If storage is
@@ -2854,6 +4797,26 @@ function getBuilderTemplateBuiltCount(template) {
   return customHouses.filter((house) => house.templateId === template.id).length;
 }
 
+// Ang EKSAKTONG sukat ng Lot na kailangan ng isang template, bilang
+// teksto - PAREHONG-PAREHO ito ng TALAGANG sinusuri ng
+// getBuilderTemplateFit (exterior AT interior), kaya hindi na
+// nakakalito kung aling Lot ang bibilhin. IISANG helper lang ito para
+// hindi magkaiba-iba ang sinasabi ng mga screen.
+function getBuilderTemplateSizeText(template) {
+  const exterior = getBuilderExteriorSize(template);
+
+  return (
+    exterior.wide +
+    "x" +
+    exterior.tall +
+    " exterior + " +
+    template.interiorTilesWide +
+    "x" +
+    template.interiorTilesTall +
+    " interior floor"
+  );
+}
+
 // Screen 1 - listahan ng mga Building STYLE (Coffee Shop, Tavern, ...) -
 // nakikita KAHIT WALANG Lot pa ang manlalaro (hiling ng user) - ang
 // pagkakaroon (o wala) ng tugmang Lot ay tsinetsek na lang sa SUSUNOD na
@@ -2903,13 +4866,20 @@ function renderBuilderBuildingTab(body) {
     const sub = document.createElement("div");
 
     sub.className = "builder-lot-sub";
+    // AYOS (kasabay ng Grocery/Garden House): dati, ang INTERIOR na
+    // sukat lang ang nakasulat dito - PERO may DALAWA nang tier na
+    // pareho ang interior (18x17) at EXTERIOR lang ang pinagkaiba
+    // (Extra Large 10x8 vs Tall 9x10), kaya nakakalito na iyon:
+    // mabibili mo ang maling Lot at hindi mo pa rin magagamit ang
+    // template (tingnan ang getBuilderTemplateFit - PAREHO ang
+    // sinusuri). Kaya nakalagay na ngayon ang DALAWA.
+    const sizeText = getBuilderTemplateSizeText(template);
+
     sub.textContent = atMax
       ? "Maximum reached (" + builtCount + "/" + BUILDER_TEMPLATE_MAX_COUNT + " built)."
       : "Needs a " +
-        template.interiorTilesWide +
-        "x" +
-        template.interiorTilesTall +
-        " interior floor Lot - " +
+        sizeText +
+        " Lot - " +
         builtCount +
         "/" +
         BUILDER_TEMPLATE_MAX_COUNT +
@@ -2953,10 +4923,8 @@ function renderBuilderTemplateLotPicker(body, template, onBack) {
     "Choose which Lot to build the \"" +
     template.name +
     "\" on - needs a " +
-    template.interiorTilesWide +
-    "x" +
-    template.interiorTilesTall +
-    " interior floor.";
+    getBuilderTemplateSizeText(template) +
+    ".";
   body.appendChild(intro);
 
   const fittingHouses = customHouses.filter((house) => getBuilderTemplateFit(house, template));
@@ -2967,19 +4935,26 @@ function renderBuilderTemplateLotPicker(body, template, onBack) {
     empty.className = "builder-panel-hint";
     empty.textContent =
       "You do not have a matching Lot yet - buy one with a " +
-      template.interiorTilesWide +
-      "x" +
-      template.interiorTilesTall +
-      " interior in the 'Lots' tab first.";
+      getBuilderTemplateSizeText(template) +
+      " in the 'Lots' tab first.";
     body.appendChild(empty);
   }
 
   for (const house of fittingHouses) {
+    // LOCKED (hiling ng user) - kaparehong-parehong patakaran ng
+    // Exterior/Interior na tab (tingnan ang isCustomHouseOccupied).
+    const occupied = isCustomHouseOccupied(house);
+
     const row = document.createElement("div");
 
-    row.className = "builder-lot-row builder-lot-row-clickable";
-    row.tabIndex = 0;
-    row.setAttribute("role", "button");
+    row.className =
+      "builder-lot-row" +
+      (occupied ? " builder-lot-row-disabled" : " builder-lot-row-clickable");
+
+    if (!occupied) {
+      row.tabIndex = 0;
+      row.setAttribute("role", "button");
+    }
 
     const label = document.createElement("div");
 
@@ -2994,11 +4969,15 @@ function renderBuilderTemplateLotPicker(body, template, onBack) {
 
     sub.textContent =
       house.tilesWide + "x" + house.tilesTall + " Lot (" + house.world + ") - " +
-      (currentTemplate
-        ? "currently \"" + currentTemplate.name + "\""
-        : house.exteriorImageDataURL
-          ? "currently a custom design"
-          : "empty, no building yet");
+      (occupied
+        ? "occupied" +
+          (currentTemplate ? " by \"" + currentTemplate.name + "\"" : " by a custom design") +
+          ", sell it first"
+        : currentTemplate
+          ? "currently \"" + currentTemplate.name + "\""
+          : house.exteriorImageDataURL
+            ? "currently a custom design"
+            : "empty, no building yet");
     label.appendChild(sub);
     row.appendChild(label);
 
@@ -3006,13 +4985,15 @@ function renderBuilderTemplateLotPicker(body, template, onBack) {
       renderBuilderTemplateConfirm(body, house, template, onBack);
     };
 
-    row.addEventListener("click", openConfirm);
-    row.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        openConfirm();
-      }
-    });
+    if (!occupied) {
+      row.addEventListener("click", openConfirm);
+      row.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openConfirm();
+        }
+      });
+    }
 
     body.appendChild(row);
   }
@@ -3081,7 +5062,24 @@ function renderBuilderTemplateConfirm(body, house, template, onBack) {
   confirmBtn.className = "builder-buy-btn";
   confirmBtn.textContent = "Confirm";
   confirmBtn.addEventListener("click", () => {
-    applyBuilderTemplateToHouse(house, template);
+    // Ang applyBuilderTemplateToHouse ay TATANGGI (false) kung OKUPADO
+    // na ang Lot (may Exterior AT Interior) - hindi na dapat marating
+    // ito dahil naka-disable na ang row sa picker, pero kung sakali,
+    // malinaw ang mensahe sa halip na tahimik na walang mangyayari.
+    const built = applyBuilderTemplateToHouse(house, template);
+
+    if (!built) {
+      if (typeof showFloatingMessage === "function") {
+        showFloatingMessage(
+          "\"" +
+            getCustomHouseName(house) +
+            "\" is occupied - sell it first before building something else there.",
+        );
+      }
+
+      onBack();
+      return;
+    }
 
     if (typeof showFloatingMessage === "function") {
       showFloatingMessage("Built \"" + template.name + "\" on \"" + getCustomHouseName(house) + "\"! You can now enter the house.");
@@ -3413,6 +5411,10 @@ function renderBuilderTemplateConfirmed(body, house, kind, tilesWide, tilesTall,
   uploadBtn.textContent = "Upload";
   uploadBtn.addEventListener("click", () => {
     promptBuilderImageUpload(tilesWide * TILE_SIZE, tilesTall * TILE_SIZE, (dataUrl) => {
+      // PANGHULING DEPENSA - kaparehong dahilan ng Interior handler
+      // (tingnan ang isCustomHouseOccupied).
+      if (isCustomHouseOccupied(house)) return;
+
       // Store the image in its own asset key (see "IMAGE ASSET STORE"
       // above) instead of inline on the house.
       const assetId = saveBuilderAsset(dataUrl);

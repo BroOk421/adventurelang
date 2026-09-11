@@ -62,30 +62,46 @@ let pickaxeEquipped = false;
 let rakeEquipped = false;
 
 // Naka-highlight (naka-select - selectedInventorySlot sa hotbar.js) ba
-// ngayon ang isang hotbar slot na may carrot? PURONG COSMETIC/UI na
-// paggamit na lang nito ngayon (gold highlight sa slot) - HINDI na ito
-// ginagamit para i-GATE ang aktwal na pagtatanim (tingnan ang
-// canPlantCarrot sa ibaba) - dati, kapag na-click/na-equip ang IBANG
-// slot (hal. pickaxe/axe/rake), naaalis ang highlight ng carrot (isa
-// lang kasi ang selectedInventorySlot), kaya nabu-block din ang
-// pagtatanim - hindi dapat mangyari iyon, "kamay"/default action ang
-// pagtatanim, dapat laging gumagana kahit anong tool ang hawak.
-function isCarrotSlotSelected() {
-  return (
-    typeof selectedInventorySlot !== "undefined" &&
-    selectedInventorySlot !== null &&
-    typeof pinnedSlots !== "undefined" &&
-    pinnedSlots[selectedInventorySlot] === "carrot"
-  );
+// ngayon ang isang hotbar slot na may KAHIT ANONG crop (carrot/potato/
+// cabbage/eggplant)?
+//
+// AYOS (multi-crop, hiling ng user: "i add mo na rin yung mga ibang
+// vegetables... at pag plant at pag grow"): DATI, "purong cosmetic" na
+// lang ito (hindi nagpapasya kung ano ang itatanim - IISA lang naman
+// ang crop noon, laging carrot). NGAYON, dahil MAY APAT na uri na, ITO
+// MISMO ang NAGPAPASYA kung ALIN ang itatanim (tingnan ang plantCarrot
+// sa ibaba) - "gusto ko itanim gamit yung hotkey highlight" (hiling ng
+// user sa naunang round) ang eksaktong disenyong ito: i-highlight ang
+// crop sa hotbar, saka pindutin ang hinukay na lupa.
+function getSelectedCropId() {
+  if (typeof selectedInventorySlot === "undefined" || selectedInventorySlot === null) {
+    return null;
+  }
+
+  if (typeof pinnedSlots === "undefined") return null;
+
+  const itemId = pinnedSlots[selectedInventorySlot];
+
+  return itemId && CROP_TYPES[itemId] ? itemId : null;
 }
 
-// Ang TANGING batayan ngayon kung "puwede nang magtanim" - basta may
-// stock ng carrot, LAGING available ito bilang default na "kamay" na
-// aksyon, kahit anong tool (pickaxe/axe/rake) ang naka-equip o ano pa
-// mang slot ang naka-highlight sa hotbar (tingnan ang paliwanag sa
-// isCarrotSlotSelected sa itaas).
+// Pinapanatili ang lumang pangalan (maraming tumatawag dito sa buong
+// codebase) - ngayon, KAHIT ANONG naka-highlight na crop (hindi na
+// "carrot" lang mismo) ang sinasagot nito.
+function isCarrotSlotSelected() {
+  return getSelectedCropId() !== null;
+}
+
+// Ang TANGING batayan ngayon kung "puwede nang magtanim" - kailangan
+// muna NAKA-HIGHLIGHT ang isang crop (getSelectedCropId) AT may stock
+// pa nito (tingnan ang paliwanag sa itaas ng isCarrotSlotSelected kung
+// bakit nagbago ito mula sa dating "laging carrot, kahit ano ang
+// naka-highlight").
 function canPlantCarrot() {
-  return typeof carrotsCollected !== "undefined" && carrotsCollected > 0;
+  const cropId = getSelectedCropId();
+  const crop = cropId ? CROP_TYPES[cropId] : null;
+
+  return !!crop && crop.getCount() > 0;
 }
 
 // Kailangan munang i-CRAFT ang pickaxe/rake (tingnan ang
@@ -511,6 +527,23 @@ const GRASS_REVERT_DELAY_MS = 3000;
 const DUG_REVERT_MS =
   WET_DIRT_DELAY_MS + DIRT_AGAIN_DELAY_MS + GRASS_REVERT_DELAY_MS;
 
+// BAGO (hiling ng user): "mawawala yung dig babalik sa dati after 3 mins
+// ng walang tanim" - sa LOOB ng Garden House ay MAS MAHABA ang palugit
+// kaysa sa labas (10 segundo lang doon). May dahilan ito: ang taniman sa
+// loob ay maliit at nakapirmi (84 tile lang), kaya sayang na sayang kung
+// mabibilis mawawala ang inararo mo habang naghahanap ka pa ng binhi.
+// Sa sandaling MAY TANIM na, hindi na ito nagagalaw ng orasan (parehong
+// patakaran sa labas) - hanggang sa maani.
+const INDOOR_DUG_REVERT_MS = 3 * 60 * 1000;
+
+// Ilang milliseconds bago bumalik sa dati ang isang HINUKAY PERO hindi
+// natamnan na tile sa mundong kinaroroonan ngayon.
+function getDugRevertMs() {
+  const world = typeof getWorld === "function" ? getWorld() : null;
+
+  return world && world.outdoor === false ? INDOOR_DUG_REVERT_MS : DUG_REVERT_MS;
+}
+
 // Ang isang katatapos lang aniin na tile (record.harvested) ay hindi
 // dumadaan sa buong wet->dry->grass na cascade sa itaas - bumabalik na
 // lang agad ito sa likas na lupa (damo/niyebe) 1 minuto pagkatapos.
@@ -763,8 +796,23 @@ function canDigAt(col, row) {
 
   const world = getWorld();
 
-  // Sa labas lang may niyebe - walang mahuhukay sa loob ng bahay.
-  if (!world || !world.outdoor) return false;
+  if (!world) return false;
+
+  // BAGO (hiling ng user): ang GARDEN HOUSE (building template, tingnan
+  // ang `plantableTileRects` sa builder.js) ay may TUNAY na lupa sa
+  // loob - ito ang TANGING butas sa dating "walang mahuhukay sa loob ng
+  // bahay" na patakaran, at MAHIGPIT ito: TANGING ang mga tile na NASA
+  // LOOB mismo ng iginuhit na lupa ang puwede (hindi ang kahoy na
+  // daanan sa gitna, hindi ang paligid) - kaya hindi mo mabubutas ang
+  // sahig ng kahit anong ibang interior.
+  const plantableIndoorTile =
+    world.outdoor === false &&
+    typeof isBuilderPlantableTile === "function" &&
+    isBuilderPlantableTile(currentWorld, col, row);
+
+  // Sa labas lang may niyebe - walang mahuhukay sa loob ng bahay
+  // (MALIBAN sa taniman ng Garden House sa itaas).
+  if (!world.outdoor && !plantableIndoorTile) return false;
 
   if (col < 0 || row < 0 || col >= mapData.width || row >= mapData.height) {
     return false;
@@ -983,6 +1031,32 @@ function getUsableStructureUnderPlayer() {
       target: null,
       col: JOSEPH_COL,
       row: JOSEPH_ROW,
+    });
+  }
+
+  // AYOS (hiling ng user): "dapat si maria is na press e din para
+  // makabili ako ng mga vegetable tapos si joseph din" - kaparehong-
+  // parehong paraan ng "joseph" sa itaas, PERO sa loob ng Grocery
+  // (builder.js) - dito lang sila makakausap habang "atWork" (nakatayo
+  // na sa puwesto, tapos na ang paglalakad).
+  if (typeof isPlayerNearMaria === "function" && isPlayerNearMaria()) {
+    candidates.push({
+      type: "maria",
+      target: null,
+      col: MARIA_SPOT_COL,
+      row: MARIA_SPOT_ROW,
+    });
+  }
+
+  if (
+    typeof isPlayerNearJosephAtGrocery === "function" &&
+    isPlayerNearJosephAtGrocery()
+  ) {
+    candidates.push({
+      type: "josephGrocery",
+      target: null,
+      col: JOSEPH_GROCERY_SPOT_COL,
+      row: JOSEPH_GROCERY_SPOT_ROW,
     });
   }
 
@@ -1251,29 +1325,84 @@ canvas.addEventListener("mousedown", (event) => {
     return;
   }
 
+  // AYOS (hiling ng user): "ang pwede lang is cutter" - ang CUTTER ang
+  // TANGING kasangkapang makakaalis ng isang nakatanim na. Nauuna ito
+  // sa rake na sangay sa ibaba, at TANGING sa tile na TALAGANG may
+  // tanim ito gumagana - kaya walang naaapektuhang ibang gawi ng
+  // cutter sa mga tile na walang tanim.
+  //
+  // Ang HINOG na tanim ay SINASADYANG hindi rin sinisira dito: aanihin
+  // mo iyon (kamay, awtomatiko - tingnan ang hasHandActionAt sa itaas),
+  // hindi puputulin - kaya hindi masasayang sa isang maling click ang
+  // matagal mong hinintay na ani.
+  if (typeof cutterEquipped !== "undefined" && cutterEquipped) {
+    const dugForCutter = getDugTilesForCurrentWorld();
+    const cutterRecord = dugForCutter
+      ? dugForCutter[tile.col + "," + tile.row]
+      : null;
+
+    if (cutterRecord && cutterRecord.seed) {
+      if (!isTileInReach(tile.col, tile.row)) return;
+      if (isCarrotReady(cutterRecord.seed)) return; // aanihin, hindi puputulin
+
+      destroyCarrot(tile.col, tile.row);
+
+      if (typeof useToolDurability === "function") useToolDurability("cutter");
+
+      return;
+    }
+  }
+
   if (rakeEquipped) {
+    // AYOS (hiling ng user): "kahit sana sa lahat may hawak man na
+    // pickaxe, axe, rake at kung ano basta naka highlight sa hotkey
+    // malalagay siya tapos matatanim" - ang pickaxe/axe/cutter ay
+    // DUMADAAN na dati papunta sa handleCarrotClick sa ibaba (hindi
+    // sila humaharang), PERO ang RAKE ay hindi: dito ito natatapos,
+    // kaya imposible dating magtanim habang hawak ito.
+    //
+    // Ngayon, kapag ang carrot ang NAKA-HIGHLIGHT sa hotbar
+    // (isCarrotSlotSelected) AT ang tile ay HINUKAY na PERO WALA PANG
+    // tanim - ang PAGTATANIM ang nauuna, hindi ang rake. Malinaw ang
+    // pagkakabukod: walang mawawala sa rake (wala namang hinuhukay sa
+    // isang nahukay na, at hindi naman nito nagagalaw ang hinog na
+    // tanim), kaya walang dating gawi ang nasisira nito.
+    const dugNow = getDugTilesForCurrentWorld();
+    const recordNow = dugNow ? dugNow[tile.col + "," + tile.row] : null;
+
+    if (
+      recordNow &&
+      !recordNow.seed &&
+      typeof isCarrotSlotSelected === "function" &&
+      isCarrotSlotSelected() &&
+      canPlantCarrot()
+    ) {
+      handleCarrotClick(tile.col, tile.row);
+      return;
+    }
+
+    // AYOS (hiling ng user): "kahit anong itanim wag na masisira kapag
+    // nakatanim na... alisin mo na yung kapag nakagamit ng pickaxe,
+    // rake or axe yung may tanim is di na clickable... ang pwede lang
+    // is cutter" - DATI, sinisira ng rake ang alinmang tanim na HINDI
+    // PA hinog (babalik sa payak na dirt, walang makukuha). Napakadaling
+    // masira nang HINDI SINASADYA ang buong taniman nang ganoon: iisang
+    // maling click lang habang inaararo mo ang katabing tile.
+    //
+    // NGAYON: ang isang tile na MAY TANIM ay HINDI NA gumagalaw sa
+    // rake - basta hindi ito pinapansin (parang hindi na-click), kaya
+    // ligtas nang mag-araro sa tabi mismo ng mga pananim mo. Ang
+    // CUTTER na lang ang TANGING makakaalis ng tanim (tingnan ang
+    // cutter na sangay sa ibaba).
+    const dug = getDugTilesForCurrentWorld();
+    const record = dug ? dug[tile.col + "," + tile.row] : null;
+
+    if (record && record.seed) return;
+
     // Pagitan ng bawat paghukay/pag-gamit ng rake - kaparehong dahilan
     // ng PLANT_COOLDOWN_MS (pagtatanim) - hindi dapat basta-basta
     // i-spam-click.
     if (Date.now() - lastRakeAt < RAKE_COOLDOWN_MS) return;
-
-    // Kung may tanim dito na HINDI PA hinog: sisirain ito ng rake -
-    // babalik sa payak na dirt, walang makukuhang carrot. Ang HINOG na
-    // tanim ay hindi kayang galawin ng rake - kamay lang.
-    const dug = getDugTilesForCurrentWorld();
-    const record = dug ? dug[tile.col + "," + tile.row] : null;
-
-    if (record && record.seed) {
-      if (!isCarrotReady(record.seed)) {
-        lastRakeAt = Date.now();
-        destroyCarrot(tile.col, tile.row);
-        if (typeof startRakeStrike === "function") startRakeStrike(tile.col, tile.row);
-        // AYOS (hiling ng user): "may duration na rin kada gamit" -
-        // isa ring "gamit" ng rake ito (bumabawas sa durability).
-        if (typeof useToolDurability === "function") useToolDurability("rake");
-      }
-      return;
-    }
 
     // Puwedeng maghukay kahit umuulan ng niyebe - pero kapag hindi mo
     // natamnan agad, may ilang segundo lang bago ito matabunan ulit
@@ -1362,8 +1491,99 @@ for (let i = 1; i <= CARROT_FRAME_COUNT; i++) {
 const CARROT_MIN_GROW_MS = 4 * 60 * 1000; // 4 minuto
 const CARROT_MAX_GROW_MS = 7 * 60 * 1000; // 7 minuto
 
-function drawCarrotFrame(stageIndex, col, row) {
-  const img = carrotFrameImages[stageIndex];
+// =========================
+// MULTI-CROP NA SISTEMA (hiling ng user: "i add mo na rin yung mga
+// ibang vegetables sa list ni maria para magamit buy/sell at pag plant
+// at pag grow pag drop at pick up ng gamit papuntang inventory")
+// =========================
+// Si CARROT ang UNANG crop (sa itaas) - dito na PINALAWAK ang parehong
+// disenyo (4 frame, plantedAt+growMs sa dug[key].seed) para sa TATLONG
+// karagdagang gulay: potato, cabbage, eggplant. Isang beses lang
+// isinusulat ang mismong LOHIKA ng pagtubo/pag-ani (getCarrotProgress/
+// getCarrotStageIndex/plantCarrot/harvestCarrot sa ibaba) - ang
+// PAGKAKAIBA lang kada crop (larawan, bilang na hawak, tagal ng
+// pagtubo) ay nakatago dito, sa IISANG CROP_TYPES na talaan.
+//
+// TAGAL NG PAGTUBO: si CARROT lang (sa itaas) ang RANDOM (4-7 minuto,
+// dating gawi, HINDI ko ito ginalaw) - ang TATLONG bago ay FIXED/hindi
+// random na tagal, para tumugma sa eksaktong hiniling ng user para sa
+// eggplant ("7 mins each 1-4" = 7 minuto KADA YUGTO x 4 yugto = 28
+// minuto total - awtomatiko itong nangyayari sa formula na
+// getCarrotStageIndex, walang kailangang hiwalay na "per-stage timer").
+// Ang potato/cabbage ay AKING NAPILI (hiling ng user: "ikaw na bahala
+// sa iba kung ilan depende sa price") - proporsyonal sa presyo nila:
+//   potato  (buy 20/sell 15)  -> 10 minuto total (2.5 min/yugto)
+//   cabbage (buy 30/sell 20)  -> 16 minuto total (4 min/yugto)
+//   eggplant(buy 50/sell 40)  -> 28 minuto total (7 min/yugto, sinabi
+//                                 mismo ng user)
+// KUNG MALI ANG PAGKAKAINTINDI KO SA PRESYO/TAGAL, MADALING BAGUHIN -
+// ito lang ang IISANG talaan na kailangang ayusin.
+
+let potatoCollected = 0;
+let cabbageCollected = 0;
+let eggplantCollected = 0;
+
+function loadCropFrameImages(folder, prefix) {
+  const images = [];
+
+  for (let i = 1; i <= CARROT_FRAME_COUNT; i++) {
+    const img = new Image();
+
+    img.src = `./assets/vegetables/${folder}/${prefix}${i}.png`;
+    images.push(img);
+  }
+
+  return images;
+}
+
+const potatoFrameImages = loadCropFrameImages("potato", "potato");
+const cabbageFrameImages = loadCropFrameImages("cabbage", "cabbage");
+const eggplantFrameImages = loadCropFrameImages("eggplant", "eggplant");
+
+// itemId -> { label, frameImages, getCount(), getGrowMs() }. Ang
+// `getCount`/`getGrowMs` ay FUNCTIONS (hindi plain value) - kailangan
+// laging KASALUKUYANG (live) na basahin ang counter variable (hindi
+// naka-freeze sa oras na ginawa ang talaang ito), at para makapag-
+// random pa rin ang carrot sa bawat pagtatanim.
+const CROP_TYPES = {
+  carrot: {
+    label: "Carrot",
+    frameImages: carrotFrameImages,
+    getCount: () => carrotsCollected,
+    getGrowMs: () =>
+      CARROT_MIN_GROW_MS + Math.random() * (CARROT_MAX_GROW_MS - CARROT_MIN_GROW_MS),
+  },
+  potato: {
+    label: "Potato",
+    frameImages: potatoFrameImages,
+    getCount: () => potatoCollected,
+    getGrowMs: () => 10 * 60 * 1000,
+  },
+  cabbage: {
+    label: "Cabbage",
+    frameImages: cabbageFrameImages,
+    getCount: () => cabbageCollected,
+    getGrowMs: () => 16 * 60 * 1000,
+  },
+  eggplant: {
+    label: "Eggplant",
+    frameImages: eggplantFrameImages,
+    getCount: () => eggplantCollected,
+    getGrowMs: () => 28 * 60 * 1000,
+  },
+};
+
+// Ang frame-image array ng isang crop id - `carrotFrameImages` bilang
+// ligtas na fallback kung sakaling luma/hindi kilalang uri (hal.
+// sirang save data).
+function getCropFrameImages(cropId) {
+  const crop = CROP_TYPES[cropId];
+
+  return crop ? crop.frameImages : carrotFrameImages;
+}
+
+function drawCarrotFrame(stageIndex, col, row, cropId) {
+  const img = getCropFrameImages(cropId)[stageIndex];
 
   if (!img.complete || img.naturalWidth === 0) return;
 
@@ -1422,9 +1642,18 @@ function plantCarrot(col, row) {
   const record = dug[col + "," + row];
 
   if (!record || record.seed) return;
-  if (carrotsCollected <= 0) return; // walang natitirang stock
 
-  carrotsCollected--;
+  // AYOS (multi-crop): ALIN sa 4 na uri ang itatanim ay base na ngayon
+  // sa naka-highlight na slot sa hotbar (getSelectedCropId) - hindi na
+  // basta "carrot" palagi.
+  const cropId = getSelectedCropId();
+  const crop = cropId ? CROP_TYPES[cropId] : null;
+
+  if (!crop || crop.getCount() <= 0) return; // walang natitirang stock
+
+  if (typeof adjustGlobalItemCount === "function") {
+    adjustGlobalItemCount(cropId, -1);
+  }
 
   // Ibawas din sa KUNG SAAN MAN ito kasalukuyang EXPLICIT na "nakatira"
   // (hotbar slot o bag split-stack) - hindi lang sa raw na variable sa
@@ -1432,7 +1661,7 @@ function plantCarrot(col, row) {
   // ipinapakita sa hotbar kahit bumaba na ang totoong stock (tingnan
   // ang consumeItemFromWherever sa hotbar.js).
   if (typeof consumeItemFromWherever === "function") {
-    consumeItemFromWherever("carrot", 1);
+    consumeItemFromWherever(cropId, 1);
   }
 
   // Kung naubos na dito (0 na), awtomatiko itong "mawawala" sa
@@ -1442,10 +1671,9 @@ function plantCarrot(col, row) {
   if (typeof syncHotbarUI === "function") syncHotbarUI();
 
   record.seed = {
-    type: "carrot",
+    type: cropId,
     plantedAt: getGameNow(),
-    growMs:
-      CARROT_MIN_GROW_MS + Math.random() * (CARROT_MAX_GROW_MS - CARROT_MIN_GROW_MS),
+    growMs: crop.getGrowMs(),
   };
 
   saveDugTiles();
@@ -1611,6 +1839,10 @@ function handleHandClick(col, row) {
 
   if (!record || !record.seed || !isCarrotReady(record.seed)) return;
 
+  // Itinatabi MUNA ang uri (bago pa "harvestCarrot" mag-alis ng
+  // record.seed sa ibaba) - ito ang siyang ipapakuha/ilalapag sa lupa.
+  const harvestedCropId = record.seed.type;
+
   const yieldCount =
     CARROT_HARVEST_MIN_YIELD +
     Math.floor(
@@ -1624,17 +1856,18 @@ function handleHandClick(col, row) {
 
     // Hindi na deretso sa bag - nakalapag muna sa lupa, damputin gamit
     // ang kamay (tingnan ang ground-items.js). Hiwa-hiwalay na piraso (isa
-    // kada carrot) - kaya kailangang isa-isahin ang pagdampot, hindi
+    // kada ani) - kaya kailangang isa-isahin ang pagdampot, hindi
     // basta isang click na lang para sa buong ani. Ang bawat piraso ay may
     // sariling "landing" animation (tingnan ang GROUND_ITEM_SPAWN_STAGGER_MS
     // sa ground-items.js) - hindi na ito nawawala/kumukupas sa sarili
     // nito, doon lang talaga mawawala kapag na-damputan na.
     if (typeof spawnGroundItem === "function") {
       for (let i = 0; i < yieldCount; i++) {
-        spawnGroundItem(col, row, "carrot", 1, i * GROUND_ITEM_SPAWN_STAGGER_MS);
+        spawnGroundItem(col, row, harvestedCropId, 1, i * GROUND_ITEM_SPAWN_STAGGER_MS);
       }
-    } else {
-      collectCarrot(yieldCount);
+    } else if (typeof adjustGlobalItemCount === "function") {
+      adjustGlobalItemCount(harvestedCropId, yieldCount);
+      if (typeof syncHotbarUI === "function") syncHotbarUI();
     }
   };
 
@@ -1644,7 +1877,7 @@ function handleHandClick(col, row) {
 // Larawan ng carrot na ginagamit ng ground-items.js para iguhit ang mga
 // nakalapag na carrot sa lupa (tingnan ang drawGroundItems).
 const CARROT_ICON_IMAGE = new Image();
-CARROT_ICON_IMAGE.src = "./assets/assets/carrots.png";
+CARROT_ICON_IMAGE.src = "./assets/vegetables/carrots/carrot.png";
 
 // Buong larawan na lang - iisang icon lang ang laman ng carrots.png.
 const CARROT_ICON_SRC = { x: 0, y: 0, width: 16, height: 17 };
@@ -1937,9 +2170,25 @@ function updateGroundWeather() {
   if (!dug) return;
 
   const now = getGameNow();
-  const snowing = isSnowWeather();
+
+  // BAGO (kasabay ng taniman sa loob ng GARDEN HOUSE - tingnan ang
+  // canDigAt sa itaas): sa LOOB ng bahay ay WALANG panahon - hindi
+  // umuulan ng niyebe doon, kaya HINDI dapat mamatay ang mga tanim mo
+  // sa greenhouse dahil lang sa taglamig sa LABAS (ito mismo ang
+  // punto ng isang greenhouse). Ang mga hinukay PERO hindi natamnan ay
+  // babalik pa rin sa normal pagkalipas ng DUG_REVERT_MS - kaya
+  // "1" (tila tag-damo na) ang ipinapasang grassProgress sa loob,
+  // hindi ang tunay na progreso sa labas (kung hindi, hindi na
+  // kailanman maglilinis ang mga naiwang butas tuwing taglamig).
+  const indoorWorld = (() => {
+    const world = typeof getWorld === "function" ? getWorld() : null;
+
+    return !!world && world.outdoor === false;
+  })();
+
+  const snowing = !indoorWorld && isSnowWeather();
   const snowStartedAtMs = snowing ? getSnowStartedAtMs() : 0;
-  const grassProgress = snowing ? 0 : getGrassProgress();
+  const grassProgress = indoorWorld ? 1 : snowing ? 0 : getGrassProgress();
 
   let changed = false;
   let plantedRemaining = null; // lazy - bilangin lang kapag talagang kailangan (tingnan sa ibaba)
@@ -2002,7 +2251,7 @@ function updateGroundWeather() {
       // Ang 10 segundo ay binibilang mula sa MAS HULI sa dalawa: kailan
       // hinukay, o kailan nagsimula ang niyebe. Kaya ang hinukay BAGO pa
       // umulan ay may 10 segundo ring palugit pagsapit ng ulan.
-      if (now < Math.max(dugAt, snowStartedAtMs) + DUG_REVERT_MS) continue;
+      if (now < Math.max(dugAt, snowStartedAtMs) + getDugRevertMs()) continue;
     } else {
       // Tag-damo: babalik lang sa damo kapag TUMUBO NA nga ang damo sa
       // mismong pwestong ito (hindi lang basta "tag-damo na" sa
@@ -2011,7 +2260,7 @@ function updateGroundWeather() {
       const grassHereAlready = tileGrassOrder(col, row) <= grassProgress;
 
       if (!grassHereAlready) continue;
-      if (now < dugAt + DUG_REVERT_MS) continue;
+      if (now < dugAt + getDugRevertMs()) continue;
     }
 
     delete dug[key];
@@ -2310,7 +2559,7 @@ function getCarrotDrawables() {
     // taas (overflow) para ang sortY ay sumalamin sa TUNAY na "footprint"
     // ng tanim sa lupa - mas maaasahang hindi na siya babalot sa player.
     const stageIndex = getCarrotStageIndex(record.seed);
-    const stageImg = carrotFrameImages[stageIndex];
+    const stageImg = getCropFrameImages(record.seed.type)[stageIndex];
     const overflow =
       stageImg && stageImg.complete && stageImg.naturalHeight
         ? Math.max(0, stageImg.naturalHeight - TILE_SIZE)
@@ -2319,7 +2568,7 @@ function getCarrotDrawables() {
     drawables.push({
       sortY: row * TILE_SIZE + TILE_SIZE - overflow,
       order: -1,
-      draw: () => drawCarrotFrame(stageIndex, col, row),
+      draw: () => drawCarrotFrame(stageIndex, col, row, record.seed.type),
     });
   }
 
@@ -2340,6 +2589,41 @@ function drawDugTiles() {
 
   const gids = getDigGids();
   const now = getGameNow();
+
+  // BAGO (hiling ng user): sa loob ng GARDEN HOUSE ay WALANG tileset ang
+  // synthetic na silid (`tilesets: []`, tingnan ang
+  // buildSyntheticInteriorTmj) - kaya walang maiguguhit ang normal na
+  // drawTile(gid) doon. Sa halip, may SARILING artwork ang template para
+  // sa HINUKAY na lupa (`interiorDugImagePath`) - eksaktong KAPAREHONG
+  // 320x320 na larawan, araro lang ang lupa - at kinukuha natin dito ang
+  // 16x16 na crop ng MISMONG tile na nahukay. Kaya isa-isang nagbabago
+  // ang itsura ng bawat tile habang inaararo, at perpektong tumutugma
+  // ito sa background dahil iisang artwork lang naman sila.
+  const dugImage =
+    typeof getBuilderInteriorDugImage === "function"
+      ? getBuilderInteriorDugImage(currentWorld)
+      : null;
+
+  // Ang tile na ito mula sa HINUKAY na artwork - `true` kung naiguhit,
+  // `false` kung walang dug artwork ang mundong ito (kaya dapat na lang
+  // bumalik sa normal na drawTile(gid) na landas sa ibaba).
+  const drawDugArtTile = (col, row) => {
+    if (!dugImage) return false;
+
+    ctx.drawImage(
+      dugImage,
+      col * TILE_SIZE,
+      row * TILE_SIZE,
+      TILE_SIZE,
+      TILE_SIZE,
+      col * TILE_SIZE,
+      row * TILE_SIZE,
+      TILE_SIZE,
+      TILE_SIZE,
+    );
+
+    return true;
+  };
 
   for (const key of Object.keys(dug)) {
     const [col, row] = key.split(",").map(Number);
@@ -2365,20 +2649,24 @@ function drawDugTiles() {
         elapsedSincePlanted >= WET_DIRT_DELAY_MS &&
         elapsedSincePlanted < WET_DIRT_DELAY_MS + DIRT_AGAIN_DELAY_MS;
 
-      const plantedGid = getPaintedGroundGid(
-        isWetSincePlanted ? "wet_dirt" : "dirt",
-        col,
-        row,
-      );
+      // Sa Garden House, ang sariling HINUKAY na artwork ang ginagamit
+      // (walang wet/dry na bersyon doon - iisang naararong lupa lang).
+      if (!drawDugArtTile(col, row)) {
+        const plantedGid = getPaintedGroundGid(
+          isWetSincePlanted ? "wet_dirt" : "dirt",
+          col,
+          row,
+        );
 
-      drawTile(
-        plantedGid || (isWetSincePlanted ? gids.wet : gids.dirt),
-        col * TILE_SIZE,
-        row * TILE_SIZE,
-      );
+        drawTile(
+          plantedGid || (isWetSincePlanted ? gids.wet : gids.dirt),
+          col * TILE_SIZE,
+          row * TILE_SIZE,
+        );
+      }
 
       if (!shouldCarrotOverlapPlayer(record.seed)) {
-        drawCarrotFrame(getCarrotStageIndex(record.seed), col, row);
+        drawCarrotFrame(getCarrotStageIndex(record.seed), col, row, record.seed.type);
       }
       continue;
     }
@@ -2399,6 +2687,9 @@ function drawDugTiles() {
       !(record && record.harvested) &&
       elapsed >= WET_DIRT_DELAY_MS &&
       elapsed < WET_DIRT_DELAY_MS + DIRT_AGAIN_DELAY_MS;
+
+    // Kaparehong dahilan ng may-tanim na sangay sa itaas.
+    if (drawDugArtTile(col, row)) continue;
 
     const paintedGid = getPaintedGroundGid(isWet ? "wet_dirt" : "dirt", col, row);
 
@@ -2474,10 +2765,13 @@ function drawDigCursor() {
     const dug = getDugTilesForCurrentWorld();
     const record = dug ? dug[tile.col + "," + tile.row] : null;
 
-    diggable =
-      record && record.seed
-        ? !isCarrotReady(record.seed)
-        : canDigAt(tile.col, tile.row);
+    // Ang may-tanim na tile ay HINDI na gumagalaw sa rake (tingnan ang
+    // mousedown sa itaas) - kaya WALA nang guhit na ipinapakita dito,
+    // sa halip na isang PUTING outline na nangangakong may mangyayari
+    // kapag na-click.
+    if (record && record.seed) return;
+
+    diggable = canDigAt(tile.col, tile.row);
   } else {
     const dug = getDugTilesForCurrentWorld();
     const record = dug ? dug[tile.col + "," + tile.row] : null;

@@ -2039,6 +2039,23 @@ function drawMapObjects() {
       fallbackDrawables.push(...getJosephDrawables());
     }
 
+    // Si MARIA (builder.js) - kaparehong-parehong landas ni Joseph.
+    if (typeof getMariaDrawables === "function") {
+      fallbackDrawables.push(...getMariaDrawables());
+    }
+
+    // Si MARIA sa SARILING BAHAY niya ("mariaHouse", schedule) -
+    // hiwalay sa getMariaDrawables (grocery).
+    if (typeof getMariaHomeDrawables === "function") {
+      fallbackDrawables.push(...getMariaHomeDrawables());
+    }
+
+    // Si JOSEPH sa Grocery (schedule, hiling ng user) - hiwalay sa
+    // getJosephDrawables (na para sa josephHouse).
+    if (typeof getJosephGroceryDrawables === "function") {
+      fallbackDrawables.push(...getJosephGroceryDrawables());
+    }
+
     // Mga damong tuft (grass.js) - dekorasyon lang, walang collision,
     // kaya puwedeng tapakan/dumaan ang player (tingnan ang grass.js).
     if (typeof getGrassTuftDrawables === "function") {
@@ -2355,6 +2372,18 @@ function drawMapObjects() {
 
   if (typeof getJosephDrawables === "function") {
     drawables.push(...getJosephDrawables());
+  }
+
+  if (typeof getMariaDrawables === "function") {
+    drawables.push(...getMariaDrawables());
+  }
+
+  if (typeof getMariaHomeDrawables === "function") {
+    drawables.push(...getMariaHomeDrawables());
+  }
+
+  if (typeof getJosephGroceryDrawables === "function") {
+    drawables.push(...getJosephGroceryDrawables());
   }
 
   // Mga damong tuft (grass.js) - dekorasyon lang, walang collision,

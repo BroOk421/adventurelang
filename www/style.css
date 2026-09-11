@@ -1838,7 +1838,8 @@ button.hotbar-slot {
    na dito nakabutton - i-DRAG na lang ang item mula sa bag/hotbar
    papunta sa panel na ito (tingnan ang #oldman-shop-panel.drop-target
    sa ibaba, at ang pointerup listener sa hotbar.js). */
-#oldman-shop-panel {
+#oldman-shop-panel,
+#maria-shop-panel {
   position: fixed;
   left: 50%;
   top: 50%;
@@ -1860,7 +1861,8 @@ button.hotbar-slot {
   z-index: 11;
 }
 
-#oldman-shop-panel.hidden {
+#oldman-shop-panel.hidden,
+#maria-shop-panel.hidden {
   display: none;
 }
 
@@ -1872,7 +1874,8 @@ button.hotbar-slot {
   box-shadow: 0 0 0 2px rgba(255, 210, 90, 0.35);
 }
 
-#oldman-shop-panel-header {
+#oldman-shop-panel-header,
+#maria-shop-panel-header {
   flex-shrink: 0;
 
   display: flex;
@@ -1894,11 +1897,13 @@ button.hotbar-slot {
   touch-action: none;
 }
 
-#oldman-shop-panel-header:active {
+#oldman-shop-panel-header:active,
+#maria-shop-panel-header:active {
   cursor: grabbing;
 }
 
-#oldman-shop-panel-label {
+#oldman-shop-panel-label,
+#maria-shop-panel-label {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.05em;
@@ -1906,7 +1911,8 @@ button.hotbar-slot {
   color: rgba(212, 175, 55, 0.85);
 }
 
-#oldman-shop-panel-close {
+#oldman-shop-panel-close,
+#maria-shop-panel-close {
   flex-shrink: 0;
 
   width: 16px;
@@ -1928,12 +1934,14 @@ button.hotbar-slot {
   touch-action: auto;
 }
 
-#oldman-shop-panel-close:hover {
+#oldman-shop-panel-close:hover,
+#maria-shop-panel-close:hover {
   background: rgba(255, 90, 90, 0.35);
   color: white;
 }
 
-#oldman-shop-gold-row {
+#oldman-shop-gold-row,
+#maria-shop-gold-row {
   flex-shrink: 0;
 
   display: flex;
@@ -1948,23 +1956,27 @@ button.hotbar-slot {
   color: rgba(255, 210, 90, 0.95);
 }
 
-#oldman-shop-gold-icon {
+#oldman-shop-gold-icon,
+#maria-shop-gold-icon {
   font-size: 13px;
 }
 
-#oldman-shop-body {
+#oldman-shop-body,
+#maria-shop-body {
   padding: 10px 12px 12px;
   overflow-y: auto;
 }
 
-#oldman-shop-hint {
+#oldman-shop-hint,
+#maria-shop-hint {
   margin-bottom: 8px;
   font-size: 10px;
   color: rgba(255, 255, 255, 0.5);
   text-align: center;
 }
 
-#oldman-shop-grid {
+#oldman-shop-grid,
+#maria-shop-grid {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   gap: 6px;
@@ -4179,6 +4191,24 @@ body.touch-controls-active #stove-panel {
   display: block;
   cursor: crosshair;
   image-rendering: pixelated;
+  touch-action: none;
+}
+
+/* AYOS (hiling ng user): "kaya ba na draggable yung paglagay ng box...
+   kapag na drop ko na is may confirmation" - ang Confirm/Cancel na ito
+   ay lumalabas SA ILALIM ng picker canvas pagka-drop ng 160x128 na
+   box (tingnan ang openBuilderMapPicker, builder.js). */
+.builder-map-picker-footer {
+  padding: 10px 14px 14px;
+}
+
+.builder-map-picker-footer .builder-panel-hint {
+  margin-bottom: 8px;
+}
+
+.builder-buy-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 /* =========================
@@ -4297,4 +4327,182 @@ body.touch-controls-active #stove-panel {
 #main-menu-exit:hover {
   background: rgba(255, 90, 90, 0.3);
   border-color: rgba(255, 90, 90, 0.5);
+}
+
+/* =========================
+   HOTKEY NA BUTON SA BAG ITEM (hiling ng user: "add ka rin ng button sa
+   label ng hotkey tapos may lalabas pa 1-9 na slots")
+   ========================= */
+.bag-item-hotkey-btn {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  z-index: 3;
+  min-width: 13px;
+  height: 13px;
+  padding: 0 2px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 3px;
+  background: rgba(20, 20, 24, 0.82);
+  color: rgba(255, 255, 255, 0.75);
+  font-family: inherit;
+  font-size: 9px;
+  line-height: 11px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.bag-item-hotkey-btn:hover {
+  border-color: rgba(255, 210, 90, 0.9);
+  color: #ffd25a;
+}
+
+/* Naka-pin na sa isang numbered slot - gold, para makita agad sa isang
+   sulyap kung aling mga item ang nasa hotbar mo na. */
+.bag-item-hotkey-btn-set {
+  border-color: rgba(255, 210, 90, 0.85);
+  background: rgba(255, 210, 90, 0.2);
+  color: #ffd25a;
+  font-weight: bold;
+}
+
+.hotkey-picker {
+  position: fixed;
+  z-index: 9999;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  background: rgba(18, 18, 22, 0.97);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.hotkey-picker-title {
+  margin-bottom: 5px;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+}
+
+.hotkey-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(9, 20px);
+  gap: 3px;
+}
+
+.hotkey-picker-slot {
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.85);
+  font-family: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.hotkey-picker-slot:hover {
+  border-color: #ffd25a;
+  color: #ffd25a;
+}
+
+/* Dito na mismo nakalagay ang item ngayon. */
+.hotkey-picker-slot-current {
+  border-color: #ffd25a;
+  background: rgba(255, 210, 90, 0.25);
+  color: #ffd25a;
+  font-weight: bold;
+}
+
+/* May ibang item na - mapapalitan ito (babalik iyon sa inventory). */
+.hotkey-picker-slot-taken {
+  border-style: dashed;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.hotkey-picker-back {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 4px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.85);
+  font-family: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.hotkey-picker-back:hover {
+  border-color: #ff9a9a;
+  color: #ff9a9a;
+}
+
+/* =========================
+   TINDAHAN NI MARIA (hiling ng user: "makabili ako ng mga vegetable") -
+   muling gamit ang .hotkey-picker frame, sariling row style lang.
+   ========================= */
+.maria-shop-row {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 5px 8px;
+  border: 1px solid rgba(255, 210, 90, 0.5);
+  border-radius: 4px;
+  background: rgba(255, 210, 90, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+  font-family: inherit;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.maria-shop-row:hover {
+  border-color: #ffd25a;
+  background: rgba(255, 210, 90, 0.22);
+}
+
+/* Maria shop: isang row bawat gulay, may label + Buy + Sell (hiling ng
+   user: "para magamit buy/sell") - dating iisang buton lang (Buy only). */
+/* Maria's cells reuse .oldman-shop-cell (same look) but are click/
+   right-click, not drag - override the "grab" cursor. */
+.maria-shop-cell {
+  cursor: pointer;
+}
+
+.maria-shop-cell:active {
+  cursor: pointer;
+}
+
+.maria-shop-item-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.maria-shop-item-label {
+  flex: 1;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+}
+
+.maria-shop-item-row .maria-shop-row {
+  flex: none;
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+.maria-shop-row-sell {
+  border-color: rgba(140, 220, 140, 0.5);
+  background: rgba(140, 220, 140, 0.12);
+}
+
+.maria-shop-row-sell:hover {
+  border-color: #8cdc8c;
+  background: rgba(140, 220, 140, 0.22);
 }

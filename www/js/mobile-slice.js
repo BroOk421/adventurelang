@@ -269,8 +269,10 @@ function buildMobileItemActions(source, itemId) {
   } else if (typeof EDIBLE_ITEMS !== "undefined" && EDIBLE_ITEMS[itemId]) {
     actions = [{ label: "Use", onClick: withSettledSource(() => eatItem(itemId)) }];
   } else {
-    // Generic na item (wood/stone/atbp.) - LAGING Throw + Slice (hiling
-    // ng user: "basta lahat ng item na may quantity meron slice lagi").
+    // Generic na item (wood/stone/atbp.) - Throw lang ang natitira dito;
+    // ang Slice ay IBINABA na sa shared na bahagi (tingnan sa ibaba),
+    // dahil hiling ng user na LAHAT na ng item ang may Slice, hindi lang
+    // ang mga generic.
     actions = [
       {
         label: "Throw",
@@ -278,15 +280,75 @@ function buildMobileItemActions(source, itemId) {
           throwWholeStackFromSourceToWorld(source, itemId),
         ),
       },
-      {
-        label: "Slice",
-        onClick: withSettledSource(() => {
-          const available = getAvailableCountForMobileSlice(source, itemId);
-
-          if (available > 0) openMobileSliceQtyPopup(source, itemId, available);
-        }),
-      },
     ];
+  }
+
+  // =========================
+  // SHARED NA MGA AKSYON - nasa DULO ng LAHAT ng uri ng item
+  // =========================
+  // AYOS (hiling ng user): "sa lahat i apply ang slice kapag marami pero
+  // kapag isa lang di lilitaw more than 1 lang tapos lahat ng items
+  // kapag click use, slice, hotkey, about yan lalabas" - dating ang
+  // GENERIC na item lang (wood/stone) ang may Slice, kaya walang Slice
+  // ang carrot at ang iba pang may sariling special-case (food, torch,
+  // tools, holdables). Ngayon, iisang lugar na lang ito, kaya
+  // AWTOMATIKONG nakukuha ito ng LAHAT.
+  //
+  // MAHIGPIT ang kondisyon: MAHIGIT SA ISA dapat ang hawak - walang
+  // kabuluhan ang "paghahati" ng iisang piraso (wala kang mahahati),
+  // kaya itinatago na lang ang buton sa halip na ipakitang walang
+  // epekto kapag pinindot.
+  const sliceAvailable = getAvailableCountForMobileSlice(source, itemId);
+
+  if (sliceAvailable > 1) {
+    actions.push({
+      label: "Slice",
+      onClick: withSettledSource(() => {
+        const available = getAvailableCountForMobileSlice(source, itemId);
+
+        if (available > 1) openMobileSliceQtyPopup(source, itemId, available);
+      }),
+    });
+  }
+
+  // AYOS (hiling ng user): "kapag click naman sa item sa hotkey may
+  // lilitaw na use, slice, highlight tapos to inventory" - MAGKAIBA na
+  // ang huling dalawang buton depende sa KUNG SAAN galing ang item:
+  //
+  //   - Nasa BAG pa       -> "Hotkey"       (pumili ng slot 1-9)
+  //   - Nasa HOTBAR SLOT  -> "Highlight"    (i-arm ito - ito ang
+  //                          nagpapahintulot ng pagtatanim ng carrot,
+  //                          tingnan ang isCarrotSlotSelected sa dig.js)
+  //                       + "To inventory"  (ibalik sa bag)
+  if (source.type === "slot") {
+    actions.push({
+      label: "Highlight",
+      onClick: () => {
+        selectedInventorySlot = source.slot;
+        if (typeof syncHotbarUI === "function") syncHotbarUI();
+      },
+    });
+
+    actions.push({
+      label: "To inventory",
+      onClick: () => {
+        delete pinnedSlots[source.slot];
+        delete pinnedSlotCounts[source.slot];
+
+        if (selectedInventorySlot === source.slot) selectedInventorySlot = null;
+
+        if (typeof syncHotbarUI === "function") syncHotbarUI();
+      },
+    });
+  } else {
+    actions.push({
+      label: "Hotkey",
+      onClick: () => {
+        if (typeof openHotkeyPickerAt === "function") {
+          openHotkeyPickerAt(itemId, lastMobileActionAnchorX, lastMobileActionAnchorY);
+        }
+      },
+    });
   }
 
   // AYOS (hiling ng user): "sa lahat ng labels lagyan mo ng about label

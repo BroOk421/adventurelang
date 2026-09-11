@@ -49,9 +49,15 @@ const MAX_FRAME_DELTA_MS = 100;
 // `>1` = mas mabagal mag-cycle ang binti. TUNABLE - kung sobra pa ring
 // mabilis o naging masyado namang mabagal sa town, ayusin na lang itong
 // numero (hal. 1.3 kung sobra pa rin ang 1.5, o 1.7 kung kulang pa).
-const WALK_ANIM_SPEED_MULTIPLIER_BY_WORLD = {
-  town: 1.5,
-};
+// AYOS (kasabay ng time-based na `player.frameTimer` - tingnan ang
+// update() sa ibaba): WALA na itong laman. Ang 1.5 na dating nakatakda
+// sa "town" ay isang KABAYARAN lang sa TUNAY na problema - ang
+// frame-count-based na animation, na mas mabilis sa mga magaang mundo.
+// Ngayong ORAS na ang batayan, ang multiplier na iyon ay magiging
+// SOBRANG-BAGAL na naman sa town. Iniwan ang talaan (hindi tinanggal)
+// para may madaling lugar pa ring lagyan kung sakaling may partikular
+// na mundong TALAGANG gusto mong ibahin ang bilis balang araw.
+const WALK_ANIM_SPEED_MULTIPLIER_BY_WORLD = {};
 
 function update(deltaMs) {
   // speedScale = 1 sa eksaktong 60fps - kung mas mabagal (mas malaki
@@ -324,6 +330,15 @@ function update(deltaMs) {
           // kaparehong-pareho ng gawi ng Oldman sa itaas ("E" para
           // makausap, bubukas ang Builder panel).
           if (typeof openBuilderPanel === "function") openBuilderPanel();
+        } else if (structure.type === "maria") {
+          // AYOS (hiling ng user): si Maria sa Grocery - "E" para
+          // makabili ng gulay.
+          if (typeof openMariaShopPanel === "function") openMariaShopPanel();
+        } else if (structure.type === "josephGrocery") {
+          // Si Joseph SA GROCERY - kaparehong Builder panel na inaalok
+          // niya sa josephHouse (tingnan ang komento sa
+          // isPlayerNearJosephAtGrocery, builder.js).
+          if (typeof openBuilderPanel === "function") openBuilderPanel();
         }
       }
     }
@@ -399,7 +414,30 @@ function update(deltaMs) {
   maybeSavePlayerPosition();
 
   // Animation
-  player.frameTimer++;
+  //
+  // AYOS (hiling ng user): "medyo mabilis yung frame idle ng character
+  // pati walk dapat i normal lang yung frame speed gaya kapag nasa
+  // grassmap" - dating `player.frameTimer++`, ISA KADA
+  // requestAnimationFrame CALLBACK. Ang ibig sabihin niyon: kung mas
+  // MAGAAN i-render ang isang mundo (mas mataas ang tunay na fps),
+  // MAS MABILIS ang tila galaw ng binti - kahit PAREHO lang ang
+  // TALAGANG bilis ng paglipat sa screen. Ito mismo ang nangyayari sa
+  // mga interior ng custom house (Garden House/Coffee Shop/atbp.):
+  // isang larawan lang ang background, walang puno/bato/damo/hayop na
+  // sini-simulate, kaya halos walang kahit anong trabaho kada frame.
+  //
+  // AYOS: ORAS na ang batayan, hindi bilang ng frame - ang `speedScale`
+  // (nasa itaas) ay 1 sa eksaktong 60fps, kaya PAREHO pa rin ang pakiramdam
+  // sa 60fps gaya ng dati, PERO hindi na ito nagbabago kapag mas mabilis/
+  // mabagal mag-render ang isang mundo. Kaparehong-parehong paraan na ito
+  // ng TALAGANG paggalaw/posisyon ng player (na matagal nang gumagamit ng
+  // `speedScale`) - kaya magkatugma na ngayon ang dalawa saanmang mundo.
+  //
+  // Isa pang bentahe: AWTOMATIKO na itong tama para sa mga mundong
+  // DYNAMIC ang pangalan (hal. `customHouse_12`) - imposibleng maisulat
+  // ang mga iyon sa isang static na talaan gaya ng
+  // WALK_ANIM_SPEED_MULTIPLIER_BY_WORLD.
+  player.frameTimer += speedScale;
 
   // Kapag tumatakbo (Shift/mobile Run), gamitin ang runFrameSpeed
   // (player.js) sa halip ng normal na frameSpeed - mas mabilis ito

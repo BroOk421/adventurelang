@@ -8,7 +8,7 @@
     />
     <title>Tralala Game</title>
 
-    <link rel="stylesheet" href="./style.css?v=1800000000150" />
+    <link rel="stylesheet" href="./style.css?v=1800000000500" />
   </head>
 
   <body>
@@ -465,6 +465,40 @@
       <div id="stove-panel-grid"></div>
     </div>
 
+    <!-- Maria shop panel: hiling ng user, "gawin mo yung UI ng oldman
+         kapag lumitaw yung binibenta niya gawin mo yung kay maria
+         yung pop up niya" - EKSAKTONG istruktura (header/gold row/
+         grid) ng #oldman-shop-panel sa itaas, IBANG ID lang - tingnan
+         ang style.css (comma-selector na dinadagdagan ng #maria-shop-
+         panel sa parehong mga rules ng #oldman-shop-panel) at
+         openMariaShopPanel (builder.js). Click ng cell = bumili ng 1;
+         right-click = ibenta LAHAT ng hawak mong stock niyon - mas
+         simple kaysa sa drag-based na Oldman (walang quantity popup),
+         disclosed limitasyon. -->
+    <div id="maria-shop-panel" class="hidden">
+      <div id="maria-shop-panel-header">
+        <span id="maria-shop-panel-label">Maria</span>
+        <button
+          type="button"
+          id="maria-shop-panel-close"
+          class="panel-no-drag"
+          title="Close"
+        >
+          ✕
+        </button>
+      </div>
+
+      <div id="maria-shop-gold-row">
+        <span id="maria-shop-gold-icon">🪙</span>
+        <span id="maria-shop-gold-amount">0</span>
+      </div>
+
+      <div id="maria-shop-body">
+        <div id="maria-shop-hint">Click to buy 1 - right-click to sell all</div>
+        <div id="maria-shop-grid"></div>
+      </div>
+    </div>
+
     <!-- Oldman shop panel: lumalabas kapag na-click ang oldman NPC sa
          mundo (decor.js) - FLOATING tulad ng #stove-panel (may
          draggable header). Grid ng mga BINEBENTA niya (i-click para
@@ -914,15 +948,15 @@
     <script src="./js/player.js?v=1790600000000"></script>
     <script src="./js/camera.js?v=1800000000041"></script>
     <script src="./js/input.js?v=1800000000090"></script>
-    <script src="./js/collisions.js?v=1793600000001"></script>
+    <script src="./js/collisions.js?v=1800000000500"></script>
     <!-- worlds.js ay dapat mauna sa map.js - dun nakalista ang mga mapa
          at pintuan, at ginagamit agad ito ng map.js pagka-load. -->
     <script src="./js/worlds.js?v=1793300000000"></script>
     <script src="./js/footprints.js?v=1788105286987"></script>
-    <script src="./js/map.js?v=1800000000090"></script>
+    <script src="./js/map.js?v=1800000000400"></script>
     <!-- dig.js: paghukay ng niyebe gamit ang mouse. Pagkatapos ng
          map.js dahil ginagamit nito ang drawTile at flattenTileLayers. -->
-    <script src="./js/dig.js?v=1800000000090"></script>
+    <script src="./js/dig.js?v=1800000000400"></script>
     <!-- resources.js: random na puno/bato (axe/pickaxe). Ginagamit nito
          ang getObjectCells/isTileInReach (dig.js), kaya kailangang mauna
          iyon. Dapat ito MAUNA sa hotbar.js - agad tinatawag ng hotbar.js
@@ -936,7 +970,7 @@
          (tindahan) pero hiwalay itong tinatawag mula sa dig.js, kaya
          puwede pa ring sumunod nang basta-basta pagkatapos ng
          resources.js. -->
-    <script src="./js/decor.js?v=1800000000014"></script>
+    <script src="./js/decor.js?v=1800000000400"></script>
     <!-- pig.js: mga baboy na gumagala sa mapa (random na paglalakad,
          pagkawala/pagbalik, "health"/clickable, namamatay-nabubuhay-
          muli). Umaasa sa isFreeWanderTile/randomBetween (decor.js) at
@@ -980,7 +1014,7 @@
          estado/function ng dig.js/resources.js/ground-items.js
          (pickaxeEquipped, equipPickaxe, axeEquipped,
          dropItemFromSlotIntoWorld, atbp). -->
-    <script src="./js/hotbar.js?v=1800000000090"></script>
+    <script src="./js/hotbar.js?v=1800000000500"></script>
     <!-- craft.js: crafting panel (2x2 basic / 3x3 advanced, parang
          Minecraft) at ang "Crafter" (crafting table) na puwedeng
          ilagay sa mundo - ginagamit nito ang BAG_ITEMS/getItemIconHTML/
@@ -1010,7 +1044,7 @@
          kailangang HULI ito sa lahat ng script na nagdedeklara ng mga
          variable na ito (hotbar.js/dig.js/resources.js/craft.js/
          stove.js), kaya dito na ilagay pagkatapos ng stove.js. -->
-    <script src="./js/inventory-save.js?v=1799999999999"></script>
+    <script src="./js/inventory-save.js?v=1800000000400"></script>
     <!-- Si Joseph ("Builder" NPC) at ang custom na bahay (hiling ng
          user) - kailangang nauna ang worlds.js/map.js/dig.js/decor.js/
          placement.js/hotbar.js/minimap.js (ginagamit nito ang WORLDS/
@@ -1021,7 +1055,7 @@
          loadInventoryState() ang goldCollected na sample/testing value
          na itinatakda nito (hiling ng user: "lagyan mo ako ng gold na
          100,000"). -->
-    <script src="./js/builder.js?v=1800000000230"></script>
+    <script src="./js/builder.js?v=1800000000500"></script>
     <!-- settings-menu.js: ang burger-icon na menu sa itaas-kanan (I-save/
          I-load/Settings/Lumabas) - dapat SUMUNOD sa inventory-save.js
          (at sa dig/resources/player/decor) dahil tinatawag nito ang
@@ -1038,7 +1072,7 @@
          habang naka-hold ang "V", kapalit ng dating pickaxe/kamay/axe
          na hiwalay na slots. -->
     <script src="./js/tool-radial.js?v=1800000000090"></script>
-    <script src="./js/atmosphere.js?v=1800000000210"></script>
+    <script src="./js/atmosphere.js?v=1800000000400"></script>
     <script src="./js/shadows.js?v=1800000000061"></script>
     <!-- calendar.js: petsa/buwan/oras at ang schedule ng snow/ulan - dapat
          mauna sa snow.js/rain.js dahil ginagamit nila ang calendar state.
@@ -1053,7 +1087,7 @@
     <script src="./js/fireflies.js?v=1787160000000"></script>
     <!-- calendar-ui.js: ang UI sa itaas-kanan (petsa/oras/araw-gabi). -->
     <script src="./js/calendar-ui.js?v=1787160000000"></script>
-    <script src="./js/update.js?v=1800000000200"></script>
+    <script src="./js/update.js?v=1800000000400"></script>
     <script src="./js/minimap.js?v=1800000000012"></script>
     <script src="./js/draw.js?v=1800000000200"></script>
     <script src="./js/main.js?v=1787160000000"></script>
@@ -1065,6 +1099,6 @@
          Kailangang MAUNA ang mobile-controls.js (isMobileTouchDevice)
          at settings-menu.js (openSettingsPanel/showSettingsToast). -->
     <script src="./js/controller-layout.js?v=1800000000055"></script>
-    <script src="./js/mobile-slice.js?v=1800000000057"></script>
+    <script src="./js/mobile-slice.js?v=1800000000400"></script>
   </body>
 </html>

@@ -605,8 +605,35 @@ const BAG_ITEMS = [
   {
     id: "carrot",
     label: "Carrot",
-    icon: "./assets/assets/carrots.png",
+    // AYOS (hiling ng user, dating turn: "yung icon ng carrot lipat mo
+    // dun sa vegetable na din") - dating "./assets/assets/carrots.png".
+    icon: "./assets/vegetables/carrots/carrot.png",
     getCount: () => carrotsCollected,
+  },
+  // AYOS (multi-crop, hiling ng user: "i add mo na rin yung mga ibang
+  // vegetables sa list ni maria para magamit buy/sell at pag plant at
+  // pag grow pag drop at pick up ng gamit papuntang inventory") -
+  // parehong-pareho ang anyo ng entry ng carrot sa itaas, iba lang ang
+  // icon/counter. Ang planting/growing mismo ay hawak na ng CROP_TYPES
+  // (dig.js) - dito lang kailangan para makita/mahawakan/ma-drag sila
+  // sa bag/hotbar gaya ng ibang item.
+  {
+    id: "potato",
+    label: "Potato",
+    icon: "./assets/vegetables/potato/potato.png",
+    getCount: () => potatoCollected,
+  },
+  {
+    id: "cabbage",
+    label: "Cabbage",
+    icon: "./assets/vegetables/cabbage/cabbage.png",
+    getCount: () => cabbageCollected,
+  },
+  {
+    id: "eggplant",
+    label: "Eggplant",
+    icon: "./assets/vegetables/eggplant/eggplant.png",
+    getCount: () => eggplantCollected,
   },
   {
     id: "wood",
@@ -1261,6 +1288,37 @@ const EDIBLE_ITEMS = {
       carrotsCollected--;
     },
   },
+  // AYOS (multi-crop, hiling ng user: "i add mo na rin yung mga ibang
+  // vegetables") - parehong-pareho ang anyo ng carrot sa itaas, iba
+  // lang ang halaga - kusang-loob kong pinili ang mga numerong ito
+  // (proporsyonal sa presyo/laki nila), madaling baguhin.
+  potato: {
+    label: "Potato",
+    description: "Matabang gulay mula sa lupa - nagpapawi ng gutom.",
+    healAmount: 12,
+    foodAmount: 4,
+    consume: () => {
+      potatoCollected--;
+    },
+  },
+  cabbage: {
+    label: "Cabbage",
+    description: "Malutong na gulay - nagpapawi ng gutom.",
+    healAmount: 14,
+    foodAmount: 5,
+    consume: () => {
+      cabbageCollected--;
+    },
+  },
+  eggplant: {
+    label: "Eggplant",
+    description: "Malaking gulay - nagpapawi ng gutom nang husto.",
+    healAmount: 18,
+    foodAmount: 7,
+    consume: () => {
+      eggplantCollected--;
+    },
+  },
   // AYOS (hiling ng user): "yung sa foods is may use din yung raw meat
   // lagyan mo rin ng plus 5 para sa foods" - dating hindi pa "kainin"
   // (hindi EDIBLE_ITEMS) ang HILAW/raw na "meat" (kaiba sa
@@ -1298,10 +1356,17 @@ function getFoodTooltipText(itemId) {
   if (edible.healAmount) lines.push("Health +" + edible.healAmount);
   if (edible.foodAmount) lines.push("Food +" + edible.foodAmount);
 
+  // AYOS (multi-crop): kasama na ngayon ang MARIA_SHOP_ITEMS (builder.js)
+  // bilang pangalawang pinagmumulan ng "Sell" na presyo - si Maria ang
+  // nagbebenta/bumibili ng mga bagong gulay (potato/cabbage/eggplant),
+  // hindi si Oldman.
   const shopEntry =
-    typeof OLDMAN_SHOP_ITEMS !== "undefined"
+    (typeof OLDMAN_SHOP_ITEMS !== "undefined"
       ? OLDMAN_SHOP_ITEMS.find((entry) => entry.itemId === itemId)
-      : null;
+      : null) ||
+    (typeof MARIA_SHOP_ITEMS !== "undefined"
+      ? MARIA_SHOP_ITEMS.find((entry) => entry.itemId === itemId)
+      : null);
 
   if (shopEntry) lines.push("Sell: " + shopEntry.sellPrice + " gold");
 
@@ -1673,6 +1738,326 @@ function canDuplicateItemInSlot(itemId) {
   const item = BAG_ITEMS.find((entry) => entry.id === itemId);
 
   return Boolean(item && item.getCount() > STACK_DUPLICATE_MIN_COUNT);
+}
+
+// =========================
+// HOTKEY NA BUTON SA BAWAT BAG ITEM (hiling ng user: "sa inventory sa
+// mga item add ka rin ng button sa label ng hotkey tapos may lalabas pa
+// 1-9 na slots kung ano ang pipiliin na slots dun mapupunta yung item
+// tapos kapag nandun na sa hotkey slots yung item click ulit tapos may
+// lalabas na back to inventory")
+// =========================
+// Dati, ang TANGING paraan para mailagay sa isang PARTIKULAR na numbered
+// slot ang isang item ay ang i-DRAG ito mula sa bag papunta doon (ang
+// click/pinItemToSlot ay basta kung saan ang UNANG bakante - hindi mo
+// mapipili). Mahirap ito sa maliit na screen/touch. Ngayon, may maliit
+// na buton sa kanang-itaas ng bawat item sa bag: nakasulat dito ang
+// KASALUKUYANG hotkey nito (hal. "3") o "+" kung wala pa - i-click at
+// may lilitaw na maliit na menu ng 1-9 (at "Back to inventory" kung
+// naka-pin na ito), doon mo diretsong pipiliin kung saang slot ito
+// mapupunta.
+//
+// TANDAAN: ang DRAG ay gumagana pa rin nang eksaktong-eksakto gaya ng
+// dati - hindi ito pinapalitan, dagdag na paraan lang ito.
+
+// Ang UNANG numbered slot (1-9) na kinaroroonan ng item na ito, o `null`
+// kung wala ito sa hotbar. (Puwedeng nasa MAHIGIT ISANG slot ang isang
+// item - tingnan ang canDuplicateItemInSlot - ang una ang ipinapakita sa
+// buton, at LAHAT sila ang tinatanggal ng "Back to inventory".)
+function getItemPinnedSlotIndex(itemId) {
+  for (let i = 1; i <= 9; i++) {
+    if (pinnedSlots[i] === itemId) return i;
+  }
+
+  return null;
+}
+
+// Inilalagay ang item sa EKSAKTONG slot na pinili. Kung ang item ay nasa
+// ibang slot na, INAALIS muna ito doon (paglipat ito, hindi pagdami).
+// Kung MAY IBANG item na ang target na slot, ang dating laman niyon ang
+// bumabalik sa inventory - hindi ito nawawala, nasa bag pa rin naman
+// LAGI ang tunay na stock (ang `pinnedSlots` ay isang "shortcut" lang
+// papunta sa item, hindi hiwalay na imbakan).
+function assignItemToHotbarSlot(itemId, slotIndex) {
+  if (slotIndex < 1 || slotIndex > 9) return;
+
+  // 1) Alisin muna ang item sa LAHAT ng dati nitong slot - paglipat ito,
+  //    hindi pagdami. Ang anumang EXPLICIT na bilang doon ay bumabalik
+  //    sa bag pool (tingnan ang getBagUnassignedCount: ang mga slot na
+  //    walang `pinnedSlotCounts` entry ay HINDI binabawas sa pool).
+  for (let i = 1; i <= 9; i++) {
+    if (pinnedSlots[i] === itemId) {
+      delete pinnedSlots[i];
+      delete pinnedSlotCounts[i];
+    }
+  }
+
+  // 2) Bakantehin ang target - kung may IBANG item doon, bumabalik iyon
+  //    sa inventory (parehong paraan: burahin ang explicit nitong
+  //    bilang, kaya awtomatiko itong muling mabibilang sa bag pool).
+  delete pinnedSlots[slotIndex];
+  delete pinnedSlotCounts[slotIndex];
+
+  // 3) AYOS (ikalawang round, hiling ng user): "yung image ng carrots di
+  //    parin nalagay sa hotkey e kahit yung ibang item di napupunta
+  //    don" - ang SANHI: ang bilang na inilalagay dito ay dating galing
+  //    sa getBagUnassignedCount(), na BINABAWASAN ng LAHAT ng explicit
+  //    na alokasyon - kasama na ang mga BAG SPLIT-STACK ng parehong
+  //    item. Kaya kung ang stock mo ay nasa isang split-stack (bunga ng
+  //    Alt-drag o ng "Slice"), 0 ang isinasagot niyon - at ang isang
+  //    slot na 0 ang bilang ay AWTOMATIKONG binubura ng syncPinnedSlots
+  //    ("naubos ang stock"), kaya para itong hindi man lang tinanggap
+  //    ang item.
+  //
+  //    AYOS: nililinis muna ang LAHAT ng explicit na alokasyon ng item
+  //    na ito (mga pin sa itaas AT ang mga split-stack sa bag), para
+  //    TALAGANG buo na ang stock sa master pool - saka kinukuha ang
+  //    BUONG bilang mismo ng item. Ito rin naman ang inaasahan: "mawawala
+  //    yung item sa inventory at mapupunta sa slot na napili".
+  for (const key in bagSplitStacks) {
+    if (bagSplitStacks[key] && bagSplitStacks[key].itemId === itemId) {
+      delete bagSplitStacks[key];
+    }
+  }
+
+  let total = 0;
+
+  try {
+    const item = BAG_ITEMS.find((entry) => entry.id === itemId);
+
+    total = item ? item.getCount() : 0;
+  } catch (err) {
+    total = 0;
+  }
+
+  // Sumusunod pa rin sa "max 99 kada slot" na patakaran - kung mas
+  // marami pa sa 99 ang hawak mo, ang sobra ay NAIIWAN sa bag (hindi
+  // nawawala), kaparehong-pareho ng gawi ng drag-and-drop.
+  const moving = Math.min(Math.max(0, total), MAX_EXPLICIT_STACK);
+
+  pinnedSlots[slotIndex] = itemId;
+
+  if (moving > 0) pinnedSlotCounts[slotIndex] = moving;
+
+  // 4) AYOS (hiling ng user): "gusto ko itanim gamit yung hotkey
+  //    highlight tapos pindot sa na dig same sa logic dati" - AGAD na
+  //    hina-highlight (gold) ang slot na pinili. Hindi ito kosmetiko
+  //    lang: ang `selectedInventorySlot` mismo ANG nagpapasya kung
+  //    "armado" na ang carrot para itanim (tingnan ang
+  //    isCarrotSlotSelected sa dig.js - pinnedSlots[selectedInventorySlot]
+  //    === "carrot"). Kung hindi ito itatakda dito, mapupunta nga ang
+  //    carrot sa slot PERO mananatiling hindi armado - kaya walang
+  //    mangyayari kapag pinindot mo ang hinukay na lupa, at mukhang
+  //    "ayaw mapunta sa slot". Kaparehong-pareho na ito ngayon ng
+  //    gawi ng double-click na landas (equipViaDoubleClick).
+  //
+  //    Ginagawa ito para sa LAHAT ng item, hindi lang sa carrot - iyon
+  //    naman ang inaasahan kapag may pinili kang slot: iyon ang
+  //    "aktibo" mong item ngayon.
+  selectedInventorySlot = slotIndex;
+
+  syncHotbarUI();
+  if (typeof syncBagPanel === "function") syncBagPanel();
+}
+
+// "Back to inventory" - tinatanggal ang item sa LAHAT ng numbered slot.
+function unpinItemFromHotbar(itemId) {
+  for (let i = 1; i <= 9; i++) {
+    if (pinnedSlots[i] === itemId) {
+      delete pinnedSlots[i];
+      delete pinnedSlotCounts[i];
+    }
+  }
+
+  syncHotbarUI();
+  if (typeof syncBagPanel === "function") syncBagPanel();
+}
+
+// Iisa lang ang bukás na menu kahit kailan.
+let hotkeyPickerEl = null;
+
+function closeHotkeyPicker() {
+  if (!hotkeyPickerEl) return;
+
+  hotkeyPickerEl.remove();
+  hotkeyPickerEl = null;
+  document.removeEventListener("pointerdown", handleHotkeyPickerOutside, true);
+  document.removeEventListener("keydown", handleHotkeyPickerKeydown, true);
+}
+
+function handleHotkeyPickerOutside(event) {
+  if (hotkeyPickerEl && !hotkeyPickerEl.contains(event.target)) {
+    closeHotkeyPicker();
+  }
+}
+
+function handleHotkeyPickerKeydown(event) {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeHotkeyPicker();
+  }
+}
+
+// Binubuksan ang menu sa tabi ng `anchorEl` (ang maliit na buton mismo).
+function openHotkeyPicker(itemId, anchorEl) {
+  closeHotkeyPicker();
+
+  const item = BAG_ITEMS.find((entry) => entry.id === itemId);
+
+  if (!item) return;
+
+  const currentSlot = getItemPinnedSlotIndex(itemId);
+
+  const picker = document.createElement("div");
+
+  picker.className = "hotkey-picker";
+
+  const title = document.createElement("div");
+
+  title.className = "hotkey-picker-title";
+  title.textContent = "Send \"" + item.label + "\" to slot:";
+  picker.appendChild(title);
+
+  const grid = document.createElement("div");
+
+  grid.className = "hotkey-picker-grid";
+
+  for (let i = 1; i <= 9; i++) {
+    const btn = document.createElement("button");
+
+    btn.type = "button";
+    btn.className = "hotkey-picker-slot";
+    btn.textContent = String(i);
+
+    const occupantId = pinnedSlots[i];
+
+    if (occupantId === itemId) {
+      // Dito na mismo ito nakalagay ngayon.
+      btn.classList.add("hotkey-picker-slot-current");
+      btn.title = "Nandito na ito ngayon";
+    } else if (occupantId) {
+      // May ibang item - ipinapakita kung ano, para alam mo kung ano
+      // ang mapapalitan bago mo pa ito pindutin.
+      const occupant = BAG_ITEMS.find((entry) => entry.id === occupantId);
+
+      btn.classList.add("hotkey-picker-slot-taken");
+      btn.title = occupant
+        ? "Taken by " + occupant.label + " - it will go back to your inventory"
+        : "Taken - it will go back to your inventory";
+    } else {
+      btn.title = "Empty slot";
+    }
+
+    btn.addEventListener("click", () => {
+      assignItemToHotbarSlot(itemId, i);
+      closeHotkeyPicker();
+    });
+
+    grid.appendChild(btn);
+  }
+
+  picker.appendChild(grid);
+
+  // "Back to inventory" - lumilitaw LANG kung TALAGANG naka-pin na ito
+  // (wala namang tatanggalin kung wala pa ito sa hotbar).
+  if (currentSlot !== null) {
+    const backBtn = document.createElement("button");
+
+    backBtn.type = "button";
+    backBtn.className = "hotkey-picker-back";
+    backBtn.textContent = "Back to inventory";
+    backBtn.addEventListener("click", () => {
+      unpinItemFromHotbar(itemId);
+      closeHotkeyPicker();
+    });
+
+    picker.appendChild(backBtn);
+  }
+
+  // Huwag hayaang makalusot ang pointerdown papunta sa bag item sa
+  // likod nito (mag-uumpisa iyon ng drag).
+  picker.addEventListener("pointerdown", (event) => event.stopPropagation());
+
+  document.body.appendChild(picker);
+
+  // Ipuwesto sa ilalim ng buton, pero PANATILIHIN sa loob ng screen -
+  // ang mga item sa kanang gilid ng bag ay lalabas sana sa labas ng
+  // viewport kung basta-basta lang isasalin ang left/top ng anchor.
+  const anchorRect = anchorEl.getBoundingClientRect();
+  const pickerRect = picker.getBoundingClientRect();
+  const margin = 6;
+
+  let left = anchorRect.left;
+  let top = anchorRect.bottom + 4;
+
+  if (left + pickerRect.width > window.innerWidth - margin) {
+    left = window.innerWidth - pickerRect.width - margin;
+  }
+
+  if (left < margin) left = margin;
+
+  if (top + pickerRect.height > window.innerHeight - margin) {
+    top = anchorRect.top - pickerRect.height - 4;
+  }
+
+  if (top < margin) top = margin;
+
+  picker.style.left = left + "px";
+  picker.style.top = top + "px";
+
+  hotkeyPickerEl = picker;
+
+  // `capture` - para mauna ito sa mga pointerdown handler ng bag item.
+  document.addEventListener("pointerdown", handleHotkeyPickerOutside, true);
+  document.addEventListener("keydown", handleHotkeyPickerKeydown, true);
+}
+
+// Kapareho ng openHotkeyPicker, pero PUNTO (x, y) sa screen ang anchor
+// sa halip na isang elemento - ginagamit ito ng "Hotkey" na buton sa
+// item action popup (mobile-slice.js), kung saan ang popup mismo ay
+// nawawala na bago pa mabuksan ito, kaya walang elementong maiaanchor.
+function openHotkeyPickerAt(itemId, x, y) {
+  openHotkeyPicker(itemId, {
+    getBoundingClientRect: () => ({
+      left: x,
+      right: x,
+      top: y,
+      bottom: y,
+      width: 0,
+      height: 0,
+    }),
+  });
+}
+
+// Ang maliit na buton mismo, ipinapasok sa isang bag item cell.
+function buildBagHotkeyButton(itemId) {
+  const slotIndex = getItemPinnedSlotIndex(itemId);
+
+  const btn = document.createElement("button");
+
+  btn.type = "button";
+  btn.className =
+    "bag-item-hotkey-btn" + (slotIndex !== null ? " bag-item-hotkey-btn-set" : "");
+  btn.textContent = slotIndex !== null ? String(slotIndex) : "+";
+  btn.title =
+    slotIndex !== null
+      ? "Hotkey " + slotIndex + " - click to move it or send it back to your inventory"
+      : "No hotkey yet - click to choose a slot (1-9)";
+
+  // Huwag paandarin ang drag ng bag item sa likod nito.
+  btn.addEventListener("pointerdown", (event) => {
+    event.stopPropagation();
+    event.preventDefault();
+  });
+
+  btn.addEventListener("dblclick", (event) => event.stopPropagation());
+
+  btn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openHotkeyPicker(itemId, btn);
+  });
+
+  return btn;
 }
 
 function pinItemToSlot(itemId) {
@@ -2202,6 +2587,12 @@ function adjustGlobalItemCount(itemId, delta) {
   else if (itemId === "stone") stoneCollected += delta;
   else if (itemId === "meat") meatCollected += delta;
   else if (itemId === "carrot") carrotsCollected += delta;
+  // AYOS (multi-crop, hiling ng user: "i add mo na rin yung mga ibang
+  // vegetables... buy/sell...pag drop at pag pick up") - PAREHONG-
+  // PAREHONG dahilan ng "carrot" sa itaas.
+  else if (itemId === "potato") potatoCollected += delta;
+  else if (itemId === "cabbage") cabbageCollected += delta;
+  else if (itemId === "eggplant") eggplantCollected += delta;
   else if (itemId === "gold") goldCollected += delta;
   else if (itemId === "torch") torchesCollected += delta;
   else if (itemId === "crafter") craftersCollected += delta;
@@ -4192,6 +4583,11 @@ function buildBagItemSlot(item, displayCount) {
       : getBagUnassignedCount(item.id);
 
   slot.appendChild(count);
+
+  // Ang maliit na hotkey na buton sa kanang-itaas (tingnan ang
+  // buildBagHotkeyButton) - dito diretsong napipili kung saang numbered
+  // slot (1-9) mapupunta ang item, o maibabalik ito sa inventory.
+  slot.appendChild(buildBagHotkeyButton(item.id));
 
   // Cooldown overlay - kaparehong-pareho ng ginagawa sa mga hotbar slot
   // (syncPinnedSlots) - lightgray na "takip" na unti-unting bumababa

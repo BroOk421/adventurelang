@@ -446,6 +446,19 @@ function getCurrentAtmosphereTintRGB() {
 // mas "natural"/hindi gaanong kapansin-pansin bilang isang eksaktong
 // bilog, pero TALAGANG may liwanag pa rin sa paligid ng torch.
 function drawDayNight() {
+  // AYOS (hiling ng user): may TAO sa silid (sa ngayon, si Maria sa
+  // Grocery - tingnan ang hasNpcLitInterior sa builder.js) - nananatili
+  // itong maliwanag KAHIT WALANG nakasinding lampara. Ang ibang silid
+  // ay madilim pa rin kung walang ilaw, gaya ng dati.
+  if (
+    typeof isIndoors === "function" &&
+    isIndoors() &&
+    typeof hasNpcLitInterior === "function" &&
+    hasNpcLitInterior()
+  ) {
+    return;
+  }
+
   if (
     typeof isIndoors === "function" &&
     isIndoors() &&

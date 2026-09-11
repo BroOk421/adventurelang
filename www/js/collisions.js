@@ -106,6 +106,15 @@ function canMoveTo(x, y) {
     if (oldManBox && isColliding(playerBox, oldManBox)) return false;
   }
 
+  // AYOS (hiling ng user: "lagyan mo sila ng collisions parang si
+  // oldman") - sina Maria/Joseph, habang nakatayo sa bahay/Grocery
+  // (tingnan ang getScheduledNpcCollisionBoxes, builder.js).
+  if (typeof getScheduledNpcCollisionBoxes === "function") {
+    if (getScheduledNpcCollisionBoxes().some((box) => isColliding(playerBox, box))) {
+      return false;
+    }
+  }
+
   if (typeof getPigCollisionBoxes === "function") {
     if (getPigCollisionBoxes().some((pigBox) => isColliding(playerBox, pigBox))) {
       return false;

@@ -4763,3 +4763,373 @@ kailangang i-adjust ang mga ito.
   4 points para sa Coffee Shop, 5 para sa Tavern; `drawCustomHouseLights()`
   ay gumuhit ng tumutugmang bilang ng arc; walang binago sa lahat ng
   ibang test (save/load, Building tab, WASD, atbp).
+
+### Entry #93 — Bagong "Tall" na Lot: mahaba at payat na Exterior (9x10 tile = 144x160 px), kaparehong 18x17 na Interior
+- **Files (binago):** `js/builder.js`
+- **Hiling ng user:** "may bago akong selection sa lot meron na kasing
+  160x128 or 10x8 gusto ko naman dagdagan mo pa ng mas mahaba at payat
+  na selection na 135x150 sa lot tapos sa exterior ganun din 135x150
+  pero sa interior 18x17 parin"
+- **MAHALAGANG TANDAAN (bakit hindi 135x150):** `TILE_SIZE = 16`, at
+  ang 135/150 ay HINDI divisible sa 16 (8.4375 at 9.375 na tile) - naka-
+  tile grid ang LAHAT (placement clamp, `isBuilderFootprintFree`, notch
+  ng pintuan, `getBuilderExteriorCollisionBoxes`, at ang EXACT na pixel
+  match na hinihingi sa pag-upload ng Exterior PNG), kaya masisira ang
+  alignment kung pipilitin. Ang PINAKAMALAPIT na tile-aligned na sukat
+  na may EKSAKTONG parehong ratio (135:150 = 0.9) ay **9x10 na tile =
+  144x160 px** - ito ang pinili ng user at siyang ginamit.
+- **Pagbabago sa estruktura:** dating FIXED sa 10x8 ang Exterior ng
+  LAHAT ng tier (Entry #57, `BUILDER_EXTERIOR_TILES_WIDE/TALL`). Ngayon,
+  may SARILING `exteriorTilesWide`/`exteriorTilesTall` na ang bawat entry
+  ng `BUILDER_LOT_SIZES`; ang lumang 2 constant ay naging DEFAULT/
+  fallback na lang, kinukuha sa bagong `getBuilderExteriorSize(source)`
+  (tumatanggap ng lot tier, naitayo NANG bahay, o template).
+- **Bagong tier:** `{ id: "tall", label: "Tall", exteriorTilesWide: 9,
+  exteriorTilesTall: 10, interiorTilesWide: 18, interiorTilesTall: 17,
+  price: 1400 }` - mas MAKITID at mas MATAAS sa labas, pero KAPAREHONG-
+  PAREHO ang loob ng "Extra Large" (18x17 na bukas na sahig = 20x20 na
+  PADDED na Interior Template, 320x320 px), kaya PUWEDENG gamitin dito
+  ang mga Interior artwork na iginuhit para sa Extra Large.
+- **Nasaan ang mga edit:**
+  - `openBuilderMapPicker()` - isang `lotExterior` na lang ang kinukuha
+    sa itaas, ginagamit ng header text, `clampLotAnchor()`, LAHAT ng 3
+    na `isBuilderFootprintFree()` call, ang dina-drag na preview box, at
+    ang bagong `house` object (`tilesWide`/`tilesTall`, dagdag pa ang
+    `lotSizeId`/`exteriorTilesWide`/`exteriorTilesTall` para sa save).
+  - `renderBuilderLotsTab()` - per-row na ngayon ang ipinapakitang
+    Exterior px/tiles (dating hardcoded na "(fixed)"), at binago ang
+    intro para banggitin ang exception na "Tall".
+  - `getBuilderTemplateFit()` - DAGDAG na check sa EXTERIOR footprint.
+    Dati, INTERIOR lang ang sinusuri (ligtas noon dahil pare-pareho ang
+    10x8). Kung hindi ito idinagdag, "kasya" sana ang Coffee Shop/Tavern
+    sa isang Tall na Lot (18x17 din ang interior nila) pero MAUUNAT ang
+    160x128 nilang exterior PNG papuntang 144x160. Binigyan din ng
+    tahasang `exteriorTilesWide: 10`/`exteriorTilesTall: 8` ang dalawang
+    template.
+- **Hindi na kailangang baguhin (kusang sumunod):** ang buong Exterior/
+  Interior tab (template download + upload validation) ay matagal nang
+  bumabasa ng `house.tilesWide`/`tilesTall` sa halip na ang constant -
+  kaya AWTOMATIKO nang 144x160 px ang hinihinging Exterior PNG para sa
+  isang Tall na Lot. Generic din ang `getBuilderDoorwayInfo()`/
+  `getBuilderFootprintCollisionBoxes()`/`clipBuilderBoxesToSolidRows()`,
+  kaya tama pa rin sila sa 9 (odd) na lapad at 10 na taas.
+- **Backwards-compatible:** ang mga LUMANG naka-save na bahay (walang
+  `exteriorTilesWide/Tall`) ay nahuhulog sa 10x8 na fallback ng
+  `getBuilderExteriorSize()` - walang mababago sa kanila, kasama na ang
+  pagiging kasya nila sa Coffee Shop/Tavern.
+- **VERIFIED (script, Node harness sa `builder.js`):** 5 tier na
+  (`small,medium,large,xlarge,tall`); Tall = 9x10 tile / 144x160 px na
+  Exterior at 18x17 na Interior (20x20 = 320x320 px na padded template);
+  ang 4 na lumang tier ay 10x8 pa rin; tama ang fallback para sa lumang
+  bahay; kasya ang pintuan sa loob ng 9x10 na footprint (col 3-4, row 9)
+  at nasa loob ng 144x160 ang lahat ng 3 collision box, walkable pa rin
+  ang itaas na 2 row; kasya pa rin ang Coffee Shop sa Extra Large at sa
+  lumang bahay, PERO TINATANGGIHAN na sa Tall.
+
+### Entry #94 — Bagong Building Template: "Grocery" at "Garden House" (kasama ang taniman sa loob ng greenhouse)
+- **Files (binago):** `js/builder.js`, `js/dig.js`; bagong assets sa
+  `www/assets/builder-templates/` (grocery-exterior.png,
+  grocery-interior.png, gardenhouse-exterior.png,
+  gardenhouse-interior.png, gardenhouse-dig.png).
+- **Hiling ng user:** dalawang bagong Building template (kasunod ng
+  Coffee Shop/Tavern, Entry #88-89) - Grocery (Extra Large na tier,
+  exterior 10x8=160x128px) at Garden House (Tall na tier, exterior
+  9x10=144x160px), pareho 18x17 na open interior floor.
+- **Garden House - PANSARILING kapal ng pader:** hindi tulad ng ibang
+  template (default `BUILDER_INTERIOR_WALL_THICKNESS = {top:2,
+  bottom:1,left:1,right:1}`), ang Garden House ay may sariling
+  `interiorWallThickness: {top:5, bottom:1, left:2, right:2}` (VERIFIED
+  laban sa screenshot ng user) - `interiorTilesWide:16,
+  interiorTilesTall:14` na open floor, kaya PAREHONG 20x20 na PADDED
+  na silid (320x320px) tulad ng default na 18x17+{2,1,1,1}. Bagong
+  function `getBuilderInteriorWallThickness(source)` - kinukuha ang
+  `source.interiorWallThickness` kung meron, kung wala, DEFAULT
+  constant. `getBuilderTemplateFit()` ay sumusuri na sa PADDED na
+  sukat (hindi na OPEN na sahig), dahil dalawang magkaibang kapal ng
+  pader ay puwedeng magkaparehong PADDED na resulta.
+- **CRITICAL BUG na natuklasan at naayos:** ang interior geometry
+  (`interiorTilesWide/Tall` + `interiorWallThickness`) ay ISINUSULAT
+  LANG sa `house` object sa SANDALING ITAYO (`applyBuilderTemplateToHouse`)
+  - kaya ang isang bahay na NAKA-SAVE NA BAGO pa nagbago ang geometry ng
+  template (hal. Garden House bago pa ang custom wall thickness) ay
+  MANANATILI sa LUMANG geometry, habang ang ARTWORK (path lang, hindi
+  kopya) ay AWTOMATIKONG nag-a-update - kaya nagkakabanggaan/naaapakan
+  ng player ang salamin sa itaas (2 row lang ang pader sa LUMANG data,
+  5 sa BAGONG artwork). **AYOS:** bagong
+  `normalizeCustomHouseTemplateGeometry(house)`, tinatawag sa BAWAT
+  `loadCustomHouses()` (kasabay ng `normalizeCustomHouseDoorPositions`)
+  - kinukuha ULIT ang geometry MISMO sa `getBuilderTemplateById()` kada
+  pag-load, kaya hindi na kailangang ibenta/itayong-muli ang mga bahay.
+  **ARAL:** kapag nagbago ang geometry ng isang EXISTING template
+  (wall thickness/interiorTilesWide/Tall/doorPosition), LAGING i-verify
+  na sinusunod ito ng normalizer, hindi lang ng bagong itatayo.
+- **Taniman sa loob ng Garden House LANG** (`dig.js`):
+  `template.plantableTileRects` (array ng `{col,row,width,height}`, sa
+  PADDED coordinate frame) - kinuha VERIFIED sa pamamagitan ng
+  pixel-diff (Python/PIL) ng `gardenhouse-interior.png` vs
+  `gardenhouse-dig.png` (ang mga TALAGANG NAGBABAGONG tile ang eksaktong
+  plantable area, hindi hula). `canDigAt()` ay may BUTAS na (dating
+  "walang mahuhukay sa loob ng bahay") - `isBuilderPlantableTile(world,
+  col,row)` (builder.js) ang tanging pumapayag: TANGING sa loob ng
+  Garden House AT sa loob ng eksaktong `plantableTileRects`.
+  `updateGroundWeather()` - MAY BUTAS DIN: `indoorWorld` check, hindi
+  kailanman namamatay sa niyebe ang tanim sa loob (greenhouse effect,
+  hiling ng user). Ang HINUKAY na artwork mismo (`gardenhouse-dig.png`)
+  ang ginuguhit PER-TILE (16x16 crop sa eksaktong posisyon) sa halip na
+  generic na dirt/wet-dirt tileset - `drawDugArtTile()` helper sa
+  `drawDugTiles()`, dahil `tilesets: []` ang synthetic interior TMJ
+  (`buildSyntheticInteriorTmj`), walang normal na tileset gid na
+  magagamit doon.
+- **Occupied lot lock (sabay na hiling):** kapag may Exterior AT
+  Interior na ang isang Lot (template man o custom upload) -
+  `isCustomHouseOccupied(house)` - LOCKED na: naka-disable ang row sa
+  Exterior/Interior tab AT sa Building template picker
+  (`builder-lot-row-disabled`), at panghuling depensa sa loob mismo ng
+  `applyBuilderTemplateToHouse`/dalawang upload handler (bumabalik ng
+  `false`/tahimik na tumatanggi). Kailangang IBENTA muna (80% refund,
+  `sellCustomHouse`) bago makapagtayo ng iba.
+- **VERIFIED (Node harness):** padded 20x20 laban sa 16x14+{5,1,2,2};
+  pintuan cols 9-10, row 19 (Garden House) at cols 9-10 row 19 (Grocery,
+  default thickness); plantableTileRects tumutugma sa screenshot ng
+  user (dalawang 5x6/6x7 na plot).
+
+### Entry #95 — Multi-crop na sistema: Potato/Cabbage/Eggplant bukod sa Carrot (plant/grow/harvest/buy/sell)
+- **Files (binago):** `js/dig.js`, `js/hotbar.js`, `js/inventory-save.js`,
+  `js/builder.js`; bagong assets sa `www/assets/vegetables/{carrots,
+  potato,cabbage,eggplant}/`.
+- **Hiling ng user:** "i add mo na rin yung mga ibang vegetables sa
+  list ni maria para magamit buy/sell at pag plant at pag grow pag drop
+  at pick up ng gamit papuntang inventory" - apat na presyo/tagal:
+  potato (buy20/sell15, 10min), cabbage (buy30/sell20, 16min), eggplant
+  (buy50/sell40, 28min = 7min/stage, MISMONG sinabi ng user), carrot
+  (lumang buy50/sell30, random 4-7min, HINDI ginalaw).
+- **MAHALAGANG DISCOVERY:** ang dating "carrot-only" na sistema ay may
+  ISANG piraso NANG generic (`dug[key].seed = {type, plantedAt, growMs}`
+  - `type` field ay NARITO NA MULA PA NOONG unang carrot implementation,
+  bagay na "naghihintay" para sa multi-crop) - ang `getCarrotProgress/
+  getCarrotStageIndex/isCarrotReady/shouldCarrotOverlapPlayer` ay LAHAT
+  gumagana lang sa `seed.growMs`/`seed.plantedAt`, HINDI sa anumang
+  CARROT-specific na constant - kaya HINDI na kailangang baguhin ang
+  mga function na ito, tama na sila (crop-agnostic na sila TALAGA mula
+  pa noon). Ang `harvestCarrot`/`destroyCarrot` ay GENERIC na rin
+  (basta `delete record.seed`, walang crop-specific na code).
+- **Bagong `CROP_TYPES` na talaan (`dig.js`):** `{ carrot, potato,
+  cabbage, eggplant }`, bawat isa `{ label, frameImages (4 Image()),
+  getCount() (function, LIVE reference sa counter variable),
+  getGrowMs() (function - random range para sa carrot, FIXED value
+  para sa 3 bago) }`. `getCropFrameImages(cropId)` - fallback sa carrot
+  frames kung hindi kilalang uri. Bagong counters:
+  `potatoCollected/cabbageCollected/eggplantCollected` (`let`, dig.js).
+- **Generalized functions (dig.js):**
+  - `getSelectedCropId()` - BAGO: kinukuha ang crop mula sa
+    `pinnedSlots[selectedInventorySlot]`, `null` kung wala/hindi crop.
+  - `isCarrotSlotSelected()` - PINANATILI ang PANGALAN (maraming
+    tumatawag sa buong codebase) pero GENERALIZED na (kahit anong crop,
+    hindi "carrot" lang).
+  - `canPlantCarrot()` - **PAGBABAGO NG SEMANTICS** (mahalagang ARAL):
+    DATING "basta may stock ng carrot, LAGING available KAHIT ANO ang
+    naka-highlight" (highlight = purong cosmetic). NGAYON: KAILANGAN
+    munang naka-highlight ang isang crop (`getSelectedCropId()`) AT may
+    stock - ito ang NAGPAPASYA kung ALIN sa 4 na crop ang itatanim.
+    KINAKAILANGAN ito ngayong may 4 na uri (dating 1 lang, walang
+    ambiguity). Ito rin ang eksaktong UX na hiniling ng user sa mas
+    naunang round ("gusto ko itanim gamit yung hotkey highlight").
+  - `plantCarrot(col,row)` - kinukuha na ngayon ang cropId via
+    `getSelectedCropId()`, ginagamit ang `CROP_TYPES[cropId].getGrowMs()`
+    (hindi na naka-hardcode sa CARROT_MIN/MAX_GROW_MS), decrement via
+    `adjustGlobalItemCount(cropId,-1)` + `consumeItemFromWherever`.
+  - `drawCarrotFrame(stageIndex,col,row,cropId)` - dagdag na 4th param,
+    pinipili ang tamang frame array via `getCropFrameImages(cropId)`.
+    DALAWANG call site (Y-sort overflow calc + `drawDugTiles`) - PAREHONG
+    kailangang magpasa ng `record.seed.type`.
+  - `handleHandClick` (harvest) - itinatabi ang `harvestedCropId =
+    record.seed.type` BAGO tawagin ang `harvestCarrot()` (na nag-a-alis
+    ng `record.seed`) - ginagamit sa `spawnGroundItem(...,
+    harvestedCropId,...)` sa halip na hardcoded na "carrot".
+- **hotbar.js:** `adjustGlobalItemCount()` - dagdag na 3 `else if` para
+  sa potato/cabbage/eggplant. `BAG_ITEMS` - 3 bagong entry (icon:
+  `./assets/vegetables/{crop}/{crop}.png`). `EDIBLE_ITEMS` - 3 bagong
+  entry (edible, may healAmount/foodAmount). `getFoodTooltipText()` -
+  ngayon tumitingin sa PAREHONG `OLDMAN_SHOP_ITEMS` AT
+  `MARIA_SHOP_ITEMS` para sa "Sell:" na presyo.
+- **ground-items.js: WALANG BINAGO** - ang generic na `else` branch ng
+  `drawGroundItems()` ay bumabasa na ng `BAG_ITEMS.icon` para sa
+  KAHIT ANONG item maliban sa carrot (na special-cased/legacy) - kaya
+  awtomatiko nang gumana ang potato/cabbage/eggplant sa lupa.
+- **inventory-save.js:** 3 bagong field sa `serializeInventoryState()`
+  (potato/cabbage/eggplant) + reset path + load path, kaparehong-pareho
+  ng carrot.
+- **Carrot icon MOVED** (matagal nang request, ngayon lang naisagawa):
+  `BAG_ITEMS.carrot.icon` at `CARROT_ICON_IMAGE.src` ay
+  `./assets/vegetables/carrots/carrot.png` na (dating
+  `./assets/assets/carrots.png`) - PAREHONG file, iba lang path.
+- **Maria's shop (`builder.js`, `MARIA_SHOP_ITEMS`):** apat na entry na
+  (buyPrice/sellPrice bawat isa). `buyFromMaria(itemId)` - generic via
+  `adjustGlobalItemCount`. `sellToMaria(itemId)` - BAGO, ibinebenta ang
+  BUONG STOCK (hindi 1 lang) kada tawag.
+- **VERIFIED (Node harness):** eggplant = eksaktong 7min/stage (28min
+  total); potato 2.5min/stage; cabbage 4min/stage; lahat ng vegetable
+  asset file ay VERIFIED na nasa disk sa tamang path bago i-reference.
+
+### Entry #96 — NPC "schedule" na sistema: Joseph/Maria may sariling bahay (mariaHouse/josephHouse), araw-araw na cycle papunta/pabalik sa Grocery
+- **Files (binago):** `js/builder.js` (pangunahing lokasyon ng LAHAT ng
+  NPC schedule logic), `js/map.js` (drawable wiring), `js/dig.js`
+  (rake/cutter interaction sa halaman), `js/atmosphere.js` (ilaw sa
+  Grocery), `js/decor.js` (Oldman collision box pattern na sinundan,
+  name label na tinanggal), `js/update.js` (frame-timer time-based),
+  `js/collisions.js` (NPC collision hook), `js/mobile-slice.js`
+  (Hotkey/Slice sa item action popup), `index.html` + `style.css`
+  (Maria shop panel markup, hotkey picker CSS).
+- **DISCOVERY - MAY BAHAY NA PALA SILA:** ang `mariaHouse`/`josephHouse`
+  ay BAHAGI NA ng 6 pre-made na bahay sa "town" (`worlds.js`,
+  `WORLDS.mariaHouse/josephHouse`, parehong gumagamit ng
+  `room_grassmap.tmj`) - MAY sarili nang DOORS entries papasok/palabas
+  (town-side entrance area + interior "Exit" notch, area {x:63,y:193,
+  width:39,height:31}, PAREHO sa LAHAT ng 6 bahay dahil parehong
+  tilemap). Ito ang ginamit, HINDI na kailangang gumawa ng bagong
+  silid.
+- **`getNpcSchedulePhase()` (dating `getGroceryWorkdayPhase`, RENAMED
+  buong codebase via sed) - PURONG kwenta mula sa oras
+  (`getGameNow()`), WALANG itinatabing estado:** 8 posibleng yugto,
+  chronological:
+  `atHome → leavingHome → approaching → walkingIn → atWork →
+  walkingOut → leaving → enteringHome → (atHome)`.
+  - `NPC_WORKDAY_START_HOUR=7`, `NPC_WORKDAY_END_HOUR=16.5` (4:30pm).
+  - `NPC_WALK_DURATION_MS=18000` (indoor Grocery, pintuan<->puwesto).
+  - `NPC_OUTDOOR_APPROACH_MS=15000` (labas ng Grocery, spawn<->pintuan).
+  - `NPC_HOME_WALK_DURATION_MS=10000` (loob ng SARILING bahay,
+    puwesto<->pintuan).
+  - Formula: `approachStartMs = startMs - approachMs`,
+    `homeLeaveStartMs = approachStartMs - homeWalkMs`, `leaveEndMs =
+    endMs + approachMs`, `homeEnterEndMs = leaveEndMs + homeWalkMs`.
+    VERIFIED (Node) walang overlap/gap sa buong 24-oras na cycle.
+- **Puntos (TILES, sa PADDED coordinate frame ng interior):**
+  `JOSEPH_COL/ROW = 8,4` (parehong ginagamit PARA SA JOSEPH_WORLD/
+  BAHAY AT sa Builder-access na puwesto niya - MATAGAL nang existing,
+  hindi ginalaw), `MARIA_HOME_COL/ROW = 8,4` (kaparehong-pareho ni
+  Joseph, parehong silid naman), `MARIA_SPOT_COL/ROW = 10,4` at
+  `JOSEPH_GROCERY_SPOT_COL/ROW = 13,4` (sa loob ng Grocery, 2-tile na
+  pagitan, hiling ng user).
+- **`HOUSE_DOOR_FOOT_POSITION = {x: 82.5, y: 224}`** - SHARED sa
+  LAHAT ng 6 bahay (parehong Exit notch). `getGroceryDoorFootPosition()`
+  - kinukuha MISMO sa geometry ng Grocery template (hindi hardcoded).
+- **Collision-safe na "L" na ruta (`buildGroceryWalkPath(doorPos,
+  spotX,spotY)`, PANSIN: generic na talaga kahit "Grocery" ang pangalan
+  - ginagamit din para sa paglalakad sa LOOB ng SARILING bahay, doorPos
+  na lang ang ipinapalit):** (1) DERETSONG PAITAAS mula sa pintuan,
+  eksaktong nasa X ng pintuan (laging nasa loob ng notch habang nasa
+  taas ng pader), (2) PAHALANG papunta sa puwesto, SAKA lang (matapos
+  lumampas sa pader, kung saan bukas na ang buong sahig). GARANTISADONG
+  ligtas KAHIT ANONG puwesto/pintuan (VERIFIED via Node, kasama
+  precise room_grassmap.tmj at Grocery template collision geometry).
+  `getPointAlongPath(points,t)` - PANTAY na bilis sa magkabilang
+  segment (batay sa TALAGANG haba). `getWalkDirectionFromDelta(dirX,
+  dirY)` - up/down/left/right base sa TALAGANG galaw (hindi na basta
+  "up palagi").
+- **`drawHomeNpc`/`drawScheduledGroceryNpc`** - IISANG shared function
+  bawat konteksto (bahay/grocery), ginagamit ng PAREHONG Maria at
+  Joseph (parehong iskedyul, magkaibang puwesto/frameOffset lang).
+- **Placeholder character (WALANG sariling art pa sina Maria/Joseph):**
+  `drawNpcIdleCharacter(feetX,feetY,frameOffset,direction="down")` -
+  gumagamit ng FRONT/BACK/LEFT/RIGHT idle sprite ng PLAYER MISMO
+  (`sprites.idle[direction]`, assets.js) - GENERALIZED (dating "down"
+  lang hardcoded) para sa 4-direction na hiling. May SARILING orasan
+  (`NPC_IDLE_FRAME_MS=160`, time-based, HINDI freeze gaya ng player's
+  own idle frame 0). `drawNpcWalkCharacter` - kaparehong-pareho, gamit
+  ang `sprites.walk[direction]` (10 frame up/down, 7 left/right).
+  **Shadow EXACT MATCH sa `drawPlayerShadow` (player.js):**
+  `shadowWidth = width*0.3`, shadow center Y = `boxY + height *
+  PLAYER_FOOT_RATIO` (51/64) - HINDI ang buong ilalim ng box (may
+  blangkong puwang sa ilalim ng sprite art). **ARAL:** kung gagawa pa
+  ng ibang "katulad-ng-player na character" balang araw, KOPYAHIN ang
+  EKSAKTONG formula na ito, huwag mag-imbento ng sariling offset.
+- **Si JOSEPH sa `josephHouse` - MAHALAGANG DESISYON:** ang Builder-
+  access na Joseph ay DATING LAGING naka-guhit doon (walang pakialam
+  sa oras). NGAYON, TANGING kapag `atHome`/`leavingHome`/`enteringHome`
+  (`getJosephDrawables()`, `isPlayerNearJoseph()` parehong nag-che-check
+  ng phase) - kapag `atWork` (nasa Grocery), WALANG makikita sa
+  josephHouse. Ang bersyon niya sa Grocery
+  (`getJosephGroceryDrawables`, HIWALAY na function) ay may SARILING
+  "E" (`isPlayerNearJosephAtGrocery`) na BINUBUKSAN ang PAREHONG
+  Builder panel (`openBuilderPanel()`) - kaya PANATAG pa ring
+  accessible ang Builder feature halos buong araw (either sa bahay
+  BAGO 7am/PAGKATAPOS 4:30-52pm, o sa Grocery sa pagitan), MALIBAN sa
+  maiikling "transit" window (~78 segundong totoong oras kada araw).
+  **ARAL:** kung babaguhin pa ang schedule timing, TIYAKIN na hindi
+  masyadong humaba ang "transit gap" na WALANG access sa Builder sa
+  ALINMANG lokasyon.
+- **"E" para kina Maria/Joseph sa Grocery** - TANGING kapag `atWork`
+  (nakatayo na, hindi habang naglalakad) - `isPlayerNearMaria()`/
+  `isPlayerNearJosephAtGrocery()`. Naka-wire sa `dig.js`
+  (`getUsableStructureUnderPlayer` candidates list, "maria"/
+  "josephGrocery" na types) at `update.js` (dispatch: Maria ->
+  `openMariaShopPanel()`, Joseph -> `openBuilderPanel()`).
+- **Ilaw sa Grocery kapag may tao (`atmosphere.js`,
+  `hasNpcLitInterior()`):** LOCKED sa TATLONG "totoong nasa loob" na
+  phase LANG (`walkingIn`/`atWork`/`walkingOut`) - **BUG na naayos**:
+  dating kasama pa ang `approaching`/`leaving` (SA LABAS pa sila
+  noon!), na nagre-resulta sa Grocery na naiilawan KAHIT WALA PANG
+  TALAGANG NAKAPASOK - naayos, tanging ang 3 indoor phase na lang.
+  Ilaw na ito ay HIWALAY na dahilan (bukod sa nakasinding lampara,
+  `hasLitPlacedLightInCurrentWorld`) para i-skip ang `drawDayNight()`
+  na multiply-tint.
+- **Name label sa ulo:** IDINAGDAG muna (`drawNpcNameLabel`, may
+  border, lumalabas sa loob ng ~3 tile) - PAGKATAPOS TINANGGAL (hiling
+  ng user, "alisin mo na yung mga label nila"). Function mismo ay
+  IINIWAN (hindi tinanggal, harmless kung hindi tinatawag) - kung
+  kailanganin ulit balang araw, `drawNpcNameLabel(feetX,feetY,text,
+  headHeight?)` na lang tatawagin.
+- **Collision boxes (Entry #97, sabay itong isinama dito para sa
+  konteksto):** `getScheduledNpcCollisionBoxes()` - kaparehong sukat/
+  pattern ng `getOldManCollisionBox` (`TILE_SIZE*0.6 x 0.4`, naka-
+  anchor sa paanan) - naka-wire sa `collisions.js` `canMoveTo()`.
+  **SINASADYANG LIMITADO** sa `atHome`/`atWork` LANG (HINDI habang
+  naglalakad) - dahilan: maliliit ang mga silid, baka ma-"sandwich"
+  ang player sa isang sulok habang dumaraan ang NPC sa FIXED na
+  ruta kung may collision pa rin habang gumagalaw.
+- **KILALANG LIMITASYON (EXPLICIT NA SINABI SA USER, HINDI IPINATUPAD):**
+  ang paglalakad sa PAGITAN ng "town" (kinaroroonan ng mga bahay) at
+  "grassmap"/"grassmap2" (kinaroroonan ng Grocery, `BUILDER_PLACEABLE_
+  WORLDS`) ay HINDI ipinatupad - MAGKAIBANG mundo ito, ipinagdurugtong
+  lang ng isang "auto:true" na gate (`worlds.js`: "Grass Path"/"Town"
+  na pares, town area {x:395,y:0,w:50,h:50} <-> grassmap area {x:75,
+  y:635,w:50,h:50}). **BAKIT HINDI IPINATUPAD (VERIFIED, hindi hula):**
+  na-inspect ang `town.tmj` Collisions layer via Python/JSON parse -
+  **napakadense at hindi regular** (150+ magkakahiwalay na obstacle/
+  bahay/bakod) - isang straight-line o simpleng "L" na ruta mula sa
+  bahay ni Maria/Joseph papunta sa gate ay MALAKING TSANSANG dadaan sa
+  loob ng gusali (halatang sira ang itsura). Ang "grassmap" naman ay
+  may RANDOM na scattered trees/rocks (resources.js) - kahit anong
+  fixed na ruta doon ay puwedeng ma-clip sa isang random na puno/bato.
+  **KUNG GUSTONG ITULOY PA ITO BALANG ARAW:** kailangan ng TUNAY na
+  A* pathfinding (gamit ang `collisions` array + `getObjectCells()`,
+  hindi lang mga fixed na waypoint) - malaking bagong sistema, HINDI
+  dapat subukang gawin gamit lang ng straight-line/L-shape na pattern
+  na ginamit sa loob ng mga silid (bagay na LIGTAS lang doon dahil
+  BUKAS/walang laman ang open floor).
+
+### Entry #97 — Oldman-style na UI para kay Maria (real panel, hindi floating div) + collision box (isinama sa Entry #96 details sa itaas)
+- **Files (binago):** `index.html` (bagong `#maria-shop-panel` markup,
+  EKSAKTONG istruktura ng `#oldman-shop-panel`), `style.css` (comma-
+  selector: dinagdagan ang LAHAT ng `#oldman-shop-panel*` na CSS rules
+  ng katumbas na `#maria-shop-panel*` na ID - hindi kinopya/dinoble ang
+  CSS, ISANG panel styling na lang), `js/builder.js`
+  (`openMariaShopPanel`/`syncMariaShopPanel`/`buildMariaShopCell`
+  ginawang muli, gamit ang totoong DOM elements sa halip na
+  dynamically-created floating `<div>`).
+- **Hiling ng user:** "gawin mo yung ui ng oldman kapag lumitaw yung
+  binibenta niya gawin mo yung kay maria yung pop up niya".
+- **Cell styling:** MURING gamit ang KLASE `.oldman-shop-cell` mismo
+  (hindi bagong klase) - kaya EKSAKTONG magkatugma ang laki/border/
+  hover ng cells nila Oldman at Maria. Icon via
+  `getShopItemIconHTML(itemId, fallbackIcon)` (decor.js, GENERIC na
+  function - gumagana na dahil nasa `BAG_ITEMS` na ang 4 na crop).
+- **DISCLOSED NA PAGKAKAIBA (hindi eksaktong parity, sinabi sa user):**
+  si Oldman ay drag-based (may quantity popup, `#oldman-buy-qty-popup`/
+  `#oldman-sell-qty-popup`) - si Maria ay CLICK = bumili ng 1,
+  RIGHT-CLICK (`contextmenu`, `preventDefault()`) = ibenta LAHAT ng
+  stock. Walang quantity picker - kung kailangan ding gawing eksaktong
+  drag-based, malaking dagdag na trabaho (kailangang gayahin ang buong
+  `hotbar.js` drop-target detection system, tingnan ang
+  `getDropTargetsAt`/`startOldManBuyDrag`/`startOldManSellFlow` sa
+  decor.js bilang reference kung ituloy balang araw).
